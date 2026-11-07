@@ -6,7 +6,7 @@ const r4 = (x) => (x == null ? null : Math.round(x * 1e4) / 1e4);
 for (const res of Object.values(results)) {
   delete res.schedule;
   res.rating = res.rating.map((x) => Math.round(x * 100) / 100);
-  res.teams.forEach((t) => { for (const k of ['cfp', 'bye', 'host', 'aq', 'champ', 'ccg', 'title', 'pNext', 'ifNext', 'ifLose', 'pOut', 'ifOut']) t[k] = r4(t[k]); if (t.seed != null) t.seed = Math.round(t.seed * 100) / 100; });
+  res.teams.forEach((t) => { for (const k of ['cfp', 'bye', 'host', 'aq', 'champ', 'ccg', 'title', 'pNext', 'ifNext', 'ifLose']) t[k] = r4(t[k]); if (t.seed != null) t.seed = Math.round(t.seed * 100) / 100; });
 }
 const json = JSON.stringify({ D, results }).replace(/<\//g, '<\\/');
 const html = rd('./page.src.html').replace('/*__ENGINE__*/', () => rd('./engine.js')).replace('"__DATA__"', () => json);

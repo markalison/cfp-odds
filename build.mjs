@@ -99,8 +99,8 @@ for (const mode of ['massey', 'sagarin', 'predictor', 'blend']) {
 writeFileSync(new URL('./data.json', import.meta.url), JSON.stringify({ D, results }));
 const R = results.massey, T = D.teams;
 const rows = R.teams.map((x, i) => ({ i, ...x })).sort((p, q) => q.cfp - p.cfp).slice(0, 34);
-console.log('team rec rank | cfp next out bye champ title seed');
-rows.forEach((x) => console.log(T[x.i].ab.padEnd(5), String(T[x.i].rank || '-').padStart(3), (x.cfp * 100).toFixed(1).padStart(6), (x.ifNext * 100).toFixed(1).padStart(6), (x.ifOut * 100).toFixed(1).padStart(6), (x.bye * 100).toFixed(1).padStart(6), (x.champ * 100).toFixed(1).padStart(6), (x.title * 100).toFixed(1).padStart(6), x.seed ? x.seed.toFixed(1) : '-', 'pOut', (x.pOut * 100).toFixed(1)));
+console.log('team rank | cfp next bye champ title seed');
+rows.forEach((x) => console.log(T[x.i].ab.padEnd(5), String(T[x.i].rank || '-').padStart(3), (x.cfp * 100).toFixed(1).padStart(6), (x.ifNext * 100).toFixed(1).padStart(6), (x.bye * 100).toFixed(1).padStart(6), (x.champ * 100).toFixed(1).padStart(6), (x.title * 100).toFixed(1).padStart(6), x.seed ? x.seed.toFixed(1) : '-'));
 const sum = R.teams.reduce((s, x) => s + x.cfp, 0);
 console.log('field total', sum.toFixed(2), 'games', D.games.length, 'played', D.games.filter((g) => g.s === 'post').length, 'titles', D.titles.length, 'fbs', D.fbs, 'total teams', T.length, 'sag', sag.length);
 void existsSync;

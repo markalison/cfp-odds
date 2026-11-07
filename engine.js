@@ -140,7 +140,8 @@ var CFP = (function () {
   }
 
   // ---------- Prepare one rating mode ----------
-  function prep(D, mode) {
+  // picks: { gameId: ESPN id of the team picked to win }
+  function prep(D, mode, picks) {
     var T = D.teams, n = T.length, fbs = D.fbs, R = new Float64Array(n), hfa = D.sources.hfa[mode] || 2.5;
     var masThru = D.sources.massey.thru, sagThru = D.sources.sagarin.thru;
     var total = Math.sqrt(M.gameSD * M.gameSD + 2 * M.teamSD * M.teamSD), i;
@@ -159,7 +160,7 @@ var CFP = (function () {
     var W0 = new Int16Array(n), L0 = new Int16Array(n), CW0 = new Int16Array(n), CL0 = new Int16Array(n);
     var H0 = new Int8Array(n * n), sosSum = new Float64Array(n), sosN = new Int16Array(n);
     var maxPairs = D.games.length + 40, pw = new Int16Array(maxPairs), pl = new Int16Array(maxPairs), np = 0;
-    var todoH = [], todoA = [], todoS = [], todoP = [], todoC = [], todoCur = [], todoF = [], todoLive = [], nextGame = new Int32Array(n).fill(-1), remainCount = new Int16Array(n), gameIdx = [];
+    var todoH = [], todoA = [], todoS = [], todoP = [], todoC = [], todoCur = [], todoF = [], todoLive = [], todoLock = [], nextGame = new Int32Array(n).fill(-1), remainCount = new Int16Array(n), gameIdx = [];
     D.games.forEach(function (g) {
       sosSum[g.h] += R[g.a]; sosN[g.h]++; sosSum[g.a] += R[g.h]; sosN[g.a]++;
       if (g.s === 'post') {
@@ -172,6 +173,8 @@ var CFP = (function () {
         todoH.push(g.h); todoA.push(g.a); todoS.push(sp); todoP.push(phi(sp / total)); todoC.push(g.c); gameIdx.push(g.id);
         var f = g.s === 'in' ? g.frac : 1, cur = g.s === 'in' ? g.hs - g.as : 0;
         todoCur.push(cur); todoF.push(f);
+        var pk = picks ? picks[g.id] : null;
+        todoLock.push(pk == null ? -1 : T[g.h].id === pk ? g.h : T[g.a].id === pk ? g.a : -1);
         todoLive.push(phi((cur + f * sp) / Math.sqrt(f * M.gameSD * M.gameSD + f * f * 2 * M.teamSD * M.teamSD)));
         if (nextGame[g.h] < 0) nextGame[g.h] = k;
         if (nextGame[g.a] < 0) nextGame[g.a] = k;
@@ -202,7 +205,7 @@ var CFP = (function () {
     }
     var P = {
       D: D, mode: mode, n: n, fbs: fbs, R: R, hfa: hfa, total: total, W0: W0, L0: L0, CW0: CW0, CL0: CL0, H0: H0, sos: sos, sosMean: sosMean,
-      pw: pw, pl: pl, np: np, tH: Int16Array.from(todoH), tA: Int16Array.from(todoA), tS: Float64Array.from(todoS), tP: Float64Array.from(todoP), tC: Uint8Array.from(todoC), tCur: Float64Array.from(todoCur), tF: Float64Array.from(todoF), tRootF: Float64Array.from(todoF.map(Math.sqrt)), tLive: Float64Array.from(todoLive), gameIdx: gameIdx,
+      pw: pw, pl: pl, np: np, tH: Int16Array.from(todoH), tA: Int16Array.from(todoA), tS: Float64Array.from(todoS), tP: Float64Array.from(todoP), tC: Uint8Array.from(todoC), tCur: Float64Array.from(todoCur), tF: Float64Array.from(todoF), tRootF: Float64Array.from(todoF.map(Math.sqrt)), tLive: Float64Array.from(todoLive), tLock: Int16Array.from(todoLock), gameIdx: gameIdx,
       nextGame: nextGame, remainCount: remainCount, titles: titles, isP4: isP4, isG6: isG6, ND: ND, anchor: new Float64Array(n)
     };
     computeAnchor(P);
@@ -264,7 +267,6 @@ var CFP = (function () {
     this.titleWin = new Int16Array(P.titles.length); this.inTitle = new Uint8Array(n);
     this.titleLoss = new Int16Array(n);
     this.orderArr = []; for (var i = 0; i < fbs; i++) this.orderArr.push(i);
-    this.lostRemaining = new Uint8Array(n);
   }
   Sim.prototype.g = function () {
     var x = this.s; x ^= x << 13; x ^= x >>> 17; x ^= x << 5; this.s = x;
@@ -295,16 +297,18 @@ var CFP = (function () {
     return bestT;
   };
 
-  // forced: team index that must win. forceMode: 1 = next game only, 2 = every game until the playoff.
-  Sim.prototype.run = function (forced, forceMode) {
+  // Picked games always go to the picked team. forced: team that must win its next game, or -1.
+  Sim.prototype.run = function (forced) {
     var P = this.P, n = P.n, fbs = P.fbs, m = P.tH.length, i, eps = this.eps, post = this.post, L = this.L, CW = this.CW, CL = this.CL, H = this.H, R = P.R;
     for (i = 0; i < n; i++) { eps[i] = P.R[i] === 0 ? 0 : this.g() * M.teamSD; post[i] = R[i]; }
     L.set(P.L0); CW.set(P.CW0); CL.set(P.CL0); H.set(P.H0);
-    this.tL.fill(0); this.champ.fill(0); this.lostRemaining.fill(0);
+    this.tL.fill(0); this.champ.fill(0);
     var np = P.np, pw = this.pw, pl = this.pl, nextOfForced = forced >= 0 ? P.nextGame[forced] : -1;
     for (var k = 0; k < m; k++) {
       var h = P.tH[k], a = P.tA[k], w;
-      if (forced >= 0 && (h === forced || a === forced) && (forceMode === 2 || k === nextOfForced)) {
+      if (P.tLock[k] >= 0) {
+        w = P.tLock[k];
+      } else if (k === nextOfForced) {
         w = forced;
       } else {
         w = P.tCur[k] + P.tF[k] * (P.tS[k] + eps[h] - eps[a]) + P.tRootF[k] * this.g() * M.gameSD > 0 ? h : a;
@@ -314,7 +318,6 @@ var CFP = (function () {
       L[l]++; H[w * n + l]++;
       if (P.tC[k]) { CW[w]++; CL[l]++; }
       pw[np] = w; pl[np] = l; np++;
-      this.lostRemaining[l] = 1;
       var sur = M.surprise * ((w === h ? 1 : 0) - P.tP[k]);
       post[h] += sur; post[a] -= sur;
     }
@@ -332,14 +335,12 @@ var CFP = (function () {
         // Non-neutral title games are hosted by the better conference record.
         var xh = tg.n ? 0 : ((CW[x] - CL[x]) >= (CW[y] - CL[y]) ? P.hfa : -P.hfa);
         var spr = R[x] - R[y] + xh;
-        if (forced >= 0 && forceMode === 2 && (x === forced || y === forced)) wt = forced;
-        else wt = spr + eps[x] - eps[y] + this.g() * M.gameSD > 0 ? x : y;
+        wt = spr + eps[x] - eps[y] + this.g() * M.gameSD > 0 ? x : y;
         var pe = phi(spr / P.total), sr = M.surprise * ((wt === x ? 1 : 0) - pe);
         post[x] += sr; post[y] -= sr;
         var lt = wt === x ? y : x;
         L[lt]++; this.tL[lt]++; H[wt * n + lt]++;
         pw[np] = wt; pl[np] = lt; np++;
-        this.lostRemaining[lt] = 1;
       }
       champs[wt] = 1;
       this.titleWin[i] = wt;
@@ -395,14 +396,13 @@ var CFP = (function () {
   function emptyTally(n) {
     return {
       sims: 0, cfp: new Int32Array(n), bye: new Int32Array(n), host: new Int32Array(n), aq: new Int32Array(n), champ: new Int32Array(n), ccg: new Int32Array(n),
-      title: new Int32Array(n), seedSum: new Float64Array(n), seedHist: new Int32Array(n * 12), nextW: new Int32Array(n), cfpNextW: new Int32Array(n),
-      out: new Int32Array(n), cfpOut: new Int32Array(n)
+      title: new Int32Array(n), seedSum: new Float64Array(n), seedHist: new Int32Array(n * 12), nextW: new Int32Array(n), cfpNextW: new Int32Array(n)
     };
   }
   function baseBatch(sim, tally, count) {
     var P = sim.P, n = P.n, inField = sim.inField || (sim.inField = new Uint8Array(n)), res = sim.res, i, t, c;
     for (c = 0; c < count; c++) {
-      var sd = sim.run(-1, 0);
+      var sd = sim.run(-1);
       inField.fill(0);
       tally.sims++;
       for (i = 0; i < 12; i++) {
@@ -416,7 +416,6 @@ var CFP = (function () {
         if (sim.inTitle[t]) tally.ccg[t]++;
         var ng = P.nextGame[t];
         if (ng >= 0 && res[ng] === t) { tally.nextW[t]++; if (inField[t]) tally.cfpNextW[t]++; }
-        if (!sim.lostRemaining[t]) { tally.out[t]++; if (inField[t]) tally.cfpOut[t]++; }
       }
       tally.title[sim.bracket()]++;
     }
@@ -426,8 +425,8 @@ var CFP = (function () {
     var jobs = [], T = P.D.teams;
     for (var t = 0; t < P.fbs; t++) {
       if (P.L0[t] > (P.isG6[t] ? 5 : 4)) continue;
-      if (P.nextGame[t] >= 0 && tally.nextW[t] < minSample) jobs.push({ t: t, m: 1 });
-      if (tally.out[t] < minSample) jobs.push({ t: t, m: 2 });
+      var ng = P.nextGame[t];
+      if (ng >= 0 && P.tLock[ng] < 0 && tally.nextW[t] < minSample) jobs.push({ t: t });
     }
     jobs.sort(function (a, b) { return (T[a.t].rank || 99) - (T[b.t].rank || 99); });
     return jobs;
@@ -435,7 +434,7 @@ var CFP = (function () {
   function forcedRun(sim, job, count) {
     var hits = 0, c, i;
     for (c = 0; c < count; c++) {
-      var sd = sim.run(job.t, job.m);
+      var sd = sim.run(job.t);
       for (i = 0; i < 12; i++) if (sd[i] === job.t) { hits++; break; }
     }
     return hits / count;
@@ -443,18 +442,16 @@ var CFP = (function () {
   function summarize(P, tally, forced, minSample) {
     var out = [], N = tally.sims, T = P.D.teams;
     for (var t = 0; t < P.fbs; t++) {
-      var ng = P.nextGame[t], nw = tally.nextW[t], ow = tally.out[t], f = forced[t] || {}, hist = [];
+      var ng = P.nextGame[t], nw = tally.nextW[t], f = forced[t], hist = [];
       for (var i = 0; i < 12; i++) hist.push(tally.seedHist[t * 12 + i]);
       var nl = N - nw;
       out.push({
         cfp: tally.cfp[t] / N, bye: tally.bye[t] / N, host: tally.host[t] / N, aq: tally.aq[t] / N, champ: tally.champ[t] / N, ccg: tally.ccg[t] / N, title: tally.title[t] / N,
         seed: tally.cfp[t] ? tally.seedSum[t] / tally.cfp[t] : null, hist: hist,
         pNext: ng >= 0 ? nw / N : null,
-        ifNext: ng < 0 ? null : nw >= minSample ? tally.cfpNextW[t] / nw : f.next != null ? f.next : 0,
+        ifNext: ng < 0 ? null : nw >= minSample ? tally.cfpNextW[t] / nw : f != null ? f : 0,
         ifLose: ng < 0 ? null : nl >= 200 ? (tally.cfp[t] - tally.cfpNextW[t]) / nl : null,
-        pOut: ow / N,
-        ifOut: ow >= minSample ? tally.cfpOut[t] / ow : f.out != null ? f.out : 0,
-        forcedNext: nw < minSample && f.next != null, forcedOut: ow < minSample && f.out != null
+        forcedNext: nw < minSample && f != null
       });
       void T;
     }
@@ -472,15 +469,13 @@ var CFP = (function () {
     }
     return out;
   }
-  function runAll(D, mode, sims, seed, forcedN, onProgress) {
-    var P = prep(D, mode), sim = new Sim(P, seed), tally = emptyTally(P.n), minSample = 800;
+  function runAll(D, mode, sims, seed, forcedN, picks) {
+    var P = prep(D, mode, picks), sim = new Sim(P, seed), tally = emptyTally(P.n), minSample = 800;
     baseBatch(sim, tally, sims);
     var jobs = forcedJobs(P, tally, minSample), forced = {};
     jobs.forEach(function (j) {
-      var v = forcedRun(sim, j, forcedN);
-      (forced[j.t] = forced[j.t] || {})[j.m === 1 ? 'next' : 'out'] = v;
+      forced[j.t] = forcedRun(sim, j, forcedN);
     });
-    if (onProgress) onProgress(1);
     return { sims: sims, mode: mode, teams: summarize(P, tally, forced, minSample), schedule: nextGames(P), rating: Array.prototype.slice.call(P.R.subarray(0, P.fbs)) };
   }
 
