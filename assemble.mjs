@@ -57,11 +57,10 @@ const HEADER = `<header class="site-header">
 const footer = (page) => `<footer class="site-footer">
   <div class="footer-inner">
     <div class="footer-brand">
-      <p class="footer-name">CFP Odds Board</p>
       <p>Playoff odds for the ${D.season} season, from simulating every remaining game and committee ranking.</p>
     </div>
     <nav aria-label="Footer">
-      <a class="footer-link" href="about.html"${page === 'about' ? ' aria-current="page"' : ''}>About these odds<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+      <a class="footer-link" href="about.html"${page === 'about' ? ' aria-current="page"' : ''}>About</a>
     </nav>
 ${page === 'odds' ? '    <div class="status footer-status" id="status" aria-live="polite"></div>\n' : ''}    <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
   </div>

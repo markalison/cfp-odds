@@ -127,7 +127,9 @@ input[type=search] { width: 100%; min-width: 0; }
 /* ---------- 7. Odds table ----------
    Fixed widths keep columns still when ratings or scores change. Phones show team, pick and Make CFP;
    the other columns appear from 900px, and the table scrolls sideways until it fits. */
-.table-wrap { overflow: auto; max-height: 82vh; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); transition: opacity .2s; }
+/* Phones: the table scrolls inside about half the screen, leaving room to scroll the page around it.
+   svh ignores the browser bar, so the height doesn't jump while scrolling; vh is the fallback. */
+.table-wrap { overflow: auto; max-height: 55vh; max-height: 55svh; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); transition: opacity .2s; }
 .table-wrap.busy { opacity: .55; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .odds-table { table-layout: fixed; }
@@ -180,9 +182,13 @@ tr.live-row > td:first-child { box-shadow: inset 3px 0 0 var(--down); }
 .mini button.pick-l, .mini button.pick-l:hover { background: var(--down); color: var(--panel); }
 .empty { padding: var(--s5); text-align: center; color: var(--muted); white-space: normal; }
 @media (min-width: 900px) {
+  .table-wrap { max-height: 82vh; }
   .odds-table { min-width: 1108px; }
   .odds-table .sec { display: table-cell; }
-  .c-team { width: 230px; } .c-rating { width: 84px; } .c-next { width: 220px; } .c-pick { width: 64px; } .c-cfp { width: 110px; }
+  .c-team { width: 230px; } .c-rating { width: 64px; } .c-next { width: 240px; }
+  /* Model rank: a narrow, centered column with its heading on two lines. */
+  th.c-rating { white-space: normal; text-align: center; }
+  .odds-table td.c-rating { text-align: center; } .c-pick { width: 64px; } .c-cfp { width: 110px; }
   .c-bye { width: 124px; } .c-seed { width: 92px; } .c-conf { width: 92px; } .c-title { width: 92px; }
   th { padding-inline: var(--s3); }
   td { padding: var(--s2) var(--s3); }
@@ -241,13 +247,16 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .live-group h3 { font-size: var(--text-sm); letter-spacing: .07em; color: var(--muted); }
 .live-note { font-size: var(--text-sm); color: var(--muted); }
 .live-note b { color: var(--ink); font-weight: 600; }
-.live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: var(--s3); }
+.live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: var(--s3); }
 .live-empty { padding: var(--s5); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); }
 .lg { display: grid; gap: var(--s2); align-content: start; padding: var(--s3) var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .lg-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); font-size: var(--text-sm); color: var(--muted); }
 .lg-top b { color: var(--ink); font-weight: 600; }
-.lg-rows { display: grid; grid-template-columns: minmax(0, 1fr) 34px 46px 64px; align-items: center; gap: var(--s1) var(--s2); }
-.lg-rows .h { font: 600 11px var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
+/* Finished games: team, score, (win), Make CFP. Games still to play (.wide) add Make CFP with a win and with a loss. */
+.lg-rows { display: grid; grid-template-columns: minmax(0, 1fr) 40px 46px 64px; align-items: center; gap: var(--s1) var(--s2); }
+.lg-rows.wide { grid-template-columns: minmax(0, 1fr) 36px 36px 56px 50px 50px; gap: var(--s1) 6px; }
+.lg-rows .h { align-self: end; font: 600 11px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
+.lg-rows.wide .lg-team small { display: block; white-space: nowrap; }
 .lg-team { display: flex; align-items: center; gap: var(--s2); min-width: 0; font: 600 var(--text-md)/1.1 var(--display); }
 .lg-team .logo { width: 22px; height: 22px; }
 .lg-team small { font: 500 var(--text-xs) var(--body); color: var(--muted); }
@@ -326,12 +335,11 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .site-footer { background: var(--panel); border-top: 1px solid var(--line); color: var(--muted); font-size: var(--text-sm); }
 .footer-inner { max-width: var(--page-max); margin: 0 auto; padding: var(--s6) var(--gutter-r) max(var(--s5), env(safe-area-inset-bottom, 0px)) var(--gutter-l); display: grid; gap: var(--s5); }
 .footer-brand { display: grid; gap: var(--s1); }
-.footer-name { font: 700 var(--text-lg)/1 var(--display); letter-spacing: .02em; text-transform: uppercase; color: var(--ink); }
-.footer-brand p:not(.footer-name) { max-width: 46ch; }
-.footer-link { justify-self: start; display: inline-flex; align-items: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s4); border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink); font: 600 var(--text-base)/1 var(--display); letter-spacing: .05em; text-transform: uppercase; text-decoration: none; }
-.footer-link svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.footer-link:hover { border-color: var(--accent); color: var(--accent); }
-.footer-link[aria-current="page"] { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.footer-brand p { max-width: 46ch; }
+/* A plain text link; the padding keeps a comfortable tap area without drawing a box. */
+.footer-link { justify-self: start; display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); font: 600 var(--text-base)/1 var(--display); letter-spacing: .05em; text-transform: uppercase; text-decoration: none; }
+.footer-link:hover { color: var(--accent); text-decoration: underline; }
+.footer-link[aria-current="page"] { color: var(--accent); }
 .footer-status { font-size: var(--text-xs); }
 .footer-fine { padding-top: var(--s4); border-top: 1px solid var(--line); font-size: var(--text-xs); }
 @media (min-width: 700px) {

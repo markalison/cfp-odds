@@ -60,14 +60,17 @@
   }
   function buildRows() {
     var R = res(), sc = schedule(), rows = [];
+    // Each team's place among all FBS teams in the selected model's ratings, 1 = highest.
+    var order = R.rating.map(function (v, i) { return i; }).sort(function (a, b) { return R.rating[b] - R.rating[a]; });
+    var modelRank = []; order.forEach(function (i, n) { modelRank[i] = n + 1; });
     for (var i = 0; i < D.fbs; i++) {
       var t = D.teams[i], r = R.teams[i], next = sc[i][0] || null;
-      rows.push({ i: i, t: t, r: r, rec: record(i), next: next, rating: R.rating[i], base: results[st.mode] && results[st.mode].teams[i] });
+      rows.push({ i: i, t: t, r: r, rec: record(i), next: next, rating: R.rating[i], modelRank: modelRank[i], base: results[st.mode] && results[st.mode].teams[i] });
     }
     return rows;
   }
   var COLS = {
-    team: function (x) { return x.t.rank || 200 - x.r.cfp; }, rating: function (x) { return x.rating; }, next: function (x) { return x.r.pNext == null ? -1 : x.r.pNext; },
+    team: function (x) { return x.t.rank || 200 - x.r.cfp; }, rating: function (x) { return x.modelRank; }, next: function (x) { return x.r.pNext == null ? -1 : x.r.pNext; },
     cfp: function (x) { return x.r.cfp; }, bye: function (x) { return x.r.bye; }, champ: function (x) { return x.r.champ; },
     seed: function (x) { return x.r.seed == null ? 99 : x.r.seed; }, title: function (x) { return x.r.title; }
   };
@@ -121,7 +124,7 @@
     // Fixed column widths live on these header classes. Columns marked sec are hidden on phones.
     $('head').innerHTML =
       th('team', 'CFP rank / team', 'first c-team') + '</th>' +
-      th('rating', 'Rating', 'c-rating sec') + '</th>' +
+      th('rating', 'Model rank', 'c-rating sec') + '</th>' +
       th('next', 'Next game', 'l c-next sec') + '</th>' +
       '<th class="pick c-pick">Pick</th>' +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
@@ -234,7 +237,7 @@
       var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
       var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first"><div class="teamcell"><span class="rk">' + (x.t.rank || '') + '</span>' + logo(x.t, 30) +
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span>' + shortNext(x) + '</span></div></td>' +
-        '<td class="sec">' + x.rating.toFixed(1) + '</td><td class="l sec">' + nextCell(x) + '</td>' +
+        '<td class="sec c-rating" title="Rating ' + x.rating.toFixed(1) + '">' + x.modelRank + '</td><td class="l sec">' + nextCell(x) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
         '<td><div class="odds"><span class="v" style="--p:' + x.r.cfp.toFixed(3) + '">' + pct(x.r.cfp) + '</span></div></td>' +
         '<td class="sec">' + pct(x.r.bye) + '</td><td class="sec">' + (x.r.seed ? x.r.seed.toFixed(1) : '—') + '</td>' +
@@ -387,16 +390,29 @@
   }
   function liveRow(g, i, score, other) {
     var t = D.teams[i], isFbs = i < D.fbs, r = isFbs ? res().teams[i] : null, nx = isFbs ? schedule()[i][0] : null;
-    var win = '';
-    if (g.s !== 'post') {
+    var done = g.s === 'post', win = '', ifW = null, ifL = null;
+    // A shaded odds tile, or a dash when there's no number.
+    function tile(v) { return v == null ? '<div class="lg-num">—</div>' : '<div class="lg-cfp" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; }
+    if (!done) {
       if (st.picks[g.id]) win = st.picks[g.id] === t.id ? 'Pick' : '';
       else if (nx && nx.id === g.id) win = Math.round(nx.p * 100) + '%';
       else win = '—';
+      // Make CFP odds if this team wins or loses this game. A picked game only has one outcome left.
+      var thisGame = r && nx && nx.id === g.id;
+      if (r && st.picks[g.id]) {
+        var pickedWin = st.picks[g.id] === t.id;
+        ifW = pickedWin ? r.cfp : null;
+        ifL = pickedWin ? null : r.cfp;
+      } else if (thisGame) {
+        ifW = r.ifNext; ifL = r.ifLose;
+      }
     }
+    // Finished games keep the original four columns; only games still to be decided get With W and With L.
     return '<div class="lg-team">' + logo(t, 22) + '<span>' + esc(t.ab || t.name) + (t.rank ? ' <small>No. ' + t.rank + '</small>' : '') + '</span></div>' +
       '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + score + '</div>' +
       '<div class="lg-num">' + win + '</div>' +
-      (r ? '<div class="lg-cfp" style="--p:' + r.cfp.toFixed(3) + '">' + pct(r.cfp) + '</div>' : '<div class="lg-num">—</div>');
+      tile(r ? r.cfp : null) +
+      (done ? '' : tile(ifW) + tile(ifL));
   }
   function liveCard(g) {
     var isLive = g.s === 'in', isPre = g.s === 'pre', stakes = gameStakes(g), why = '';
@@ -409,7 +425,8 @@
       isPre ? '<span>Kickoff</span><b>' + etTime(g.d) + ' ET</b>' : '<span class="final-pill">FINAL</span><span>Today</span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
       '<div class="lg-top">' + top + '</div>' +
-      '<div class="lg-rows"><span></span><span class="h"></span><span class="h">' + (isPre || isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span>' +
+      '<div class="lg-rows' + (isPre || isLive ? ' wide' : '') + '"><span></span><span class="h">' + (isPre ? '' : 'Score') + '</span><span class="h">' + (isPre || isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span>' +
+        (isPre || isLive ? '<span class="h">With W</span><span class="h">With L</span>' : '') +
         liveRow(g, g.a, isPre ? '' : g.as, isPre ? '' : g.hs) + liveRow(g, g.h, isPre ? '' : g.hs, isPre ? '' : g.as) +
       '</div>' + (why ? '<p class="lg-why">' + why + '</p>' : '') +
     '</article>';
@@ -610,7 +627,7 @@
     if (!b) return;
     if (b.dataset.sort) {
       var k = b.dataset.sort;
-      if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' ? 1 : -1; }
+      if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' || k === 'rating' ? 1 : -1; }
       st.lockOrder = null;
       renderTable();
     } else if (b.dataset.view) {
