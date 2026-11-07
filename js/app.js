@@ -249,7 +249,7 @@
   // st.bkPicks maps a game key (r1-0 ... f) to the seed the viewer picked to win it.
   function bracketRow(key, slot, opp, cls, chance, host) {
     if (slot.tbd) {
-      return '<div class="bk-team tbd"><span class="bk-seed"></span><span class="bk-ph" aria-hidden="true"></span><span class="bk-name">TBD<small>' + slot.tbd + '</small></span><span class="bk-p"></span></div>';
+      return '<div class="bk-team tbd"><span class="bk-seed"></span><span aria-hidden="true"></span><span class="bk-name">TBD<small>' + slot.tbd + '</small></span><span class="bk-p"></span></div>';
     }
     var inner = '<span class="bk-seed">' + slot.seed + '</span>' + logo(slot.x.t, 22) +
       '<span class="bk-name">' + esc(slot.x.t.name) + (host ? '<small>Home</small>' : '') + '</span><span class="bk-p">' + (chance == null ? '' : Math.round(chance * 100) + '%') + '</span>';

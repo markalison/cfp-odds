@@ -278,7 +278,6 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .bk-name small { margin-left: var(--s2); font: 600 10px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .bk-team.tbd { color: var(--muted); }
 .bk-team.tbd .bk-name small { display: block; margin: 0; font: 400 var(--text-xs)/1.2 var(--body); letter-spacing: 0; text-transform: none; overflow: hidden; text-overflow: ellipsis; }
-.bk-ph { width: 20px; height: 20px; margin: 1px; border: 1.5px solid var(--line); border-radius: 50%; }
 .bk-p { font-size: var(--text-sm); font-variant-numeric: tabular-nums; text-align: right; }
 .bk-lines { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: visible; }
 .bk-lines path { fill: none; stroke: var(--muted); stroke-opacity: .5; stroke-width: 1; }
