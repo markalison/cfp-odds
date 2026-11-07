@@ -1,10 +1,12 @@
 <title>CFP Odds Board</title>
+<script>try { var savedTheme = localStorage.getItem('cfp-theme'); if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.setAttribute('data-theme', savedTheme); } catch (e) {}</script>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
 /* Layout: a single operating board. Controls, projected field, then the full-width odds table, with method notes below. */
 :root {
+  color-scheme: light;
   --bg: #f4f5f8; --panel: #ffffff; --ink: #171a21; --muted: #5a6172; --line: #dde0e7;
   --accent: #1f4fd1; --accent-soft: #e3e9fb; --bar: #2f62e3; --bar-track: #e5e7ee; --up: #157a3c; --down: #b93a2c;
   --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
@@ -27,6 +29,7 @@ h1, h2 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: ba
 h1 { font-size: clamp(34px, 6vw, 50px); line-height: 1; text-transform: uppercase; }
 h2 { font-size: 22px; text-transform: uppercase; }
 header { display: grid; gap: 6px; }
+.title-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
 .lede { margin: 0; color: var(--muted); max-width: 70ch; }
 .status { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); }
 .status b { color: var(--ink); font-weight: 600; }
@@ -135,7 +138,10 @@ a { color: var(--accent); }
 
 <div class="wrap">
   <header>
-    <h1>CFP Odds Board</h1>
+    <div class="title-row">
+      <h1>CFP Odds Board</h1>
+      <button class="btn" id="theme" type="button"></button>
+    </div>
     <p class="lede">Each team's chance of making the 12-team College Football Playoff, from simulating every remaining game, conference title game and committee ranking.</p>
     <div class="status" id="status"></div>
   </header>
@@ -365,7 +371,8 @@ a { color: var(--accent); }
     $('status').innerHTML = '<span>' + liveMsg + '</span><span>' + left + ' games left' + (inp ? ', ' + inp + ' in progress' : '') + '</span>' +
       '<span>' + esc(D.rankLabel ? D.rankLabel.replace(/^.*- /, '') : 'CFP rankings') + '</span><span><b>' + res().sims.toLocaleString() + '</b> simulated seasons</span>';
   }
-  function renderAll() { renderStatus(); renderField(); renderTable(); }
+  function renderThemeButton() { $('theme').textContent = isDark() ? 'Switch to light' : 'Switch to dark'; }
+  function renderAll() { renderThemeButton(); renderStatus(); renderField(); renderTable(); }
 
   function renderModes() {
     $('modes').innerHTML = MODES.map(function (m) { return '<button type="button" data-mode="' + m[0] + '" aria-pressed="' + (st.mode === m[0]) + '">' + m[1] + '</button>'; }).join('');
@@ -444,7 +451,12 @@ a { color: var(--accent); }
       st.rowScenario[b.dataset.id] = b.dataset.scen; renderTable();
     } else if (b.dataset.open) {
       st.open[b.dataset.open] = !st.open[b.dataset.open]; renderTable();
-    } else if (b.id === 'rerun') { run(st.mode); }
+    } else if (b.id === 'rerun') { run(st.mode);
+    } else if (b.id === 'theme') {
+      var nextTheme = isDark() ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', nextTheme); // the observer below redraws the logos
+      try { localStorage.setItem('cfp-theme', nextTheme); } catch (x) {}
+    }
   });
   document.addEventListener('change', function (e) {
     var id = e.target.id;
