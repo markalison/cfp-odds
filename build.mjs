@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const CFP = require('./engine.js');
+import { SOURCES, canonical } from './ratings.mjs';
 
 const SIMS = +process.argv[2] || 40000;
 const SEASON = 2026;
@@ -25,8 +26,8 @@ const sagThru = thruM ? `${SEASON}-${months[thruM[1].toUpperCase()]}-${thruM[2].
 const hfaM = sagTxt.match(/HOME ADVANTAGE=\[\s*([\d.]+)\]/);
 const sag = [];
 for (const line of sagTxt.split('\n')) {
-  const m = line.match(/^\s*(\d+)\s+(.+?)\s+([A-Z]{1,2})\s+=\s+([\d.]+)\s+(\d+)\s+(\d+)\s+([\d.]+)\(\s*(\d+)\).*?\|.*?\|\s+([\d.]+)\s+\d+\s+\|/);
-  if (m) { const r = +m[1]; if (!sag.find((s) => s.name === m[2].trim())) sag.push({ name: m[2].trim(), rating: +m[4], predictor: +m[9], rank: r }); }
+  const m = line.match(/^\s*(\d+)\s+(.+?)\s+([A-Z]{1,2})\s+=\s+([\d.]+)\s+(\d+)\s+(\d+)\s+([\d.]+)\(\s*(\d+)\).*?\|.*?\|\s+([\d.]+)\s+\d+\s+\|\s+([\d.]+)\s+\d+\s+\|\s+([\d.]+)\s+\d+\s+\|\s+([\d.]+)\s+\d+/);
+  if (m) { const r = +m[1]; if (!sag.find((s) => s.name === m[2].trim())) sag.push({ name: m[2].trim(), rating: +m[4], predictor: +m[9], golden: +m[10], recent: +m[11], strong: +m[12], rank: r }); }
 }
 
 // ---------- Name matching ----------
@@ -67,7 +68,7 @@ function lookup(team, table) {
 const misses = [];
 parsed.teams.forEach((t, i) => {
   const mv = lookup(t, massey), sv = lookup(t, sagBy);
-  t.r = { massey: mv, sagarin: sv ? sv.rating : null, predictor: sv ? sv.predictor : null };
+  t.r = { massey: mv, sagarin: sv ? sv.rating : null, predictor: sv ? sv.predictor : null, golden: sv ? sv.golden : null, recent: sv ? sv.recent : null, strong: sv ? sv.strong : null };
   if (i < parsed.fbs && (mv == null || sv == null)) misses.push(`${t.name} massey=${mv} sagarin=${sv ? sv.rating : null}`);
 });
 if (misses.length) { console.error('UNMATCHED FBS:\n' + misses.join('\n')); }
@@ -79,7 +80,7 @@ const b = (N * sxy - sx * sy) / (N * sxx - sx * sx), a = (sy - b * sx) / N;
 const align = (sx - sy) / N;
 console.log(`rating fit massey = ${a.toFixed(2)} + ${b.toFixed(3)} * sagarin, mean offset ${align.toFixed(2)}, teams ${N}`);
 parsed.teams.forEach((t, i) => {
-  if (t.r.sagarin == null) { t.r.sagarin = 45; t.r.predictor = 45; }
+  if (t.r.sagarin == null) { t.r.sagarin = 45; t.r.predictor = 45; t.r.golden = 45; t.r.recent = 45; t.r.strong = 45; }
   if (t.r.massey == null) t.r.massey = a + b * t.r.sagarin;
   void i;
 });
@@ -88,13 +89,63 @@ const D = {
   ...parsed,
   season: SEASON,
   asOf: new Date().toISOString(),
-  sources: { massey: { thru: masThru }, sagarin: { thru: sagThru }, hfa: { massey: +(hfas.reduce((x, y) => x + y, 0) / hfas.length).toFixed(2), sagarin: +hfaM[1], predictor: +hfaM[1], blend: 2.5 }, align: +align.toFixed(3) }
+  sources: {
+    massey: { thru: masThru }, sagarin: { thru: sagThru },
+    hfa: { massey: +(hfas.reduce((x, y) => x + y, 0) / hfas.length).toFixed(2), sagarin: +hfaM[1], predictor: +hfaM[1], golden: +hfaM[1], recent: +hfaM[1], strong: +hfaM[1], blend: 2.5, all: 2.5 },
+    align: +align.toFixed(3),
+    thru: { massey: masThru, sagarin: sagThru, predictor: sagThru, golden: sagThru, recent: sagThru, strong: sagThru }
+  }
 };
+
+// ---------- Extra models, all placed on Massey's scale ----------
+const SAG = 'http://sagarin.com/sports/cfsend.htm';
+const models = [
+  { k: 'massey', label: 'Massey Power', group: 'Point-based', url: 'https://masseyratings.com/cf/fbs/ratings' },
+  { k: 'fpi', label: 'ESPN FPI', group: 'Point-based', url: 'https://www.espn.com/college-football/fpi' }
+];
+const fbsTeams = D.teams.slice(0, D.fbs);
+const stats = (v) => { const m = v.reduce((x, y) => x + y, 0) / v.length; return { m, sd: Math.sqrt(v.reduce((x, y) => x + (y - m) ** 2, 0) / v.length) }; };
+const corrWith = (idx, v) => { const a = idx.map((i) => D.teams[i].r.massey), sa = stats(a), sb = stats(v); return a.reduce((s, x, i) => s + (x - sa.m) * (v[i] - sb.m), 0) / (a.length * sa.sd * sb.sd); };
+const fpiJson = await j(`https://site.web.api.espn.com/apis/fitt/v3/sports/football/college-football/powerindex?season=${SEASON}&limit=200&region=us&lang=en`);
+CFP.applyFpi(D, fpiJson);
+const nameIndex = new Map(fbsTeams.map((t, i) => [canonical(t.name), i]));
+for (const s of SOURCES) {
+  try {
+    const { values, thru } = await s.load();
+    const idx = [], raw = [];
+    for (const [name, v] of Object.entries(values)) { const i = nameIndex.get(canonical(name)); if (i != null && !isNaN(v)) { idx.push(i); raw.push(v); } }
+    const seen = new Set(idx);
+    const missing = fbsTeams.filter((_, i) => !seen.has(i)).map((t) => t.name);
+    if (idx.length < D.fbs - 8) { console.error(`SKIPPED ${s.label}: only ${idx.length} teams matched. Missing: ${missing.join(', ')}`); continue; }
+    const ms = stats(idx.map((i) => D.teams[i].r.massey)), vs = stats(raw), slope = s.scale === 'fit' ? ms.sd / vs.sd : 1;
+    D.teams.forEach((t) => { t.r[s.k] = null; });
+    idx.forEach((i, n) => { D.teams[i].r[s.k] = +(ms.m + (raw[n] - vs.m) * slope).toFixed(2); });
+    D.sources.thru[s.k] = thru;
+    if (s.hfa) D.sources.hfa[s.k] = s.hfa;
+    models.push({ k: s.k, label: s.label, group: s.group, url: s.url, average: !!s.average });
+    console.log(`${s.label}: ${idx.length} teams, through ${thru}, correlation with Massey ${corrWith(idx, raw).toFixed(3)}, raw SD ${vs.sd.toFixed(2)}, Massey SD ${ms.sd.toFixed(2)}${missing.length ? ', missing ' + missing.join(', ') : ''}`);
+  } catch (e) { console.error(`SKIPPED ${s.label}: ${e.message}`); }
+}
+models.push(
+  { k: 'predictor', label: 'Sagarin Predictor', group: 'Point-based', url: SAG },
+  { k: 'sagarin', label: 'Sagarin Rating', group: 'Point-based', url: SAG },
+  { k: 'golden', label: 'Sagarin Golden Mean', group: 'Point-based', url: SAG },
+  { k: 'recent', label: 'Sagarin Recent', group: 'Recent form', url: SAG },
+  { k: 'strong', label: 'Sagarin Strong Recent', group: 'Recent form', url: SAG }
+);
+D.sources.models = models;
+// One rating per source, so a source with several variants doesn't count more than once.
+D.sources.consensus = ['massey', 'predictor', 'fpi'].concat(models.filter((m) => m.average).map((m) => m.k));
+console.log('All models average uses:', D.sources.consensus.join(', '));
+
 const results = {};
-for (const mode of ['massey', 'sagarin', 'predictor', 'blend']) {
+const T0 = (i) => D.teams[i].ab;
+for (const mode of ['blend', 'all'].concat(models.map((m) => m.k))) {
   const t0 = Date.now();
   results[mode] = CFP.runAll(D, mode, SIMS, 12345 + mode.length, 1000);
-  console.log(mode, 'done', ((Date.now() - t0) / 1000).toFixed(1) + 's');
+  const field = results[mode].teams.reduce((s, x) => s + x.cfp, 0);
+  const top = results[mode].teams.map((x, i) => [T0(i), x.cfp]).sort((p, q) => q[1] - p[1]).slice(0, 6).map((p) => `${p[0]} ${(p[1] * 100).toFixed(0)}`).join(', ');
+  console.log(mode.padEnd(10), ((Date.now() - t0) / 1000).toFixed(1) + 's', 'field', field.toFixed(2), '|', top);
 }
 writeFileSync(new URL('./data.json', import.meta.url), JSON.stringify({ D, results }));
 const R = results.massey, T = D.teams;

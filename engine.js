@@ -111,12 +111,42 @@ var CFP = (function () {
   }
 
   // Ratings are aligned by the build step to ESPN team order.
-  function ratingFor(team, mode, align) {
-    var r = team.r || {};
-    if (mode === 'massey') return r.massey;
-    if (mode === 'sagarin') return r.sagarin;
-    if (mode === 'predictor') return r.predictor;
-    return 0.5 * (r.massey + (r.predictor - align)); // Massey + Sagarin blend on Massey's scale
+  // A team a model doesn't cover, such as an FCS opponent, falls back to Massey.
+  function ratingFor(team, mode, sources) {
+    var r = team.r || {}, align = sources.align;
+    if (mode === 'blend') return 0.5 * (r.massey + (r.predictor - align)); // Massey + Sagarin on Massey's scale
+    if (mode === 'all') {
+      var sum = 0;
+      sources.consensus.forEach(function (k) {
+        var v = r[k];
+        sum += v == null ? r.massey : k === 'predictor' ? v - align : v;
+      });
+      return sum / sources.consensus.length;
+    }
+    return r[mode] == null ? r.massey : r[mode];
+  }
+
+  // Puts ESPN's FPI on Massey's scale. FPI is already in points, so only the average shifts.
+  function applyFpi(D, json) {
+    var byId = {}, sumF = 0, sumM = 0, n = 0, i;
+    (json.teams || []).forEach(function (x) {
+      var c = (x.categories || []).filter(function (k) { return k.name === 'fpi'; })[0];
+      if (c && typeof c.values[0] === 'number') byId[String(x.team.id)] = c.values[0];
+    });
+    for (i = 0; i < D.fbs; i++) {
+      var f = byId[D.teams[i].id];
+      if (f != null) { sumF += f; sumM += D.teams[i].r.massey; n++; }
+    }
+    if (n < D.fbs - 8) return false;
+    var shift = (sumM - sumF) / n;
+    D.teams.forEach(function (t, idx) {
+      var v = byId[t.id];
+      t.r.fpi = idx < D.fbs && v != null ? Math.round((v + shift) * 100) / 100 : null;
+    });
+    // ESPN's update time falls after that day's games, so results run through the day before.
+    var updated = Date.parse(json.lastUpdated);
+    D.sources.thru.fpi = new Date((isNaN(updated) ? Date.now() : updated) - 864e5).toISOString().slice(0, 10);
+    return true;
   }
 
   function phi(x) {
@@ -143,16 +173,16 @@ var CFP = (function () {
   // picks: { gameId: ESPN id of the team picked to win }
   function prep(D, mode, picks) {
     var T = D.teams, n = T.length, fbs = D.fbs, R = new Float64Array(n), hfa = D.sources.hfa[mode] || 2.5;
-    var masThru = D.sources.massey.thru, sagThru = D.sources.sagarin.thru;
+    var thru = D.sources.thru, used = mode === 'blend' ? ['massey', 'predictor'] : mode === 'all' ? D.sources.consensus : [mode];
     var total = Math.sqrt(M.gameSD * M.gameSD + 2 * M.teamSD * M.teamSD), i;
-    for (i = 0; i < n; i++) R[i] = ratingFor(T[i], mode, D.sources.align);
+    for (i = 0; i < n; i++) R[i] = ratingFor(T[i], mode, D.sources);
     // Games finished after the ratings were published still move the rating.
     // Kickoffs are UTC, so shift back 8 hours to get the US calendar day the sources use.
     D.games.forEach(function (g) {
       if (g.s !== 'post') return;
       var day = new Date(Date.parse(g.d) - 288e5).toISOString().slice(0, 10);
-      var newM = day > masThru, newS = day > sagThru;
-      var share = mode === 'massey' ? (newM ? 1 : 0) : mode === 'blend' ? ((newM ? 0.5 : 0) + (newS ? 0.5 : 0)) : (newS ? 1 : 0);
+      // The share of the models in use that haven't seen this result yet.
+      var share = used.filter(function (k) { return day > thru[k]; }).length / used.length;
       if (!share) return;
       var p = phi((R[g.h] - R[g.a] + (g.n ? 0 : hfa)) / total), res = g.w === g.h ? 1 : 0;
       R[g.h] += share * M.surprise * (res - p); R[g.a] -= share * M.surprise * (res - p);
@@ -480,7 +510,7 @@ var CFP = (function () {
   }
 
   return {
-    M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, parseEspn: parseEspn, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
+    M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, parseEspn: parseEspn, applyFpi: applyFpi, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
     forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi
   };
 })();

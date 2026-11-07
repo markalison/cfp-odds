@@ -59,8 +59,23 @@ input[type=search] { width: 170px; }
 .field-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
 .field-head p { margin: 0; color: var(--muted); font-size: 13px; }
 .seeds { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
-.seed { display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: baseline; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.seed { display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: baseline; width: 100%; font: inherit; color: var(--ink); text-align: left; cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
 .seed.bye { background: var(--accent-soft); border-color: transparent; }
+.seed:hover { border-color: var(--accent); }
+.seed:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seed[aria-expanded="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.field-detail { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; }
+.field-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.field-head .logo { width: 30px; height: 30px; }
+.field-team { display: flex; align-items: center; gap: 9px; margin-inline-end: auto; }
+.field-team b { display: block; font: 700 20px/1.1 var(--display); }
+.field-pick { display: flex; align-items: center; gap: 10px; }
+.field-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px 16px; margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.field-stats dt { font-size: 12px; color: var(--muted); }
+.field-stats dd { margin: 2px 0 0; font: 700 19px/1.1 var(--display); }
+.field-stats dd small { display: block; font: 400 12px/1.3 var(--body); }
+.field-stats small.up { color: var(--up); } .field-stats small.down { color: var(--down); }
+.field-detail .detail-inner { position: static; width: auto; }
 .seed .n { font: 700 13px var(--display); color: var(--muted); }
 .seed .ab { font: 700 20px/1.05 var(--display); }
 .seed .pc { grid-column: 2; font-size: 12px; color: var(--muted); }
@@ -96,19 +111,15 @@ th.first { z-index: 4; }
 .next { font-size: 14px; }
 .next small { display: block; font-size: 12px; color: var(--muted); }
 .live { font: 700 11px var(--display); letter-spacing: .06em; color: var(--down); }
-.odds { display: grid; gap: 3px; justify-items: end; min-width: 92px; }
-.odds .v { font: 700 19px/1 var(--display); }
-.bar { width: 100%; height: 5px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--bar); border-radius: 0 3px 3px 0; }
-.scen-cell { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
-.mini { display: flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.odds { display: grid; gap: 3px; justify-items: end; min-width: 72px; }
+/* The shade tops out at 55% of the blue so the number stays readable in both themes. */
+.odds .v { display: block; width: 72px; padding: 6px 8px; border-radius: 5px; text-align: right; font: 700 19px/1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
+th.pick, td.pick { text-align: center; }
+.mini { display: inline-flex; vertical-align: middle; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
 .mini button { font: 500 12px var(--body); padding: 3px 7px; background: transparent; border: 0; color: var(--ink); cursor: pointer; }
 .mini button[aria-pressed="true"] { background: var(--accent-soft); font-weight: 600; color: var(--accent); }
 .mini button:disabled { color: var(--muted); cursor: default; }
-.sv { min-width: 62px; text-align: right; }
-.sv b { display: block; font: 700 19px/1 var(--display); }
-.sv small { font-size: 12px; color: var(--muted); }
-.sv small.up, .odds small.up { color: var(--up); } .sv small.down, .odds small.down { color: var(--down); }
+.odds small.up { color: var(--up); } .odds small.down { color: var(--down); }
 .odds small { font-size: 12px; line-height: 1; }
 .mini button:hover:not(:disabled) { background: var(--accent-soft); }
 .mini button.pick-box { width: 30px; min-width: 30px; height: 28px; padding: 0; display: block; }
@@ -122,6 +133,13 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .detail-inner { display: flex; flex-wrap: wrap; gap: 18px 34px; padding: 14px 16px 18px; position: sticky; left: 0; width: min(100vw - 60px, 1100px); }
 .detail-inner > div { min-width: 0; flex: 1 1 250px; }
 .detail-inner h3 { margin: 0 0 7px; font: 600 14px var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.detail-inner .split { min-width: 0; width: 100%; margin: 0 0 8px; border-collapse: collapse; }
+.detail-inner .split th, .detail-inner .split td { position: static; padding: 1.5px 0 1.5px 14px; border: 0; background: transparent; text-align: right; }
+.detail-inner .split thead th { padding-bottom: 4px; border-bottom: 1px solid var(--line); font: 600 12px/1.15 var(--display); letter-spacing: .05em; color: var(--muted); }
+.detail-inner .split thead td { border-bottom: 1px solid var(--line); }
+.detail-inner .split tbody th { padding-left: 0; font: inherit; letter-spacing: normal; text-transform: none; color: var(--muted); text-align: left; white-space: normal; }
+.detail-inner .split tbody td { font-weight: 600; white-space: nowrap; }
+.detail-inner .split tbody tr:first-child > * { padding-top: 5px; }
 .kv { display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; margin: 0; }
 .kv dd { margin: 0; font-weight: 600; text-align: right; }
 .kv dt { color: var(--muted); }
@@ -161,14 +179,13 @@ a { color: var(--accent); }
 
   <div class="controls">
     <div class="ctl"><label for="mode">Ratings used</label><select id="mode"></select></div>
-    <div class="ctl"><label for="sims">Simulated seasons</label><select id="sims"><option value="10000">10,000</option><option value="25000">25,000</option><option value="40000" selected>40,000</option><option value="100000">100,000</option></select></div>
-    <button class="btn" id="rerun" type="button">Run again</button>
     <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="fill"></div></div><span id="progress-text"></span></div>
   </div>
 
   <section class="field" aria-label="Most likely field">
     <div class="field-head"><h2>Most likely field</h2><p id="field-note"></p></div>
     <div class="seeds" id="seeds"></div>
+    <div class="field-detail" id="field-detail" hidden></div>
     <div class="out" id="out"></div>
   </section>
 
@@ -211,7 +228,9 @@ a { color: var(--accent); }
         <li>Team logos come from ESPN and belong to their schools.</li>
         <li>In the team toggle, G5 means the six non-power conferences named in the playoff rules, including the Pac-12. Notre Dame is grouped with Power 4 and UConn with G5.</li>
         <li>FCS opponents without a rating use a low default, so those games are close to certain wins.</li>
-        <li>Odds marked &dagger; come from a separate run that forces that team to win, because too few normal simulations had it winning. Teams with 5+ losses (6+ outside the power conferences) don't get that run and can show a floor value.</li>
+        <li>Every model is shifted onto a common scale. FEI, Jeff Howell, Laz Index, Wolfe and Rothman don't publish point margins here, so their gaps are also stretched to match Massey's spread, which is an estimate. Sagarin's options keep Sagarin's scale. Teams a model doesn't rate use Massey.</li>
+        <li>Wolfe and Rothman use wins and losses only, so they're the weakest guide to margins. All models average leaves them out, along with Jeff Howell, whose conversion to points is the roughest, plus recent-form models and extra Sagarin variants. Each remaining source counts once.</li>
+        <li>FPI updates each time the page loads. Other models update when the page is rebuilt.</li>
       </ul>
       <p id="sources"></p>
     </section>
@@ -226,9 +245,10 @@ a { color: var(--accent); }
 (function () {
   'use strict';
   var embedded = JSON.parse(document.getElementById('cfp-data').textContent);
+  // 40,000 seasons gives about +/-0.5 points at 50% odds in roughly a second. More adds wait for little precision.
+  var SIMS = 40000;
   var D = embedded.D, results = embedded.results, simsNote = {};
-  var MODES = [['blend', 'Massey + Sagarin'], ['massey', 'Massey Power'], ['sagarin', 'Sagarin Rating'], ['predictor', 'Sagarin Predictor']];
-  var st = { mode: 'blend', picks: {}, sort: 'cfp', dir: -1, open: {}, conf: '', view: 'all', q: '', live: 'pending', running: false };
+  var st = { mode: 'blend', picks: {}, sort: 'rating', dir: -1, open: {}, conf: '', view: 'all', q: '', live: 'pending', running: false };
   var schedCache = {}, worker = null;
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -290,7 +310,7 @@ a { color: var(--accent); }
   }
   var COLS = {
     team: function (x) { return x.t.rank || 200 - x.r.cfp; }, rating: function (x) { return x.rating; }, next: function (x) { return x.r.pNext == null ? -1 : x.r.pNext; },
-    cfp: function (x) { return x.r.cfp; }, scen: function (x) { return x.r.ifNext == null ? -1 : x.r.ifNext; }, bye: function (x) { return x.r.bye; }, champ: function (x) { return x.r.champ; },
+    cfp: function (x) { return x.r.cfp; }, bye: function (x) { return x.r.bye; }, champ: function (x) { return x.r.champ; },
     seed: function (x) { return x.r.seed == null ? 99 : x.r.seed; }, title: function (x) { return x.r.title; }
   };
   // Notre Dame sits with the power conferences and UConn with the G5.
@@ -330,8 +350,8 @@ a { color: var(--accent); }
       th('team', 'CFP rank / team', 'first') + '</th>' +
       th('rating', 'Rating') + '</th>' +
       th('next', 'Next game', 'l') + '</th>' +
+      '<th class="pick">Pick</th>' +
       th('cfp', 'Make CFP') + '</th>' +
-      th('scen', 'If they win next') + '</th>' +
       th('bye', 'First-round bye') + '</th>' +
       th('seed', 'Avg seed') + '</th>' +
       th('champ', 'Win conf.') + '</th>' +
@@ -355,21 +375,17 @@ a { color: var(--accent); }
   }
   function pickCell(x) {
     if (!x.next) return '\u2014';
-    var pk = st.picks[x.next.id], won = pk === x.t.id, lost = !!pk && !won, value, delta;
-    if (pk) {
-      // The game is decided, so these are the team's odds with that result.
-      delta = x.base ? x.r.cfp - x.base.cfp : 0;
-      value = '<b>' + pct(x.r.cfp) + '</b>' + (Math.abs(delta) < 0.005 ? '<small>no change</small>' : pts(delta));
-    } else {
-      var v = x.r.ifNext;
-      delta = v == null ? null : v - x.r.cfp;
-      value = '<b>' + pct(v) + (x.r.forcedNext ? '\u2020' : '') + '</b>' + (delta == null ? '' : Math.abs(delta) < 0.005 ? '<small>no change</small>' : pts(delta));
-    }
+    var pk = st.picks[x.next.id], won = pk === x.t.id, lost = !!pk && !won;
     var label = won ? x.t.name + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + '. Press to pick a win';
-    return '<div class="scen-cell"><div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(x.next.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(D.teams[x.next.o].id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></div>' +
-      '<div class="sv">' + value + '</div></div>';
+    return '<div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(x.next.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(D.teams[x.next.o].id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></div>';
   }
   function detail(x) {
+    return '<tr class="detail"><td colspan="9">' + detailBody(x) + '</td></tr>';
+  }
+  function splitRow(label, make) {
+    return '<tr><th scope="row">' + label + '</th><td>' + pct(make) + '</td><td>' + pct(make == null ? null : 1 - make) + '</td></tr>';
+  }
+  function detailBody(x) {
     var sc = schedule()[x.i], R = x.r, hist = R.hist, maxH = Math.max.apply(null, hist.concat(1)), N = res().sims;
     var lines = sc.map(function (g) {
       var o = D.teams[g.o];
@@ -380,18 +396,19 @@ a { color: var(--accent); }
       return '<div title="' + label + '" aria-label="' + label + '"><i style="height:' + (h / maxH * 100).toFixed(1) + '%"></i></div>';
     }).join('');
     var xs = hist.map(function (_, i) { return '<span>' + (i + 1) + '</span>'; }).join('');
-    return '<tr class="detail"><td colspan="9"><div class="detail-inner">' +
+    return '<div class="detail-inner">' +
       '<div><h3>Regular season left (chance to win)</h3><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
-      '<div><h3>What moves the odds</h3><dl class="kv">' +
-        '<dt>' + (hasPicks() ? 'With your picks' : 'Today') + '</dt><dd>' + pct(R.cfp) + '</dd>' +
-        '<dt>If they win next game</dt><dd>' + pct(R.ifNext) + '</dd>' +
-        '<dt>If they lose next game</dt><dd>' + pct(R.ifLose) + '</dd>' +
+      '<div><h3>What moves the odds</h3><table class="split"><thead><tr><td></td><th scope="col">Make CFP</th><th scope="col">Miss CFP</th></tr></thead><tbody>' +
+        splitRow(hasPicks() ? 'With your picks' : 'Today', R.cfp) +
+        splitRow('If they win next game', R.ifNext) +
+        splitRow('If they lose next game', R.ifLose) +
+      '</tbody></table><dl class="kv">' +
         (x.t.conf === 'ind' ? '' : '<dt>Reach conference title game</dt><dd>' + pct(R.ccg) + '</dd>') +
         '<dt>Earn an automatic bid</dt><dd>' + pct(R.aq) + '</dd>' +
         '<dt>Host a first-round game</dt><dd>' + pct(R.host) + '</dd>' +
       '</dl></div>' +
       '<div><h3>Seed distribution, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
-    '</div></td></tr>';
+    '</div>';
   }
   function renderTable() {
     head();
@@ -402,18 +419,42 @@ a { color: var(--accent); }
       var r = '<tr><td class="first"><div class="teamcell"><span class="rk">' + (x.t.rank || '') + '</span>' + logo(x.t, 30) +
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span></span></div></td>' +
         '<td>' + x.rating.toFixed(1) + '</td><td class="l">' + nextCell(x) + '</td>' +
-        '<td><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span><div class="bar"><i style="width:' + (x.r.cfp * 100).toFixed(1) + '%"></i></div>' + (hasPicks() && x.base && Math.abs(x.r.cfp - x.base.cfp) >= 0.005 ? pts(x.r.cfp - x.base.cfp) : '') + '</div></td>' +
-        '<td>' + pickCell(x) + '</td><td>' + pct(x.r.bye) + '</td><td>' + (x.r.seed ? x.r.seed.toFixed(1) : '—') + '</td>' +
+        '<td class="pick">' + pickCell(x) + '</td>' +
+        '<td><div class="odds"><span class="v" style="--p:' + x.r.cfp.toFixed(3) + '">' + pct(x.r.cfp) + '</span>' + (hasPicks() && x.base && Math.abs(x.r.cfp - x.base.cfp) >= 0.005 ? pts(x.r.cfp - x.base.cfp) : '') + '</div></td>' +
+        '<td>' + pct(x.r.bye) + '</td><td>' + (x.r.seed ? x.r.seed.toFixed(1) : '—') + '</td>' +
         '<td>' + (x.t.conf === 'ind' ? '—' : pct(x.r.champ)) + '</td><td>' + pct(x.r.title) + '</td></tr>';
       return r + (st.open[x.t.id] ? detail(x) : '');
     }).join('');
+  }
+  function fieldPanel(x) {
+    var R = x.r, conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
+    var delta = hasPicks() && x.base ? R.cfp - x.base.cfp : 0;
+    function stat(label, value) { return '<div><dt>' + label + '</dt><dd>' + value + '</dd></div>'; }
+    return '<div class="field-head">' +
+        '<div class="field-team">' + logo(x.t, 30) + '<span><b>' + esc(x.t.name) + '</b><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + (x.t.rank ? ' · CFP No. ' + x.t.rank : '') + '</span></span></div>' +
+        '<div class="field-pick">' + nextCell(x) + pickCell(x) + '</div>' +
+        '<button class="btn" type="button" id="field-close">Close</button>' +
+      '</div>' +
+      '<dl class="field-stats">' +
+        stat('Make CFP', pct(R.cfp) + (Math.abs(delta) >= 0.005 ? pts(delta) : '')) +
+        stat('First-round bye', pct(R.bye)) +
+        stat('Avg seed', R.seed ? R.seed.toFixed(1) : '—') +
+        stat('Win conf.', x.t.conf === 'ind' ? '—' : pct(R.champ)) +
+        stat('Win title', pct(R.title)) +
+        stat('Rating', x.rating.toFixed(1)) +
+      '</dl>' + detailBody(x);
   }
   function renderField() {
     var all = buildRows().sort(function (a, b) { return b.r.cfp - a.r.cfp; });
     var field = all.slice(0, 12).sort(function (a, b) { return a.r.seed - b.r.seed; });
     $('seeds').innerHTML = field.map(function (x, i) {
-      return '<div class="seed' + (i < 4 ? ' bye' : '') + '"><span class="n">' + (i + 1) + '</span><span class="ab">' + logo(x.t, 22) + esc(x.t.ab) + '</span><span class="pc">' + pct(x.r.cfp) + '</span></div>';
+      var isOpen = st.fieldOpen === x.t.id;
+      return '<button type="button" class="seed' + (i < 4 ? ' bye' : '') + '" data-field="' + x.t.id + '" aria-expanded="' + isOpen + '" aria-controls="field-detail" aria-label="Seed ' + (i + 1) + ', ' + esc(x.t.name) + ', ' + pct(x.r.cfp) + ' to make the playoff. ' + (isOpen ? 'Hide' : 'Show') + ' details"><span class="n">' + (i + 1) + '</span><span class="ab">' + logo(x.t, 22) + esc(x.t.ab) + '</span><span class="pc">' + pct(x.r.cfp) + '</span></button>';
     }).join('');
+    // A pick can drop the open team out of the 12, so it is looked up in all teams.
+    var opened = all.filter(function (x) { return x.t.id === st.fieldOpen; })[0];
+    $('field-detail').hidden = !opened;
+    $('field-detail').innerHTML = opened ? fieldPanel(opened) : '';
     $('out').innerHTML = '<b>Next in line:</b> ' + all.slice(12, 16).map(function (x) { return esc(x.t.name) + ' ' + pct(x.r.cfp); }).join(', ');
     $('field-note').textContent = 'The 12 highest odds, ordered by average seed. Shaded teams hold first-round byes.';
   }
@@ -444,7 +485,12 @@ a { color: var(--accent); }
   function renderAll() { renderThemeButton(); renderPicksBar(); renderStatus(); renderField(); renderTable(); }
 
   function renderModes() {
-    $('mode').innerHTML = MODES.map(function (m) { return '<option value="' + m[0] + '"' + (st.mode === m[0] ? ' selected' : '') + '>' + m[1] + '</option>'; }).join('');
+    function option(k, label) { return '<option value="' + k + '"' + (st.mode === k ? ' selected' : '') + '>' + esc(label) + '</option>'; }
+    var groups = '<optgroup label="Averages">' + option('blend', 'Massey + Sagarin') + option('all', 'All models average') + '</optgroup>';
+    ['Point-based', 'Recent form', 'Results only'].forEach(function (g) {
+      groups += '<optgroup label="' + g + '">' + D.sources.models.filter(function (m) { return m.group === g; }).map(function (m) { return option(m.k, m.label); }).join('') + '</optgroup>';
+    });
+    $('mode').innerHTML = groups;
   }
   function setProgress(p, text) {
     $('progress').hidden = p == null;
@@ -457,7 +503,7 @@ a { color: var(--accent); }
     'var jobs=CFP.forcedJobs(P,t,min),forced={};jobs.forEach(function(j,i){forced[j.t]=CFP.forcedRun(sim,j,1000);if(i%5===0)postMessage({p:.8+.2*i/jobs.length});});' +
     'postMessage({result:{sims:m.sims,mode:m.mode,teams:CFP.summarize(P,t,forced,min),rating:Array.prototype.slice.call(P.R.subarray(0,P.fbs))}});};';
   function runJob(mode, picks, done) {
-    var sims = +$('sims').value, seed = (Date.now() % 2147483647) | 1, id = ++jobId;
+    var sims = SIMS, seed =(Date.now() % 2147483647) | 1, id = ++jobId;
     if (worker) worker.terminate();
     worker = null;
     setProgress(0, 'Simulating ' + sims.toLocaleString() + ' seasons\u2026');
@@ -508,17 +554,27 @@ a { color: var(--accent); }
     get(API + '/rankings').then(function (rankings) {
       var wk = [];
       for (var w = 1; w <= 15; w++) wk.push(get(API + '/scoreboard?groups=80&limit=400&week=' + w + '&seasontype=2&dates=' + D.season));
-      return Promise.all([Promise.all(wk), get('https://site.web.api.espn.com/apis/v2/sports/football/college-football/standings?group=80&season=' + D.season + '&level=3')]).then(function (x) {
+      var fpi = get('https://site.web.api.espn.com/apis/fitt/v3/sports/football/college-football/powerindex?season=' + D.season + '&limit=200&region=us&lang=en').catch(function () { return null; });
+      return Promise.all([Promise.all(wk), get('https://site.web.api.espn.com/apis/v2/sports/football/college-football/standings?group=80&season=' + D.season + '&level=3'), fpi]).then(function (x) {
         var fresh = CFP.parseEspn({ weeks: x[0], rankings: rankings, standings: x[1] });
         var byId = {}; D.teams.forEach(function (t) { byId[t.id] = t; });
         fresh.teams.forEach(function (t) {
           var old = byId[t.id];
           t.r = old ? old.r : { massey: 28, sagarin: 45, predictor: 45 };
         });
+        fresh.sources = D.sources;
+        // Teams share their rating objects with D, so new FPI values reach both copies.
+        var fpiFresh = x[2] && CFP.applyFpi(fresh, x[2]);
+        if (fpiFresh) { delete results.fpi; delete results.all; pickResults = {}; }
         var count = function (d, s) { return d.games.filter(function (g) { return g.s === s; }).length; };
         var changed = count(fresh, 'post') !== count(D, 'post') || count(fresh, 'in') > 0 || count(D, 'in') > 0 || fresh.rankDate !== D.rankDate;
-        if (!changed) { st.live = 'same'; renderStatus(); return; }
-        fresh.season = D.season; fresh.sources = D.sources; fresh.asOf = new Date().toISOString();
+        if (!changed) {
+          st.live = 'same';
+          renderStatus();
+          if (fpiFresh && (st.mode === 'fpi' || st.mode === 'all' || hasPicks())) refresh();
+          return;
+        }
+        fresh.season = D.season; fresh.asOf = new Date().toISOString();
         st.pendingD = fresh;
         refresh();
       });
@@ -544,6 +600,7 @@ a { color: var(--accent); }
       else if (current === b.dataset.team) st.picks[b.dataset.pick] = b.dataset.opp;
       else delete st.picks[b.dataset.pick];
       renderPicksBar();
+      renderField();
       renderTable();
       // A short pause lets several picks in a row share one simulation.
       setProgress(0, 'Simulating\u2026');
@@ -555,7 +612,13 @@ a { color: var(--accent); }
       refresh();
     } else if (b.dataset.open) {
       st.open[b.dataset.open] = !st.open[b.dataset.open]; renderTable();
-    } else if (b.id === 'rerun') { delete results[st.mode]; pickResults = {}; refresh();
+    } else if (b.dataset.field || b.id === 'field-close') {
+      var fieldId = b.dataset.field || st.fieldOpen;
+      st.fieldOpen = st.fieldOpen === fieldId ? null : fieldId;
+      renderField();
+      // Redrawing replaces the buttons, so keyboard focus goes back to this team.
+      var fieldBtn = $('seeds').querySelector('[data-field="' + fieldId + '"]');
+      if (fieldBtn) fieldBtn.focus();
     } else if (b.id === 'theme') {
       var nextTheme = isDark() ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', nextTheme); // the observer below redraws the logos
@@ -570,7 +633,6 @@ a { color: var(--accent); }
       clearTimeout(pickTimer);
       refresh();
     }
-    else if (id === 'sims') { results = {}; pickResults = {}; refresh(); }
   });
   $('q').addEventListener('input', function (e) { st.q = e.target.value; renderTable(); });
 
@@ -581,11 +643,19 @@ a { color: var(--accent); }
     'Conference standings produce two title-game teams each simulation, or one per division in the Sun Belt.',
     'A simulated committee scores every team: rating × ' + M.wRating + ', −' + M.wLoss + ' per loss with −' + M.wLoss3 + ' more past two losses, schedule strength, +' + M.wTop10 + ' per top-10 win, +' + M.wTop25 + ' per 11-25 win, −' + M.wBadLoss + ' for a loss outside the top 60, +' + M.wChampP4 + ' for a power-conference title.',
     'Part of the current CFP ranking carries forward (' + Math.round(M.wAnchor * 100) + '% of the gap between it and the model), and committee opinion varies by ' + M.committeeSD + ' points per simulation. A head-to-head winner jumps a team within ' + M.h2hWindow + ' points.',
-    'The If they win next column counts only the simulated seasons where that team won, so it reflects a team that may be playing better than its rating.',
     'Picking a winner locks that game in every simulation, so its opponent loses it. All odds on the page then update, including those of teams that weren\u2019t playing in it.'
   ].map(function (s) { return '<li>' + s + '</li>'; }).join('');
   var fmtDay = function (d) { return new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }); };
-  $('sources').innerHTML = 'Sources: <a href="https://www.espn.com/college-football/" target="_blank" rel="noopener">ESPN</a> schedules, scores and rankings; <a href="https://masseyratings.com/cf/fbs/ratings" target="_blank" rel="noopener">Massey</a> through ' + fmtDay(D.sources.massey.thru) + '; <a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin</a> through ' + fmtDay(D.sources.sagarin.thru) + '. Results after those dates adjust the ratings automatically.';
+  // Sagarin's variants share one link and date, so it's listed once.
+  var sourceSeen = {};
+  $('sources').innerHTML = 'Sources: <a href="https://www.espn.com/college-football/" target="_blank" rel="noopener">ESPN</a> schedules, scores and rankings; ' + D.sources.models.filter(function (m) {
+    if (sourceSeen[m.url]) return false;
+    sourceSeen[m.url] = 1;
+    return true;
+  }).map(function (m) {
+    var name = m.url.indexOf('sagarin.com') >= 0 ? 'Sagarin' : m.label;
+    return '<a href="' + m.url + '" target="_blank" rel="noopener">' + esc(name) + '</a> through ' + fmtDay(D.sources.thru[m.k]);
+  }).join('; ') + '. Results after those dates adjust the ratings automatically.';
   renderModes();
   renderViewControls();
   renderAll();

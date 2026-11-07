@@ -1,7 +1,10 @@
 // Inlines engine.js and data.json into page.src.html and writes cfp-odds.html.
 import { readFileSync, writeFileSync } from 'node:fs';
 const rd = (f) => readFileSync(new URL(f, import.meta.url), 'utf8');
-const { D, results } = JSON.parse(rd('./data.json'));
+const data = JSON.parse(rd('./data.json'));
+const D = data.D;
+// Only the default model is embedded. The page simulates the others when they're chosen.
+const results = { blend: data.results.blend };
 const r4 = (x) => (x == null ? null : Math.round(x * 1e4) / 1e4);
 for (const res of Object.values(results)) {
   delete res.schedule;
