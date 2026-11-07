@@ -37,14 +37,14 @@ header { display: grid; gap: 6px; }
 .controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: end; }
 .ctl { display: grid; gap: 4px; min-width: 0; }
 .ctl > label, .ctl > span { font: 600 13px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-.seg { display: flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); overflow: hidden; }
-.seg button { font: 500 14px var(--body); color: var(--ink); background: transparent; border: 0; padding: 7px 12px; cursor: pointer; border-right: 1px solid var(--line); }
-.seg button:last-child { border-right: 0; }
-.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); font-weight: 600; }
 select, input[type=search], .btn { font: 500 14px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; }
 input[type=search] { width: 170px; }
 .btn { cursor: pointer; font-weight: 600; }
-.btn:hover, .seg button:hover:not([aria-pressed="true"]) { background: var(--accent-soft); }
+.btn:hover { background: var(--accent-soft); }
+.icon-btn { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; flex: none; }
+.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.board { display: grid; gap: 10px; }
+.board > * { min-width: 0; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .progress { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); min-height: 34px; }
 .progress .track { width: 130px; height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
@@ -140,19 +140,16 @@ a { color: var(--accent); }
   <header>
     <div class="title-row">
       <h1>CFP Odds Board</h1>
-      <button class="btn" id="theme" type="button"></button>
+      <button class="btn icon-btn" id="theme" type="button"></button>
     </div>
     <p class="lede">Each team's chance of making the 12-team College Football Playoff, from simulating every remaining game, conference title game and committee ranking.</p>
     <div class="status" id="status"></div>
   </header>
 
   <div class="controls">
-    <div class="ctl"><span id="rating-label">Ratings used</span><div class="seg" role="group" aria-labelledby="rating-label" id="modes"></div></div>
+    <div class="ctl"><label for="mode">Ratings used</label><select id="mode"></select></div>
     <div class="ctl"><label for="sims">Simulated seasons</label><select id="sims"><option value="10000">10,000</option><option value="25000">25,000</option><option value="40000" selected>40,000</option><option value="100000">100,000</option></select></div>
     <button class="btn" id="rerun" type="button">Run again</button>
-    <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
-    <div class="ctl"><label for="scope">Show</label><select id="scope"><option value="contenders">Contenders</option><option value="all">All FBS teams</option></select></div>
-    <div class="ctl"><label for="q">Find a team</label><input id="q" type="search" placeholder="Team name"></div>
     <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="fill"></div></div><span id="progress-text"></span></div>
   </div>
 
@@ -162,10 +159,16 @@ a { color: var(--accent); }
     <div class="out" id="out"></div>
   </section>
 
-  <div class="table-wrap" id="tw"><table>
-    <thead><tr id="head"></tr></thead>
-    <tbody id="body"></tbody>
-  </table></div>
+  <section class="board" aria-label="Odds by team">
+    <div class="controls">
+      <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
+      <div class="ctl"><label for="q">Find a team</label><input id="q" type="search" placeholder="Team name"></div>
+    </div>
+    <div class="table-wrap" id="tw"><table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="body"></tbody>
+    </table></div>
+  </section>
 
   <div class="notes">
     <section>
@@ -209,7 +212,7 @@ a { color: var(--accent); }
   var embedded = JSON.parse(document.getElementById('cfp-data').textContent);
   var D = embedded.D, results = embedded.results, simsNote = {};
   var MODES = [['blend', 'Massey + Sagarin'], ['massey', 'Massey Power'], ['sagarin', 'Sagarin Rating'], ['predictor', 'Sagarin Predictor']];
-  var st = { mode: 'blend', scenarioAll: 'next', rowScenario: {}, sort: 'cfp', dir: -1, open: {}, conf: '', scope: 'contenders', q: '', live: 'pending', running: false };
+  var st = { mode: 'blend', scenarioAll: 'next', rowScenario: {}, sort: 'cfp', dir: -1, open: {}, conf: '', q: '', live: 'pending', running: false };
   var schedCache = {}, worker = null;
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -269,9 +272,7 @@ a { color: var(--accent); }
     var q = st.q.trim().toLowerCase();
     var out = rows.filter(function (x) {
       if (st.conf && x.t.conf !== st.conf) return false;
-      if (q) return (x.t.full + ' ' + x.t.ab).toLowerCase().indexOf(q) >= 0;
-      if (st.scope === 'contenders') return x.t.rank || x.r.cfp >= 0.005 || x.r.ifOut >= 0.1;
-      return true;
+      return !q || (x.t.full + ' ' + x.t.ab).toLowerCase().indexOf(q) >= 0;
     });
     var f = COLS[st.sort], d = st.dir;
     out.sort(function (a, b) { return d * (f(a) - f(b)) || b.r.cfp - a.r.cfp; });
@@ -371,11 +372,18 @@ a { color: var(--accent); }
     $('status').innerHTML = '<span>' + liveMsg + '</span><span>' + left + ' games left' + (inp ? ', ' + inp + ' in progress' : '') + '</span>' +
       '<span>' + esc(D.rankLabel ? D.rankLabel.replace(/^.*- /, '') : 'CFP rankings') + '</span><span><b>' + res().sims.toLocaleString() + '</b> simulated seasons</span>';
   }
-  function renderThemeButton() { $('theme').textContent = isDark() ? 'Switch to light' : 'Switch to dark'; }
+  var SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>';
+  var MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>';
+  function renderThemeButton() {
+    var dark = isDark(), label = dark ? 'Switch to light theme' : 'Switch to dark theme', b = $('theme');
+    b.innerHTML = dark ? SUN : MOON;
+    b.setAttribute('aria-label', label);
+    b.title = label;
+  }
   function renderAll() { renderThemeButton(); renderStatus(); renderField(); renderTable(); }
 
   function renderModes() {
-    $('modes').innerHTML = MODES.map(function (m) { return '<button type="button" data-mode="' + m[0] + '" aria-pressed="' + (st.mode === m[0]) + '">' + m[1] + '</button>'; }).join('');
+    $('mode').innerHTML = MODES.map(function (m) { return '<option value="' + m[0] + '"' + (st.mode === m[0] ? ' selected' : '') + '>' + m[1] + '</option>'; }).join('');
   }
   function setProgress(p, text) {
     $('progress').hidden = p == null;
@@ -440,10 +448,7 @@ a { color: var(--accent); }
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
-    if (b.dataset.mode) {
-      st.mode = b.dataset.mode; renderModes();
-      if (results[st.mode] && !st.pendingD) renderAll(); else run(st.mode);
-    } else if (b.dataset.sort) {
+    if (b.dataset.sort) {
       var k = b.dataset.sort;
       if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' ? 1 : -1; }
       renderTable();
@@ -462,7 +467,10 @@ a { color: var(--accent); }
     var id = e.target.id;
     if (id === 'scenario-all') { st.scenarioAll = e.target.value; st.rowScenario = {}; try { localStorage.setItem('cfp-scenario', st.scenarioAll); } catch (x) {} renderTable(); }
     else if (id === 'conf') { st.conf = e.target.value; renderTable(); }
-    else if (id === 'scope') { st.scope = e.target.value; renderTable(); }
+    else if (id === 'mode') {
+      st.mode = e.target.value;
+      if (results[st.mode] && !st.pendingD) renderAll(); else run(st.mode);
+    }
     else if (id === 'sims') { run(st.mode); }
   });
   $('q').addEventListener('input', function (e) { st.q = e.target.value; renderTable(); });
