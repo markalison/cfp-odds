@@ -16,7 +16,7 @@
   --text-xs: .75rem; --text-sm: .875rem; --text-base: 1rem; --text-md: 1.125rem; --text-lg: 1.375rem; --text-xl: 1.75rem; --text-2xl: clamp(2rem, 6vw, 3rem);
   /* Spacing: a 4px grid */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
-  --radius-sm: 6px; --radius: 10px;
+  --radius-sm: 0; --radius: 0; /* square corners everywhere */
   --page-max: 1200px;
   --gutter-l: max(var(--s4), env(safe-area-inset-left, 0px));
   --gutter-r: max(var(--s4), env(safe-area-inset-right, 0px));
@@ -97,7 +97,7 @@ input[type=search] { width: 100%; min-width: 0; }
 .seg button:hover { background: var(--accent-soft); }
 .seg button[aria-pressed="true"], .seg button[aria-pressed="true"]:hover { background: var(--accent); color: var(--panel); font-weight: 600; }
 .progress { display: flex; gap: var(--s3); align-items: center; min-height: 40px; font-size: var(--text-sm); color: var(--muted); }
-.progress .track { width: 120px; height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
+.progress .track { width: 120px; height: 6px; background: var(--bar-track); border-radius: 0; overflow: hidden; }
 .progress .fill { height: 100%; background: var(--bar); width: 0; }
 .picks-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); flex: 1 1 100%; font-size: var(--text-sm); color: var(--muted); }
 .picks-bar b { color: var(--ink); font-weight: 600; }
@@ -162,7 +162,7 @@ tr.live-row > td:first-child { box-shadow: inset 3px 0 0 var(--down); }
 .next .score-now { font-weight: 600; color: var(--ink); white-space: nowrap; }
 .odds { display: grid; gap: 3px; justify-items: end; }
 /* The shade tops out at 55% of the blue so the number stays readable in both themes. */
-.odds .v { display: block; width: 72px; padding: 6px var(--s2); border-radius: 5px; text-align: right; font: 700 var(--text-md)/1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
+.odds .v { display: block; width: 72px; padding: 6px var(--s2); border-radius: 0; text-align: right; font: 700 var(--text-md)/1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
 .odds small { font-size: var(--text-xs); line-height: 1; }
 .odds small.up, .field-stats small.up { color: var(--up); }
 .odds small.down, .field-stats small.down { color: var(--down); }
@@ -212,7 +212,7 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .live { font: 700 var(--text-xs) var(--display); letter-spacing: .06em; color: var(--down); }
 .hist { display: flex; align-items: flex-end; gap: 2px; height: 74px; border-bottom: 1px solid var(--muted); }
 .hist div { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; }
-.hist i { display: block; width: 100%; min-height: 1px; background: var(--bar); border-radius: 3px 3px 0 0; }
+.hist i { display: block; width: 100%; min-height: 1px; background: var(--bar); border-radius: 0; }
 .hist-x { display: flex; gap: 2px; margin-top: 3px; font-size: 11px; color: var(--muted); }
 .hist-x span { flex: 1; text-align: center; }
 @media (min-width: 700px) { .detail-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s6); padding: var(--s4) var(--s5) var(--s5); } }
@@ -238,12 +238,10 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .lg-score { text-align: right; font: 600 21px/1 var(--display); color: var(--muted); }
 .lg-score.lead { color: var(--ink); font-weight: 700; }
 .lg-num { text-align: right; font-size: var(--text-sm); }
-.lg-cfp { text-align: right; padding: 3px 5px; border-radius: 4px; font: 700 15px/1.1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
+.lg-cfp { text-align: right; padding: 3px 5px; border-radius: 0; font: 700 15px/1.1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
 .lg-why { padding-top: var(--s2); border-top: 1px solid var(--line); font-size: var(--text-sm); color: var(--muted); }
 .lg-why b { color: var(--ink); font-weight: 600; }
-.live-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: var(--down); color: var(--panel); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
-.live-pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.final-pill { display: inline-block; padding: 2px 6px; border-radius: 4px; background: var(--bar-track); color: var(--ink); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
+.final-pill { display: inline-block; padding: 2px 6px; border-radius: 0; background: var(--bar-track); color: var(--ink); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
 
 /* ---------- 9b. Playoff bracket ----------
    Flat boxes with square corners, a header bar per round and an accent bar on each winner.
@@ -255,9 +253,9 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .bracket { display: grid; gap: var(--s5); }
 .bk-rounds { position: relative; display: grid; gap: var(--s5); }
 .bk-round { display: grid; grid-template-rows: auto 1fr; gap: var(--s3); min-width: 0; }
-.bk-round h3 { padding: var(--s2) var(--s3); background: var(--bar-track); border-radius: 3px; font-size: var(--text-xs); letter-spacing: .08em; color: var(--ink); }
+.bk-round h3 { padding: var(--s2) var(--s3); background: var(--bar-track); border-radius: 0; font-size: var(--text-xs); letter-spacing: .08em; color: var(--ink); }
 .bk-games { display: grid; gap: var(--s3); }
-.bk-box { position: relative; z-index: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.bk-box { position: relative; z-index: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 0; overflow: hidden; }
 .bk-team { display: grid; grid-template-columns: 18px 22px minmax(0, 1fr) auto; align-items: center; gap: var(--s2); min-height: 46px; padding: 0 var(--s3); border-bottom: 1px solid var(--line); color: var(--ink); }
 .bk-team:last-child { border-bottom: 0; }
 .bk-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
@@ -281,16 +279,16 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .bk-p { font-size: var(--text-sm); font-variant-numeric: tabular-nums; text-align: right; }
 .bk-lines { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: visible; }
 .bk-lines path { fill: none; stroke: var(--muted); stroke-opacity: .5; stroke-width: 1; }
-.bk-champ { display: grid; gap: var(--s2); padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 3px; }
+.bk-champ { display: grid; gap: var(--s2); padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 0; }
 .bk-champ-team { display: flex; align-items: center; gap: var(--s3); }
 .bk-champ-team .logo { width: 40px; height: 40px; }
 .bk-label { font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .bk-champ-name { font: 700 var(--text-xl)/1.05 var(--display); text-transform: uppercase; }
 .bk-champ > p { color: var(--muted); font-size: var(--text-sm); }
 .bk-champ b { color: var(--ink); font-weight: 600; }
-.bk-titles h3 { margin-bottom: var(--s3); padding: var(--s2) var(--s3); background: var(--bar-track); border-radius: 3px; font-size: var(--text-xs); letter-spacing: .08em; }
+.bk-titles h3 { margin-bottom: var(--s3); padding: var(--s2) var(--s3); background: var(--bar-track); border-radius: 0; font-size: var(--text-xs); letter-spacing: .08em; }
 .bk-titles ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--s2); }
-.bk-titles li { display: flex; align-items: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s3); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; }
+.bk-titles li { display: flex; align-items: center; gap: var(--s2); min-height: 44px; padding: 0 var(--s3); background: var(--panel); border: 1px solid var(--line); border-radius: 0; }
 .bk-titles li span { flex: 1; min-width: 0; font-weight: 500; }
 .bk-titles li .logo { width: 20px; height: 20px; }
 @media (min-width: 560px) { .bk-round:first-child .bk-games, .bk-round:nth-child(2) .bk-games { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

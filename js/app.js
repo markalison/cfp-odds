@@ -95,9 +95,23 @@
       if (st.conf && x.t.conf !== st.conf) return false;
       return !q || (x.t.full + ' ' + x.t.ab).toLowerCase().indexOf(q) >= 0;
     });
+    // After a W/L pick the rows keep the order they had, so the team just picked doesn't jump away.
+    if (st.lockOrder) {
+      var pos = st.lockOrder;
+      out.sort(function (a, b) { return (pos[a.t.id] == null ? 1e4 : pos[a.t.id]) - (pos[b.t.id] == null ? 1e4 : pos[b.t.id]); });
+      return out;
+    }
+    return sortRows(out);
+  }
+  function sortRows(rows) {
     var f = COLS[st.sort], d = st.dir;
-    out.sort(function (a, b) { return d * (f(a) - f(b)) || b.r.cfp - a.r.cfp; });
-    return out;
+    return rows.sort(function (a, b) { return d * (f(a) - f(b)) || b.r.cfp - a.r.cfp; });
+  }
+  // Remembers the current order of every team. Cleared by sorting, changing ratings or clearing picks.
+  function lockOrder() {
+    if (st.lockOrder) return;
+    st.lockOrder = {};
+    sortRows(buildRows()).forEach(function (x, i) { st.lockOrder[x.t.id] = i; });
   }
   function head() {
     function th(key, label, cls) {
@@ -125,7 +139,7 @@
     if (!x.next) return '<span class="next">Done<small>Regular season over</small></span>';
     var opp = D.teams[x.next.o], where = x.next.home === 1 ? 'vs' : x.next.home === -1 ? 'at' : 'vs';
     var isLive = x.next.s === 'in';
-    var flag = isLive ? ' <span class="live-pill"><i></i>LIVE</span> <span class="score-now">' + (x.next.us > x.next.them ? 'Up ' : x.next.us < x.next.them ? 'Down ' : 'Tied ') + x.next.us + '-' + x.next.them + '</span>' : '';
+    var flag = isLive ? ' <span class="score-now">' + (x.next.us > x.next.them ? 'Up ' : x.next.us < x.next.them ? 'Down ' : 'Tied ') + x.next.us + '-' + x.next.them + '</span>' : '';
     var day = new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
     return '<span class="next">' + where + ' ' + logo(opp, 18) + esc(opp.ab || opp.name) + flag + '<small>' + esc(isLive ? x.next.st : day) + ' · ' + nextChance(x.next, x.t) + '</small></span>';
   }
@@ -133,7 +147,7 @@
   function shortNext(x) {
     if (!x.next) return '';
     var opp = D.teams[x.next.o], where = x.next.home === -1 ? 'at ' : 'vs ';
-    if (x.next.s === 'in') return '<span class="tnext"><span class="live-pill"><i></i>LIVE</span> ' + (x.next.us > x.next.them ? 'Up ' : x.next.us < x.next.them ? 'Down ' : 'Tied ') + x.next.us + '-' + x.next.them + ' ' + where + esc(opp.ab || opp.name) + '</span>';
+    if (x.next.s === 'in') return '<span class="tnext"><b>' + (x.next.us > x.next.them ? 'Up ' : x.next.us < x.next.them ? 'Down ' : 'Tied ') + x.next.us + '-' + x.next.them + '</b> ' + where + esc(opp.ab || opp.name) + ' · ' + esc(x.next.st) + '</span>';
     return '<span class="tnext">' + where + esc(opp.ab || opp.name) + ' · ' + new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + '</span>';
   }
   // The headline numbers for one team. The field panel always shows them; table details show them on phones.
@@ -172,7 +186,7 @@
     var sc = schedule()[x.i], R = x.r, hist = R.hist, maxH = Math.max.apply(null, hist.concat(1)), N = res().sims;
     var lines = sc.map(function (g) {
       var o = D.teams[g.o];
-      return '<span>' + (g.home === 1 ? 'vs ' : g.home === -1 ? 'at ' : 'vs ') + logo(o, 18) + esc(o.name) + (g.s === 'in' ? ' <span class="live">LIVE ' + g.us + '-' + g.them + '</span>' : '') + '</span><span>' + (st.picks[g.id] ? (st.picks[g.id] === x.t.id ? 'Picked win' : 'Picked loss') : Math.round(g.p * 100) + '%') + '</span>';
+      return '<span>' + (g.home === 1 ? 'vs ' : g.home === -1 ? 'at ' : 'vs ') + logo(o, 18) + esc(o.name) + (g.s === 'in' ? ' <b class="score-now">' + (g.us > g.them ? 'Up ' : g.us < g.them ? 'Down ' : 'Tied ') + g.us + '-' + g.them + '</b>' : '') + '</span><span>' + (st.picks[g.id] ? (st.picks[g.id] === x.t.id ? 'Picked win' : 'Picked loss') : Math.round(g.p * 100) + '%') + '</span>';
     }).join('');
     var bars = hist.map(function (h, i) {
       var label = 'Seed ' + (i + 1) + ': ' + (h / N * 100).toFixed(1) + '% of simulations';
@@ -361,7 +375,7 @@
     else if (stakes && stakes.swing >= 0.01) why = '<b>' + esc(D.teams[stakes.i].ab) + '</b> is the most affected: <b>' + pct(stakes.win) + '</b> with a win, <b>' + pct(stakes.lose) + '</b> with a loss.';
     else if (stakes) why = 'Little effect on the playoff race.';
     else why = 'One team is a heavy favorite' + (isLive ? ' right now' : '') + ', so this barely moves the odds.';
-    var top = isLive ? '<span class="live-pill"><i></i>LIVE</span><b>' + esc(g.st) + '</b>' :
+    var top = isLive ? '<b>' + esc(g.st) + '</b>' :
       isPre ? '<span>Kickoff</span><b>' + etTime(g.d) + ' ET</b>' : '<span class="final-pill">FINAL</span><span>Today</span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
       '<div class="lg-top">' + top + '</div>' +
@@ -567,12 +581,14 @@
     if (b.dataset.sort) {
       var k = b.dataset.sort;
       if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' ? 1 : -1; }
+      st.lockOrder = null;
       renderTable();
     } else if (b.dataset.view) {
       st.view = b.dataset.view;
       renderViewControls();
       renderTable();
     } else if (b.dataset.pick) {
+      lockOrder();
       // Each press moves this team through blank, win, loss and back to blank.
       var current = st.picks[b.dataset.pick];
       if (!current) st.picks[b.dataset.pick] = b.dataset.team;
@@ -589,6 +605,7 @@
       pickTimer = setTimeout(refresh, 250);
     } else if (b.id === 'clear-picks') {
       st.picks = {};
+      st.lockOrder = null;
       clearTimeout(pickTimer);
       refresh();
     } else if (b.dataset.bk) {
@@ -619,6 +636,7 @@
     else if (id === 'mode') {
       st.mode = e.target.value;
       st.quiet = false;
+      st.lockOrder = null;
       clearTimeout(pickTimer);
       refresh();
     }
