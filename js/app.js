@@ -6,7 +6,7 @@
   // 40,000 seasons gives about +/-0.5 points at 50% odds in roughly a second. More adds wait for little precision.
   var SIMS = 40000;
   var D = embedded.D, results = embedded.results, simsNote = {};
-  var st = { mode: 'blend', picks: {}, sort: 'team', dir: 1, open: {}, conf: '', view: 'all', q: '', live: 'pending', running: false };
+  var st = { mode: 'blend', picks: {}, bkPicks: {}, sort: 'team', dir: 1, open: {}, conf: '', view: 'all', q: '', live: 'pending', running: false };
   var schedCache = {}, worker = null;
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -218,20 +218,114 @@
       '</div>' +
       statsList(x) + detailBody(x);
   }
-  function renderField() {
+  // The 12 teams most likely to make it, in order of average seed. Shared by the field and the bracket.
+  function projectedField() {
     var all = buildRows().sort(function (a, b) { return b.r.cfp - a.r.cfp; });
-    var field = all.slice(0, 12).sort(function (a, b) { return a.r.seed - b.r.seed; });
+    return { all: all, field: all.slice(0, 12).sort(function (a, b) { return a.r.seed - b.r.seed; }) };
+  }
+  function renderField() {
+    var pf = projectedField(), all = pf.all, field = pf.field;
     $('seeds').innerHTML = field.map(function (x, i) {
       var isOpen = st.fieldOpen === x.t.id;
-      return '<button type="button" class="seed' + (i < 4 ? ' bye' : '') + '" data-field="' + x.t.id + '" aria-expanded="' + isOpen + '" aria-controls="field-detail" aria-label="Seed ' + (i + 1) + ', ' + esc(x.t.name) + ', ' + pct(x.r.cfp) + ' to make the playoff. ' + (isOpen ? 'Hide' : 'Show') + ' details"><span class="n">' + (i + 1) + '</span><span class="ab">' + logo(x.t, 22) + esc(x.t.ab) + '</span><span class="pc">' + pct(x.r.cfp) + '</span></button>';
+      return '<button type="button" class="seed" data-field="' + x.t.id + '" aria-expanded="' + isOpen + '" aria-controls="field-detail" aria-label="Seed ' + (i + 1) + ', ' + esc(x.t.name) + ', ' + pct(x.r.cfp) + ' to make the playoff. ' + (isOpen ? 'Hide' : 'Show') + ' details"><span class="n">' + (i + 1) + '</span><span class="ab">' + logo(x.t, 22) + esc(x.t.ab) + '</span><span class="pc">' + pct(x.r.cfp) + '</span></button>';
     }).join('');
     // A pick can drop the open team out of the 12, so it is looked up in all teams.
     var opened = all.filter(function (x) { return x.t.id === st.fieldOpen; })[0];
     $('field-detail').hidden = !opened;
     $('field-detail').innerHTML = opened ? fieldPanel(opened) : '';
     $('out').innerHTML = '<b>Next in line:</b> ' + all.slice(12, 16).map(function (x) { return esc(x.t.name) + ' ' + pct(x.r.cfp); }).join(', ');
-    $('field-note').textContent = 'The 12 highest odds, ordered by average seed. Shaded teams hold first-round byes.';
+    $('field-note').textContent = 'The 12 teams most likely to make it, ordered by average seed. Select a team for details.';
   }
+
+  // ---------- Playoff bracket ----------
+  // One game's win chance from the two ratings, as the simulator plays it. Only first-round games have home field.
+  function winChance(a, b, home) {
+    var M = CFP.M, total = Math.sqrt(M.gameSD * M.gameSD + 2 * M.teamSD * M.teamSD);
+    var hfa = home ? (D.sources.hfa[st.mode] || 2.5) : 0;
+    return CFP.phi((a.rating - b.rating + hfa) / total);
+  }
+  // A team or a not-yet-known slot. Seeds only: later rounds show which game feeds them.
+  function tbd(label) { return { tbd: label }; }
+  // st.bkPicks maps a game key (r1-0 ... f) to the seed the viewer picked to win it.
+  function bracketRow(key, slot, opp, cls, chance, host) {
+    if (slot.tbd) {
+      return '<div class="bk-team tbd"><span class="bk-seed"></span><span class="bk-ph" aria-hidden="true"></span><span class="bk-name">TBD<small>' + slot.tbd + '</small></span><span class="bk-p"></span></div>';
+    }
+    var inner = '<span class="bk-seed">' + slot.seed + '</span>' + logo(slot.x.t, 22) +
+      '<span class="bk-name">' + esc(slot.x.t.name) + (host ? '<small>Home</small>' : '') + '</span><span class="bk-p">' + (chance == null ? '' : Math.round(chance * 100) + '%') + '</span>';
+    if (opp.tbd) return '<div class="bk-team' + (cls ? ' ' + cls : '') + '">' + inner + '</div>';
+    var picked = st.bkPicks[key] === slot.seed;
+    var label = picked ? 'Remove the pick of ' + slot.x.t.name : 'Pick ' + slot.x.t.name + ' to beat ' + opp.x.t.name;
+    return '<button type="button" class="bk-team' + (cls ? ' ' + cls : '') + '" data-bk="' + key + '" data-seed="' + slot.seed + '" aria-pressed="' + picked + '" aria-label="' + esc(label) + '">' + inner + '</button>';
+  }
+  // A game is decided by the viewer's pick, or by the favorite when Simulate games is on.
+  // Win chances show for every decided game. A winner carries its chance of getting this far.
+  function bracketGame(key, hi, lo, home, feeds) {
+    var known = !hi.tbd && !lo.tbd;
+    var pickSeed = st.bkPicks[key], picked = known ? (pickSeed === hi.seed ? hi : pickSeed === lo.seed ? lo : null) : null;
+    // A pick whose team is no longer in this game (an earlier pick changed) is dropped, so it can't return unseen.
+    if (pickSeed != null && !picked) delete st.bkPicks[key];
+    var p = known && (st.bkSim || picked) ? winChance(hi.x, lo.x, home) : null;
+    var win = picked || (p != null ? (p >= 0.5 ? hi : lo) : null);
+    var html = '<article class="bk-game"><div class="bk-box">' +
+      bracketRow(key, hi, lo, win ? (win === hi ? 'win' : 'lose') : '', p, home) +
+      bracketRow(key, lo, hi, win ? (win === lo ? 'win' : 'lose') : '', p == null ? null : 1 - p, false) +
+      '</div></article>';
+    if (!win) return { winner: tbd(feeds), html: html };
+    var chance = win === hi ? p : 1 - p;
+    return { winner: { seed: win.seed, x: win.x, path: (win.path || 1) * chance }, html: html };
+  }
+  // Fixed bracket, no reseeding: 1 plays the 8/9 winner, 4 plays 5/12, 2 plays 7/10, 3 plays 6/11.
+  function renderBracket() {
+    var field = projectedField().field, sim = !!st.bkSim;
+    $('bk-sim').setAttribute('aria-pressed', sim);
+    $('bk-sim').textContent = sim ? 'Show seeds only' : 'Simulate games';
+    $('bracket-note').textContent = sim
+      ? 'The favorite in each game advances unless you pick a team. Win chances come from the two ratings, with home field for the higher seed in the first round.'
+      : 'Select a team to advance it. Each game you decide shows both teams’ chance to win, from their ratings.';
+    if (field.length < 12) { $('bracket').innerHTML = ''; return; }
+    var s = field.map(function (x, i) { return { seed: i + 1, x: x }; });
+    var r1 = [bracketGame('r1-0', s[7], s[8], true, 'Winner of 8 vs 9'), bracketGame('r1-1', s[4], s[11], true, 'Winner of 5 vs 12'),
+      bracketGame('r1-2', s[6], s[9], true, 'Winner of 7 vs 10'), bracketGame('r1-3', s[5], s[10], true, 'Winner of 6 vs 11')];
+    var qf = [bracketGame('qf-0', s[0], r1[0].winner, false, 'Winner of quarterfinal 1'), bracketGame('qf-1', s[3], r1[1].winner, false, 'Winner of quarterfinal 2'),
+      bracketGame('qf-2', s[1], r1[2].winner, false, 'Winner of quarterfinal 3'), bracketGame('qf-3', s[2], r1[3].winner, false, 'Winner of quarterfinal 4')];
+    var sf = [bracketGame('sf-0', qf[0].winner, qf[1].winner, false, 'Winner of semifinal 1'), bracketGame('sf-1', qf[2].winner, qf[3].winner, false, 'Winner of semifinal 2')];
+    var fin = bracketGame('f', sf[0].winner, sf[1].winner, false, 'Champion');
+    $('bk-clear').hidden = !Object.keys(st.bkPicks).length; // after the games drop stale picks
+    function round(title, games) { return '<section class="bk-round" aria-label="' + title + '"><h3>' + title + '</h3><div class="bk-games">' + games.map(function (g) { return g.html; }).join('') + '</div></section>'; }
+    var champ = fin.winner.tbd ? null : fin.winner;
+    var titles = s.slice().sort(function (a, b) { return b.x.r.title - a.x.r.title; }).slice(0, 6);
+    var champCard = '';
+    if (champ) {
+      var t = champ.x.t;
+      champCard = '<div class="bk-champ"><div class="bk-champ-team">' + logo(t, 40) + '<div><p class="bk-label">' + (st.bkPicks.f === champ.seed ? 'Your champion' : 'Projected champion') + '</p><p class="bk-champ-name">' + esc(t.name) + '</p></div></div>' +
+        '<p><b>' + esc(t.name) + '</b> wins every game on this path ' + pct(champ.path) + ' of the time, using each game’s win chance. Across all simulations it wins the title ' + pct(champ.x.r.title) + ' of the time.</p></div>';
+    }
+    $('bracket').innerHTML = champCard +
+      '<div class="bk-rounds" id="bk-rounds">' + round('First round', r1) + round('Quarterfinals', qf) + round('Semifinals', sf) + round('Championship', [fin]) + '</div>' +
+      (sim ? '<div class="bk-titles"><h3>Title odds</h3><ol>' + titles.map(function (x) { return '<li>' + logo(x.x.t, 20) + '<span>' + esc(x.x.t.name) + '</span><b>' + pct(x.x.r.title) + '</b></li>'; }).join('') + '</ol></div>' : '');
+    drawConnectors();
+  }
+  // Lines from each game to the one its winner plays next. Only drawn when the rounds sit side by side.
+  var BK_WIDE = matchMedia('(min-width: 1000px)');
+  function drawConnectors() {
+    var wrap = document.getElementById('bk-rounds');
+    if (!wrap) return;
+    var old = wrap.querySelector('.bk-lines');
+    if (old) old.remove();
+    if (!BK_WIDE.matches || !wrap.offsetWidth) return;
+    var base = wrap.getBoundingClientRect();
+    var rounds = [].map.call(wrap.querySelectorAll('.bk-round'), function (r) { return [].slice.call(r.querySelectorAll('.bk-box')); });
+    var links = [[0, 0, 1, 0], [0, 1, 1, 1], [0, 2, 1, 2], [0, 3, 1, 3], [1, 0, 2, 0], [1, 1, 2, 0], [1, 2, 2, 1], [1, 3, 2, 1], [2, 0, 3, 0], [2, 1, 3, 0]];
+    var d = links.map(function (l) {
+      var a = rounds[l[0]][l[1]].getBoundingClientRect(), b = rounds[l[2]][l[3]].getBoundingClientRect();
+      var x1 = a.right - base.left, y1 = a.top + a.height / 2 - base.top, x2 = b.left - base.left, y2 = b.top + b.height / 2 - base.top, mx = (x1 + x2) / 2;
+      return 'M' + x1 + ' ' + y1 + 'H' + mx + 'V' + y2 + 'H' + x2;
+    }).join('');
+    wrap.insertAdjacentHTML('afterbegin', '<svg class="bk-lines" aria-hidden="true" width="' + base.width + '" height="' + base.height + '"><path d="' + d + '"></path></svg>');
+  }
+  try { new ResizeObserver(function () { drawConnectors(); }).observe($('bracket')); } catch (x) {}
+  try { BK_WIDE.addEventListener('change', drawConnectors); } catch (x) {}
   function etTime(iso) { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }); }
   function etDay(when) { return new Date(when).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); }
   // How far one game could move playoff odds: the team with the biggest gap between winning and losing.
@@ -297,20 +391,26 @@
         group('In progress', live, 'Your picks first, then the biggest playoff impact.') + group('Later today', later) + group('Final today', done) :
         '<p class="live-empty">No games today.' + (next ? ' Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '') + '</p>');
   }
-  // Views: Odds (default) and Scoreboard, chosen by the address's #. About is its own page.
-  var PAGES = { odds: 'CFP Odds Board', scoreboard: 'Scoreboard · CFP Odds Board' };
+  // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
+  var PAGES = { rankings: 'CFP Odds Board', playoff: 'Playoff bracket · CFP Odds Board', scoreboard: 'Scoreboard · CFP Odds Board' };
+  var INTRO = {
+    rankings: ['College Football Playoff odds', 'Each team’s chance of making the 12-team playoff, from simulating every remaining game, conference title game and committee ranking.'],
+    playoff: ['Projected playoff', 'The most likely 12-team field in its bracket. Simulate the games to see who’s favored in each round.'],
+    scoreboard: ['Scoreboard', 'Today’s games, with each team’s win chance and what the result means for its playoff odds.']
+  };
+  var OLD_HASH = { odds: 'rankings', live: 'scoreboard' }; // names used by earlier versions of the site
   function showPage() {
-    var hash = location.hash.replace('#', ''), p = hash === 'live' ? 'scoreboard' : hash; // #live was the old name
+    var hash = location.hash.replace('#', ''), p = OLD_HASH[hash] || hash;
     if (hash === 'about') { location.replace('about.html'); return hash; } // older links
-    if (!PAGES[p]) p = $('page-scoreboard').hidden ? 'odds' : 'scoreboard';
+    if (!PAGES[p]) p = 'rankings';
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== p; });
     [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
       if (a.dataset.page === p) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.title = PAGES[p];
-    // Each view gets its own title and intro, so the Scoreboard leads with scores.
-    $('page-title').textContent = p === 'scoreboard' ? 'Scoreboard' : 'College Football Playoff odds';
-    $('page-lede').textContent = p === 'scoreboard' ? 'Today’s games, with each team’s win chance and what the result means for its playoff odds.' : 'Each team’s chance of making the 12-team playoff, from simulating every remaining game, conference title game and committee ranking.';
+    // Each view gets its own title and intro.
+    $('page-title').textContent = INTRO[p][0];
+    $('page-lede').textContent = INTRO[p][1];
     return hash;
   }
   window.addEventListener('hashchange', function () {
@@ -333,7 +433,7 @@
       ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '; +/\u2212 shows the change.</span><button class="btn" id="clear-picks" type="button">Clear picks</button>'
       : '<span>Press a team\u2019s box to cycle its next game through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update.</span>';
   }
-  function renderAll() { renderPicksBar(); renderStatus(); renderLive(); renderField(); renderTable(); }
+  function renderAll() { renderPicksBar(); renderStatus(); renderLive(); renderField(); renderBracket(); renderTable(); }
 
   function renderModes() {
     function option(k, label) { return '<option value="' + k + '"' + (st.mode === k ? ' selected' : '') + '>' + esc(label) + '</option>'; }
@@ -491,6 +591,17 @@
       st.picks = {};
       clearTimeout(pickTimer);
       refresh();
+    } else if (b.dataset.bk) {
+      // Picking the team already picked removes the pick.
+      var seed = +b.dataset.seed;
+      if (st.bkPicks[b.dataset.bk] === seed) delete st.bkPicks[b.dataset.bk]; else st.bkPicks[b.dataset.bk] = seed;
+      renderBracket();
+    } else if (b.id === 'bk-clear') {
+      st.bkPicks = {};
+      renderBracket();
+    } else if (b.id === 'bk-sim') {
+      st.bkSim = !st.bkSim;
+      renderBracket();
     } else if (b.dataset.open) {
       st.open[b.dataset.open] = !st.open[b.dataset.open]; renderTable();
     } else if (b.dataset.field || b.id === 'field-close') {

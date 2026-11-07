@@ -39,7 +39,8 @@ const HEADER = `<header class="site-header">
   <div class="container header-bar">
     <a class="brand" href="./">CFP Odds Board</a>
     <nav class="tabs" aria-label="Views">
-      <a href="./#odds" data-page="odds">Odds</a>
+      <a href="./#rankings" data-page="rankings">Rankings</a>
+      <a href="./#playoff" data-page="playoff">Playoff</a>
       <a href="./#scoreboard" data-page="scoreboard">Scoreboard</a>
     </nav>
     <button class="btn icon-btn" id="theme" type="button"></button>
@@ -65,6 +66,7 @@ const METHOD = [
   'Conference standings produce two title-game teams each simulation, or one per division in the Sun Belt.',
   `A simulated committee scores every team: rating × ${M.wRating}, −${M.wLoss} per loss with −${M.wLoss3} more past two losses, schedule strength, +${M.wTop10} per top-10 win, +${M.wTop25} per 11-25 win, −${M.wBadLoss} for a loss outside the top 60, +${M.wChampP4} for a power-conference title.`,
   `Part of the current CFP ranking carries forward (${Math.round(M.wAnchor * 100)}% of the gap between it and the model), and committee opinion varies by ${M.committeeSD} points per simulation. A head-to-head winner jumps a team within ${M.h2hWindow} points.`,
+  'The Playoff page seeds the 12 teams most likely to make it by average seed. With Simulate games on, each game’s win chance comes from the two ratings, with home field for the higher seed in the first round, and the favorite advances. Title odds come from the full simulation, so a team can lead them without being favored in this one bracket.',
   '40,000 seasons are simulated each time, which puts a team near 50% within about half a point.',
   'Picking a winner locks that game in every simulation, so its opponent loses it. All odds then update, including those of teams that weren’t playing in it.'
 ].map((s) => `        <li>${s}</li>`).join('\n');

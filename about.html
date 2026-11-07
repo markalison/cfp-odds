@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=9f7b4bc9b8">
-  <script src="js/theme.js?v=9f7b4bc9b8"></script>
+  <link rel="stylesheet" href="css/styles.css?v=8ef3f42430">
+  <script src="js/theme.js?v=8ef3f42430"></script>
   <title>About · CFP Odds Board</title>
   <meta name="description" content="How the CFP Odds Board simulates the season: the playoff rules it applies, the ratings it uses and its limits.">
 </head>
@@ -17,7 +17,8 @@
   <div class="container header-bar">
     <a class="brand" href="./">CFP Odds Board</a>
     <nav class="tabs" aria-label="Views">
-      <a href="./#odds" data-page="odds">Odds</a>
+      <a href="./#rankings" data-page="rankings">Rankings</a>
+      <a href="./#playoff" data-page="playoff">Playoff</a>
       <a href="./#scoreboard" data-page="scoreboard">Scoreboard</a>
     </nav>
     <button class="btn icon-btn" id="theme" type="button"></button>
@@ -51,6 +52,7 @@
         <li>Conference standings produce two title-game teams each simulation, or one per division in the Sun Belt.</li>
         <li>A simulated committee scores every team: rating × 0.65, −7 per loss with −2 more past two losses, schedule strength, +2.5 per top-10 win, +1.25 per 11-25 win, −3 for a loss outside the top 60, +4 for a power-conference title.</li>
         <li>Part of the current CFP ranking carries forward (60% of the gap between it and the model), and committee opinion varies by 2.2 points per simulation. A head-to-head winner jumps a team within 3 points.</li>
+        <li>The Playoff page seeds the 12 teams most likely to make it by average seed. With Simulate games on, each game’s win chance comes from the two ratings, with home field for the higher seed in the first round, and the favorite advances. Title odds come from the full simulation, so a team can lead them without being favored in this one bracket.</li>
         <li>40,000 seasons are simulated each time, which puts a team near 50% within about half a point.</li>
         <li>Picking a winner locks that game in every simulation, so its opponent loses it. All odds then update, including those of teams that weren’t playing in it.</li>
       </ul>

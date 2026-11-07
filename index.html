@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=9f7b4bc9b8">
-  <script src="js/theme.js?v=9f7b4bc9b8"></script>
+  <link rel="stylesheet" href="css/styles.css?v=8ef3f42430">
+  <script src="js/theme.js?v=8ef3f42430"></script>
   <title>CFP Odds Board</title>
   <meta name="description" content="Live odds of making the 12-team College Football Playoff, from simulating the rest of the season with ESPN data and computer ratings.">
 </head>
@@ -17,7 +17,8 @@
   <div class="container header-bar">
     <a class="brand" href="./">CFP Odds Board</a>
     <nav class="tabs" aria-label="Views">
-      <a href="./#odds" data-page="odds">Odds</a>
+      <a href="./#rankings" data-page="rankings">Rankings</a>
+      <a href="./#playoff" data-page="playoff">Playoff</a>
       <a href="./#scoreboard" data-page="scoreboard">Scoreboard</a>
     </nav>
     <button class="btn icon-btn" id="theme" type="button"></button>
@@ -40,7 +41,20 @@
     <section class="live-board" id="live-board" aria-label="Scoreboard"></section>
   </div>
 
-  <div class="stack" id="page-odds">
+  <div class="stack" id="page-playoff" hidden>
+    <section class="section" aria-labelledby="bracket-title">
+      <div class="bk-head">
+        <div class="section-head"><h2 id="bracket-title">Projected bracket</h2><p id="bracket-note"></p></div>
+        <div class="bk-actions">
+          <button class="btn" id="bk-clear" type="button" hidden>Clear picks</button>
+          <button class="btn bk-toggle" id="bk-sim" type="button" aria-pressed="false">Simulate games</button>
+        </div>
+      </div>
+      <div class="bracket" id="bracket"></div>
+    </section>
+  </div>
+
+  <div class="stack" id="page-rankings">
     <section class="section field" aria-labelledby="field-title">
       <div class="section-head"><h2 id="field-title">Projected field</h2><p id="field-note"></p></div>
       <div class="seeds" id="seeds"></div>
@@ -76,8 +90,8 @@
     <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
   </div>
 </footer>
-<script src="engine.js?v=9f7b4bc9b8"></script>
-<script src="data.js?v=9f7b4bc9b8"></script>
-<script src="js/app.js?v=9f7b4bc9b8"></script>
+<script src="engine.js?v=8ef3f42430"></script>
+<script src="data.js?v=8ef3f42430"></script>
+<script src="js/app.js?v=8ef3f42430"></script>
 </body>
 </html>

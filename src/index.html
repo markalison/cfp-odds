@@ -25,7 +25,20 @@
     <section class="live-board" id="live-board" aria-label="Scoreboard"></section>
   </div>
 
-  <div class="stack" id="page-odds">
+  <div class="stack" id="page-playoff" hidden>
+    <section class="section" aria-labelledby="bracket-title">
+      <div class="bk-head">
+        <div class="section-head"><h2 id="bracket-title">Projected bracket</h2><p id="bracket-note"></p></div>
+        <div class="bk-actions">
+          <button class="btn" id="bk-clear" type="button" hidden>Clear picks</button>
+          <button class="btn bk-toggle" id="bk-sim" type="button" aria-pressed="false">Simulate games</button>
+        </div>
+      </div>
+      <div class="bracket" id="bracket"></div>
+    </section>
+  </div>
+
+  <div class="stack" id="page-rankings">
     <section class="section field" aria-labelledby="field-title">
       <div class="section-head"><h2 id="field-title">Projected field</h2><p id="field-note"></p></div>
       <div class="seeds" id="seeds"></div>
