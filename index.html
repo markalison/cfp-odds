@@ -50,7 +50,7 @@ input[type=search] { width: 170px; }
 .field { display: grid; gap: 10px; }
 .field-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
 .field-head p { margin: 0; color: var(--muted); font-size: 13px; }
-.seeds { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.seeds { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
 .seed { display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: baseline; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
 .seed.bye { background: var(--accent-soft); border-color: transparent; }
 .seed .n { font: 700 13px var(--display); color: var(--muted); }
@@ -72,9 +72,16 @@ th.scen select { display: block; margin-top: 5px; padding: 3px 5px; font-size: 1
 td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
 .first { position: sticky; left: 0; z-index: 2; background: var(--panel); text-align: left; border-right: 1px solid var(--line); }
 th.first { z-index: 4; }
-.teamcell { display: grid; grid-template-columns: 22px 10px auto; gap: 7px; align-items: center; }
+.teamcell { display: grid; grid-template-columns: 22px 30px auto; gap: 7px; align-items: center; }
+.logo { display: inline-block; flex: none; object-fit: contain; vertical-align: middle; }
+.chip.logo { border-radius: 50%; }
+.teamcell .logo { width: 30px; height: 30px; }
+.seed .ab { display: flex; align-items: center; gap: 5px; }
+.seed .logo { width: 22px; height: 22px; }
+.next .logo { width: 18px; height: 18px; margin-inline: 1px 2px; }
+.sched .logo { width: 18px; height: 18px; margin-inline-end: 5px; }
 .teamcell .rk { font: 600 15px var(--display); color: var(--muted); text-align: right; }
-.chip { width: 10px; height: 22px; border-radius: 2px; box-shadow: 0 0 0 1px var(--line); }
+.chip { box-shadow: 0 0 0 1px var(--line); }
 .tname { all: unset; cursor: pointer; display: block; font-weight: 600; line-height: 1.15; }
 .tname:hover { text-decoration: underline; }
 .tname:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -118,8 +125,8 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 a { color: var(--accent); }
 @media (max-width: 620px) {
   th.first, td.first { white-space: normal; width: 128px; max-width: 128px; padding-inline: 6px; }
-  .teamcell { grid-template-columns: 16px 6px minmax(0, 1fr); gap: 4px; }
-  .chip { width: 6px; }
+  .teamcell { grid-template-columns: 16px 22px minmax(0, 1fr); gap: 4px; }
+  .teamcell .logo { width: 22px; height: 22px; }
   .tname { font-size: 14px; }
   .tmeta { font-size: 11px; }
 }
@@ -177,6 +184,7 @@ a { color: var(--accent); }
         <li>The committee is a model. Its weights were tuned against one ranking, the current one, and have not been tested on past seasons.</li>
         <li>Conference tiebreakers are simplified to head-to-head, then overall losses, then rating. Real tiebreakers go further.</li>
         <li>Games in progress use the current score and time left, without possession or field position. The page checks ESPN when it loads, so reload for newer scores.</li>
+        <li>Team logos come from ESPN and belong to their schools.</li>
         <li>FCS opponents without a rating use a low default, so those games are close to certain wins.</li>
         <li>Win-out odds marked &dagger; come from a separate forced run because too few normal simulations had that team winning. Teams with 5+ losses (6+ outside the power conferences) don't get that run and show a floor value.</li>
       </ul>
@@ -692,6 +700,21 @@ if (typeof module !== 'undefined') module.exports = CFP;
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
+  function isDark() { return /dark/.test(getComputedStyle(document.documentElement).colorScheme); }
+  // ESPN's logo CDN. If an image fails, the error listener below swaps in a team-color dot.
+  function logo(t, px) {
+    var color = t.color ? '#' + t.color : 'var(--muted)', size = px * 3;
+    return '<img class="logo" alt="" width="' + px + '" height="' + px + '" data-color="' + esc(color) + '" src="https://a.espncdn.com/combiner/i?img=/i/teamlogos/ncaa/' + (isDark() ? '500-dark' : '500') + '/' + encodeURIComponent(t.id) + '.png&amp;h=' + size + '&amp;w=' + size + '">';
+  }
+  document.addEventListener('error', function (e) {
+    var el = e.target;
+    if (!el || el.tagName !== 'IMG' || !el.classList.contains('logo')) return;
+    var dot = document.createElement('span');
+    dot.className = 'chip logo';
+    dot.style.background = el.dataset.color;
+    el.replaceWith(dot);
+  }, true);
+
   function pct(v, sims) {
     if (v == null) return '—';
     if (v <= 0.0005) return '<0.1%';
@@ -763,7 +786,7 @@ if (typeof module !== 'undefined') module.exports = CFP;
     var isLive = x.next.s === 'in';
     var flag = isLive ? ' <span class="live">LIVE ' + x.next.us + '-' + x.next.them + '</span>' : '';
     var day = new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
-    return '<span class="next">' + where + ' ' + esc(opp.ab || opp.name) + flag + '<small>' + esc(isLive ? x.next.st : day) + ' · ' + Math.round(x.next.p * 100) + '% to win</small></span>';
+    return '<span class="next">' + where + ' ' + logo(opp, 18) + esc(opp.ab || opp.name) + flag + '<small>' + esc(isLive ? x.next.st : day) + ' · ' + Math.round(x.next.p * 100) + '% to win</small></span>';
   }
   function scenCell(x) {
     var v = scenValue(x), base = x.r.cfp, delta = v == null ? null : v - base;
@@ -778,7 +801,7 @@ if (typeof module !== 'undefined') module.exports = CFP;
     var sc = schedule()[x.i], R = x.r, hist = R.hist, maxH = Math.max.apply(null, hist.concat(1)), N = res().sims;
     var lines = sc.map(function (g) {
       var o = D.teams[g.o];
-      return '<span>' + (g.home === 1 ? 'vs ' : g.home === -1 ? 'at ' : 'vs ') + esc(o.name) + (g.s === 'in' ? ' <span class="live">LIVE ' + g.us + '-' + g.them + '</span>' : '') + '</span><span>' + Math.round(g.p * 100) + '%</span>';
+      return '<span>' + (g.home === 1 ? 'vs ' : g.home === -1 ? 'at ' : 'vs ') + logo(o, 18) + esc(o.name) + (g.s === 'in' ? ' <span class="live">LIVE ' + g.us + '-' + g.them + '</span>' : '') + '</span><span>' + Math.round(g.p * 100) + '%</span>';
     }).join('');
     var bars = hist.map(function (h, i) {
       var label = 'Seed ' + (i + 1) + ': ' + (h / N * 100).toFixed(1) + '% of simulations';
@@ -805,8 +828,8 @@ if (typeof module !== 'undefined') module.exports = CFP;
     var rows = visible(buildRows());
     if (!rows.length) { $('body').innerHTML = '<tr><td class="empty" colspan="9">No teams match. Clear the search or pick another conference.</td></tr>'; return; }
     $('body').innerHTML = rows.map(function (x) {
-      var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf, color = x.t.color ? '#' + x.t.color : 'var(--muted)';
-      var r = '<tr><td class="first"><div class="teamcell"><span class="rk">' + (x.t.rank || '') + '</span><span class="chip" style="background:' + esc(color) + '"></span>' +
+      var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
+      var r = '<tr><td class="first"><div class="teamcell"><span class="rk">' + (x.t.rank || '') + '</span>' + logo(x.t, 30) +
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span></span></div></td>' +
         '<td>' + x.rating.toFixed(1) + '</td><td class="l">' + nextCell(x) + '</td>' +
         '<td><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span><div class="bar"><i style="width:' + (x.r.cfp * 100).toFixed(1) + '%"></i></div></div></td>' +
@@ -819,7 +842,7 @@ if (typeof module !== 'undefined') module.exports = CFP;
     var all = buildRows().sort(function (a, b) { return b.r.cfp - a.r.cfp; });
     var field = all.slice(0, 12).sort(function (a, b) { return a.r.seed - b.r.seed; });
     $('seeds').innerHTML = field.map(function (x, i) {
-      return '<div class="seed' + (i < 4 ? ' bye' : '') + '"><span class="n">' + (i + 1) + '</span><span class="ab">' + esc(x.t.ab) + '</span><span class="pc">' + pct(x.r.cfp) + '</span></div>';
+      return '<div class="seed' + (i < 4 ? ' bye' : '') + '"><span class="n">' + (i + 1) + '</span><span class="ab">' + logo(x.t, 22) + esc(x.t.ab) + '</span><span class="pc">' + pct(x.r.cfp) + '</span></div>';
     }).join('');
     $('out').innerHTML = '<b>Next in line:</b> ' + all.slice(12, 16).map(function (x) { return esc(x.t.name) + ' ' + pct(x.r.cfp); }).join(', ');
     $('field-note').textContent = 'The 12 highest odds, ordered by average seed. Shaded teams hold first-round byes.';
@@ -941,6 +964,9 @@ if (typeof module !== 'undefined') module.exports = CFP;
   renderModes();
   renderAll();
   tryLive();
+  // Dark and light logos differ, so redraw when the theme changes.
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (x) {}
+  new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 })();
 </script>
 </body></html>
