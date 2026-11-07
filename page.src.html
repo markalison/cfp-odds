@@ -65,8 +65,8 @@ input[type=search] { width: 170px; }
 .seed:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .seed[aria-expanded="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .field-detail { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; }
-.field-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-.field-head .logo { width: 30px; height: 30px; }
+.fd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.fd-head .logo { width: 30px; height: 30px; }
 .field-team { display: flex; align-items: center; gap: 9px; margin-inline-end: auto; }
 .field-team b { display: block; font: 700 20px/1.1 var(--display); }
 .field-pick { display: flex; align-items: center; gap: 10px; }
@@ -111,6 +111,30 @@ th.first { z-index: 4; }
 .next { font-size: 14px; }
 .next small { display: block; font-size: 12px; color: var(--muted); }
 .live { font: 700 11px var(--display); letter-spacing: .06em; color: var(--down); }
+.live-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: var(--down); color: var(--panel); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
+.live-pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.final-pill { display: inline-block; padding: 2px 6px; border-radius: 4px; background: var(--bar-track); color: var(--ink); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
+tr.live-row > td:first-child { box-shadow: inset 3px 0 0 var(--down); }
+.next .score-now { font-weight: 600; color: var(--ink); white-space: nowrap; }
+.live-board { display: grid; gap: 18px; }
+.live-note { margin: 0; font-size: 13px; color: var(--muted); }
+.live-note b { color: var(--ink); font-weight: 600; }
+.live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 8px; }
+.lg { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; display: grid; gap: 6px; align-content: start; }
+.lg.on { border-color: var(--down); }
+.lg-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
+.lg-top b { color: var(--ink); font-weight: 600; }
+.lg-rows { display: grid; grid-template-columns: minmax(0, 1fr) 34px 46px 62px; align-items: center; gap: 3px 8px; }
+.lg-rows .h { font: 600 11px var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
+.lg-team { display: flex; align-items: center; gap: 6px; min-width: 0; font: 600 18px/1.1 var(--display); }
+.lg-team .logo { width: 22px; height: 22px; flex: none; }
+.lg-team small { font: 500 12px var(--body); color: var(--muted); }
+.lg-score { text-align: right; font: 600 21px/1 var(--display); color: var(--muted); }
+.lg-score.lead { color: var(--ink); font-weight: 700; }
+.lg-num { text-align: right; font-size: 14px; }
+.lg-cfp { text-align: right; padding: 3px 5px; border-radius: 4px; font: 700 15px/1.1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
+.lg-why { margin: 0; padding-top: 6px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.lg-why b { color: var(--ink); font-weight: 600; }
 .odds { display: grid; gap: 3px; justify-items: end; min-width: 72px; }
 /* The shade tops out at 55% of the blue so the number stays readable in both themes. */
 .odds .v { display: block; width: 72px; padding: 6px 8px; border-radius: 5px; text-align: right; font: 700 19px/1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
@@ -152,6 +176,19 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .hist-x span { flex: 1; text-align: center; }
 .empty { padding: 24px; text-align: center; color: var(--muted); white-space: normal; }
 
+.page { display: grid; gap: 20px; }
+.page > * { min-width: 0; }
+.tabs { display: flex; gap: 4px; box-shadow: inset 0 -1px 0 var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.tabs a { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px 8px; color: var(--muted); text-decoration: none; font: 600 17px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; border-bottom: 3px solid transparent; white-space: nowrap; }
+.tabs a:hover { color: var(--ink); }
+.tabs a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
+.site-footer { display: grid; gap: 14px; margin-top: 18px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 14px; }
+.site-footer h3 { margin: 0; font: 700 17px var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.site-footer li, .site-footer p { color: var(--muted); }
+.live-group { display: grid; gap: 8px; }
+.live-group h3 { margin: 0; font: 600 15px var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.live-empty { margin: 0; padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
 .notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 22px 38px; }
 .notes > section { min-width: 0; }
 .notes ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 5px; max-width: 66ch; }
@@ -177,11 +214,21 @@ a { color: var(--accent); }
     <div class="status" id="status"></div>
   </header>
 
-  <div class="controls">
+  <nav class="tabs" aria-label="Pages">
+    <a href="#odds" data-page="odds">Odds</a>
+    <a href="#scoreboard" data-page="scoreboard">Scoreboard</a>
+  </nav>
+
+  <div class="controls" id="top-controls">
     <div class="ctl"><label for="mode">Ratings used</label><select id="mode"></select></div>
     <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="fill"></div></div><span id="progress-text"></span></div>
   </div>
 
+  <div class="page" id="page-scoreboard" hidden>
+    <section class="live-board" id="live-board" aria-label="Scoreboard"></section>
+  </div>
+
+  <div class="page" id="page-odds">
   <section class="field" aria-label="Most likely field">
     <div class="field-head"><h2>Most likely field</h2><p id="field-note"></p></div>
     <div class="seeds" id="seeds"></div>
@@ -201,10 +248,13 @@ a { color: var(--accent); }
       <tbody id="body"></tbody>
     </table></div>
   </section>
+  </div>
 
-  <div class="notes">
+  <footer class="site-footer" id="about" aria-labelledby="about-title">
+    <h2 id="about-title">About</h2>
+    <div class="notes">
     <section>
-      <h2>Playoff rules applied</h2>
+      <h3>Playoff rules applied</h3>
       <ul>
         <li>Automatic bids go to the ACC, Big Ten, Big 12 and SEC champions.</li>
         <li>One more goes to the highest-ranked champion from the American, Conference USA, MAC, Mountain West, Pac-12 or Sun Belt.</li>
@@ -216,15 +266,15 @@ a { color: var(--accent); }
       <p><a href="https://collegefootballplayoff.com/sports/2024/5/29/12-team-format" target="_blank" rel="noopener">Official 2026-27 format</a></p>
     </section>
     <section>
-      <h2>How a season is simulated</h2>
+      <h3>How a season is simulated</h3>
       <ul id="method"></ul>
     </section>
     <section>
-      <h2>Limits to keep in mind</h2>
+      <h3>Limits to keep in mind</h3>
       <ul>
         <li>The committee is a model. Its weights were tuned against one ranking, the current one, and have not been tested on past seasons.</li>
         <li>Conference tiebreakers are simplified to head-to-head, then overall losses, then rating. Real tiebreakers go further.</li>
-        <li>Games in progress use the current score and time left, without possession or field position. The page checks ESPN when it loads, so reload for newer scores.</li>
+        <li>Games in progress use the current score and time left, without possession or field position. While games are on and this tab is open, the page checks ESPN every minute and re-simulates, so odds can shift between checks.</li>
         <li>Team logos come from ESPN and belong to their schools.</li>
         <li>In the team toggle, G5 means the six non-power conferences named in the playoff rules, including the Pac-12. Notre Dame is grouped with Power 4 and UConn with G5.</li>
         <li>FCS opponents without a rating use a low default, so those games are close to certain wins.</li>
@@ -234,7 +284,8 @@ a { color: var(--accent); }
       </ul>
       <p id="sources"></p>
     </section>
-  </div>
+    </div>
+  </footer>
 </div>
 
 <script id="engine">
@@ -366,7 +417,7 @@ a { color: var(--accent); }
     if (!x.next) return '<span class="next">Done<small>Regular season over</small></span>';
     var opp = D.teams[x.next.o], where = x.next.home === 1 ? 'vs' : x.next.home === -1 ? 'at' : 'vs';
     var isLive = x.next.s === 'in';
-    var flag = isLive ? ' <span class="live">LIVE ' + x.next.us + '-' + x.next.them + '</span>' : '';
+    var flag = isLive ? ' <span class="live-pill"><i></i>LIVE</span> <span class="score-now">' + (x.next.us > x.next.them ? 'Up ' : x.next.us < x.next.them ? 'Down ' : 'Tied ') + x.next.us + '-' + x.next.them + '</span>' : '';
     var day = new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
     return '<span class="next">' + where + ' ' + logo(opp, 18) + esc(opp.ab || opp.name) + flag + '<small>' + esc(isLive ? x.next.st : day) + ' · ' + nextChance(x.next, x.t) + '</small></span>';
   }
@@ -416,7 +467,7 @@ a { color: var(--accent); }
     if (!rows.length) { $('body').innerHTML = '<tr><td class="empty" colspan="9">No teams match. Clear the search or pick another conference.</td></tr>'; return; }
     $('body').innerHTML = rows.map(function (x) {
       var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
-      var r = '<tr><td class="first"><div class="teamcell"><span class="rk">' + (x.t.rank || '') + '</span>' + logo(x.t, 30) +
+      var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first"><div class="teamcell"><span class="rk">' + (x.t.rank || '') + '</span>' + logo(x.t, 30) +
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span></span></div></td>' +
         '<td>' + x.rating.toFixed(1) + '</td><td class="l">' + nextCell(x) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
@@ -430,7 +481,7 @@ a { color: var(--accent); }
     var R = x.r, conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
     var delta = hasPicks() && x.base ? R.cfp - x.base.cfp : 0;
     function stat(label, value) { return '<div><dt>' + label + '</dt><dd>' + value + '</dd></div>'; }
-    return '<div class="field-head">' +
+    return '<div class="fd-head">' +
         '<div class="field-team">' + logo(x.t, 30) + '<span><b>' + esc(x.t.name) + '</b><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + (x.t.rank ? ' · CFP No. ' + x.t.rank : '') + '</span></span></div>' +
         '<div class="field-pick">' + nextCell(x) + pickCell(x) + '</div>' +
         '<button class="btn" type="button" id="field-close">Close</button>' +
@@ -458,6 +509,86 @@ a { color: var(--accent); }
     $('out').innerHTML = '<b>Next in line:</b> ' + all.slice(12, 16).map(function (x) { return esc(x.t.name) + ' ' + pct(x.r.cfp); }).join(', ');
     $('field-note').textContent = 'The 12 highest odds, ordered by average seed. Shaded teams hold first-round byes.';
   }
+  function etTime(iso) { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }); }
+  function etDay(when) { return new Date(when).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); }
+  // How far one game could move playoff odds: the team with the biggest gap between winning and losing.
+  function gameStakes(g) {
+    var R = res(), best = null;
+    if (g.s === 'post' || st.picks[g.id]) return best;
+    [g.h, g.a].forEach(function (i) {
+      if (i >= D.fbs) return;
+      var r = R.teams[i], nx = schedule()[i][0];
+      if (!nx || nx.id !== g.id || r.ifNext == null || r.ifLose == null || nx.p > 0.97 || nx.p < 0.03) return;
+      var swing = r.ifNext - r.ifLose;
+      if (!best || swing > best.swing) best = { i: i, swing: swing, win: r.ifNext, lose: r.ifLose };
+    });
+    return best;
+  }
+  function liveRow(g, i, score, other) {
+    var t = D.teams[i], isFbs = i < D.fbs, r = isFbs ? res().teams[i] : null, nx = isFbs ? schedule()[i][0] : null;
+    var win = '';
+    if (g.s !== 'post') {
+      if (st.picks[g.id]) win = st.picks[g.id] === t.id ? 'Pick' : '';
+      else if (nx && nx.id === g.id) win = Math.round(nx.p * 100) + '%';
+      else win = '—';
+    }
+    return '<div class="lg-team">' + logo(t, 22) + '<span>' + esc(t.ab || t.name) + (t.rank ? ' <small>No. ' + t.rank + '</small>' : '') + '</span></div>' +
+      '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + score + '</div>' +
+      '<div class="lg-num">' + win + '</div>' +
+      (r ? '<div class="lg-cfp" style="--p:' + r.cfp.toFixed(3) + '">' + pct(r.cfp) + '</div>' : '<div class="lg-num">—</div>');
+  }
+  function liveCard(g) {
+    var isLive = g.s === 'in', isPre = g.s === 'pre', stakes = gameStakes(g), why = '';
+    if (!isPre && !isLive) why = '';
+    else if (st.picks[g.id]) why = 'Your pick is locked in, so these odds assume <b>' + esc(st.picks[g.id] === D.teams[g.h].id ? D.teams[g.h].ab : D.teams[g.a].ab) + '</b> wins.';
+    else if (stakes && stakes.swing >= 0.01) why = '<b>' + esc(D.teams[stakes.i].ab) + '</b> is the most affected: <b>' + pct(stakes.win) + '</b> with a win, <b>' + pct(stakes.lose) + '</b> with a loss.';
+    else if (stakes) why = 'Little effect on the playoff race.';
+    else why = 'One team is a heavy favorite' + (isLive ? ' right now' : '') + ', so this barely moves the odds.';
+    var top = isLive ? '<span class="live-pill"><i></i>LIVE</span><b>' + esc(g.st) + '</b>' :
+      isPre ? '<span>Kickoff</span><b>' + etTime(g.d) + ' ET</b>' : '<span class="final-pill">FINAL</span><span>Today</span>';
+    return '<article class="lg' + (isLive ? ' on' : '') + '">' +
+      '<div class="lg-top">' + top + '</div>' +
+      '<div class="lg-rows"><span></span><span class="h"></span><span class="h">' + (isPre || isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span>' +
+        liveRow(g, g.a, isPre ? '' : g.as, isPre ? '' : g.hs) + liveRow(g, g.h, isPre ? '' : g.hs, isPre ? '' : g.as) +
+      '</div>' + (why ? '<p class="lg-why">' + why + '</p>' : '') +
+    '</article>';
+  }
+  // Live games with the most playoff impact come first, then today's finished games.
+  function renderLive() {
+    var today = etDay(Date.now());
+    var counts = function (g) { return g.h < D.fbs || g.a < D.fbs; };
+    var R = res();
+    var best = function (g) { return Math.max(g.h < D.fbs ? R.teams[g.h].cfp : 0, g.a < D.fbs ? R.teams[g.a].cfp : 0); };
+    var stake = function (g) { var s = gameStakes(g); return s ? s.swing : 0; };
+    var live = D.games.filter(function (g) { return g.s === 'in' && counts(g); }).sort(function (a, b) { return (st.picks[b.id] ? 1 : 0) - (st.picks[a.id] ? 1 : 0) || stake(b) - stake(a) || best(b) - best(a); });
+    var done = D.games.filter(function (g) { return g.s === 'post' && counts(g) && etDay(g.d) === today; }).sort(function (a, b) { return best(b) - best(a); });
+    var later = D.games.filter(function (g) { return g.s === 'pre' && counts(g) && etDay(g.d) === today; }).sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : stake(b) - stake(a); });
+    function group(title, games, note) {
+      return games.length ? '<div class="live-group"><h3>' + title + ' (' + games.length + ')</h3>' + (note ? '<p class="live-note">' + note + '</p>' : '') + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></div>' : '';
+    }
+    var checked = st.live === 'blocked' ? '<b>Couldn’t reach ESPN.</b> Scores are from ' + etTime(D.asOf) + ' ET.' :
+      'Scores from <b>' + etTime(D.asOf) + ' ET</b>' + (live.length ? ', checked every minute while this page is open.' : '.');
+    var next = D.games.filter(function (g) { return g.s === 'pre' && counts(g); })[0];
+    $('live-board').innerHTML = '<div class="field-head"><h2>Scoreboard</h2><p>' + checked + ' Win and Make CFP odds use the current score and clock.</p></div>' +
+      (live.length || later.length || done.length ?
+        group('In progress', live, 'Your picks first, then the biggest playoff impact.') + group('Later today', later) + group('Final today', done) :
+        '<p class="live-empty">No games today.' + (next ? ' Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '') + '</p>');
+  }
+  // Pages: Odds (default) and Scoreboard, chosen by the address's #. #about jumps to the footer.
+  var PAGES = { odds: 'CFP Odds Board', scoreboard: 'Scoreboard · CFP Odds Board' };
+  function showPage() {
+    var hash = location.hash.replace('#', ''), p = hash === 'live' ? 'scoreboard' : hash; // #live was the old name
+    if (!PAGES[p]) p = $('page-scoreboard').hidden ? 'odds' : 'scoreboard';
+    Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== p; });
+    [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
+      if (a.dataset.page === p) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    document.title = PAGES[p];
+    return hash;
+  }
+  window.addEventListener('hashchange', function () {
+    if (showPage() === 'about') $('about').scrollIntoView(); else window.scrollTo(0, 0);
+  });
   function renderStatus() {
     var as = new Date(D.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
     var left = D.games.filter(function (g) { return g.s !== 'post'; }).length, inp = D.games.filter(function (g) { return g.s === 'in'; }).length;
@@ -482,7 +613,7 @@ a { color: var(--accent); }
       ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '; +/\u2212 shows the change.</span><button class="btn" id="clear-picks" type="button">Clear picks</button>'
       : '<span>Press a team\u2019s box to cycle its next game through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update.</span>';
   }
-  function renderAll() { renderThemeButton(); renderPicksBar(); renderStatus(); renderField(); renderTable(); }
+  function renderAll() { renderThemeButton(); renderPicksBar(); renderStatus(); renderLive(); renderField(); renderTable(); }
 
   function renderModes() {
     function option(k, label) { return '<option value="' + k + '"' + (st.mode === k ? ' selected' : '') + '>' + esc(label) + '</option>'; }
@@ -493,6 +624,9 @@ a { color: var(--accent); }
     $('mode').innerHTML = groups;
   }
   function setProgress(p, text) {
+    // Minute-by-minute score checks update quietly, without dimming the table.
+    if (p == null) st.quiet = false;
+    else if (st.quiet) return;
     $('progress').hidden = p == null;
     if (p != null) { $('fill').style.width = (p * 100).toFixed(0) + '%'; $('progress-text').textContent = text; }
     $('tw').classList.toggle('busy', p != null);
@@ -548,14 +682,28 @@ a { color: var(--accent); }
   }
 
   // Try ESPN directly. This works from a local copy of the file; the published viewer refuses it.
-  function tryLive() {
+  var liveRaw = { weeks: {}, rankings: null, standings: null }, liveBusy = false;
+  // auto: a minute-by-minute check. It reuses finished weeks and standings, so only active weeks are fetched.
+  function tryLive(auto) {
+    if (liveBusy) return;
+    liveBusy = true;
+    if (auto) st.quiet = true;
     var API = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football';
     var get = function (u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
-    get(API + '/rankings').then(function (rankings) {
+    var kept = function (val, u) { return val ? Promise.resolve(val) : get(u); };
+    kept(auto && liveRaw.rankings, API + '/rankings').then(function (rankings) {
+      liveRaw.rankings = rankings;
       var wk = [];
-      for (var w = 1; w <= 15; w++) wk.push(get(API + '/scoreboard?groups=80&limit=400&week=' + w + '&seasontype=2&dates=' + D.season));
-      var fpi = get('https://site.web.api.espn.com/apis/fitt/v3/sports/football/college-football/powerindex?season=' + D.season + '&limit=200&region=us&lang=en').catch(function () { return null; });
-      return Promise.all([Promise.all(wk), get('https://site.web.api.espn.com/apis/v2/sports/football/college-football/standings?group=80&season=' + D.season + '&level=3'), fpi]).then(function (x) {
+      for (var w = 1; w <= 15; w++) (function (week) {
+        wk.push(kept(liveRaw.weeks[week], API + '/scoreboard?groups=80&limit=400&week=' + week + '&seasontype=2&dates=' + D.season).then(function (data) {
+          var ev = data.events || [];
+          if (ev.length && ev.every(function (e) { return e.status && e.status.type && e.status.type.completed; })) liveRaw.weeks[week] = data;
+          return data;
+        }));
+      })(w);
+      var fpi = auto ? null : get('https://site.web.api.espn.com/apis/fitt/v3/sports/football/college-football/powerindex?season=' + D.season + '&limit=200&region=us&lang=en').catch(function () { return null; });
+      return Promise.all([Promise.all(wk), kept(liveRaw.standings, 'https://site.web.api.espn.com/apis/v2/sports/football/college-football/standings?group=80&season=' + D.season + '&level=3'), fpi]).then(function (x) {
+        liveRaw.standings = x[1];
         var fresh = CFP.parseEspn({ weeks: x[0], rankings: rankings, standings: x[1] });
         var byId = {}; D.teams.forEach(function (t) { byId[t.id] = t; });
         fresh.teams.forEach(function (t) {
@@ -570,7 +718,9 @@ a { color: var(--accent); }
         var changed = count(fresh, 'post') !== count(D, 'post') || count(fresh, 'in') > 0 || count(D, 'in') > 0 || fresh.rankDate !== D.rankDate;
         if (!changed) {
           st.live = 'same';
+          st.quiet = false;
           renderStatus();
+          renderLive();
           if (fpiFresh && (st.mode === 'fpi' || st.mode === 'all' || hasPicks())) refresh();
           return;
         }
@@ -578,8 +728,16 @@ a { color: var(--accent); }
         st.pendingD = fresh;
         refresh();
       });
-    }).catch(function () { st.live = 'blocked'; renderStatus(); });
+    }).catch(function () { st.live = 'blocked'; st.quiet = false; renderStatus(); renderLive(); }).then(function () { liveBusy = false; });
   }
+  // Check again only when a game is on, or should have kicked off by now.
+  function gamesActive() {
+    var now = Date.now();
+    return D.games.some(function (g) { return g.s === 'in' || (g.s === 'pre' && Date.parse(g.d) <= now); });
+  }
+  setInterval(function () {
+    if (!document.hidden && !st.pendingD && gamesActive()) tryLive(true);
+  }, 60000);
 
   // Controls
   document.addEventListener('click', function (e) {
@@ -599,7 +757,9 @@ a { color: var(--accent); }
       if (!current) st.picks[b.dataset.pick] = b.dataset.team;
       else if (current === b.dataset.team) st.picks[b.dataset.pick] = b.dataset.opp;
       else delete st.picks[b.dataset.pick];
+      st.quiet = false;
       renderPicksBar();
+      renderLive();
       renderField();
       renderTable();
       // A short pause lets several picks in a row share one simulation.
@@ -630,6 +790,7 @@ a { color: var(--accent); }
     if (id === 'conf') { st.conf = e.target.value; renderTable(); }
     else if (id === 'mode') {
       st.mode = e.target.value;
+      st.quiet = false;
       clearTimeout(pickTimer);
       refresh();
     }
@@ -656,10 +817,16 @@ a { color: var(--accent); }
     var name = m.url.indexOf('sagarin.com') >= 0 ? 'Sagarin' : m.label;
     return '<a href="' + m.url + '" target="_blank" rel="noopener">' + esc(name) + '</a> through ' + fmtDay(D.sources.thru[m.k]);
   }).join('; ') + '. Results after those dates adjust the ratings automatically.';
+  var startHash = showPage();
   renderModes();
   renderViewControls();
   renderAll();
   tryLive();
+  // Wait for the table and logos to take their space, or the footer moves after the scroll.
+  if (startHash === 'about') {
+    var toAbout = function () { $('about').scrollIntoView(); };
+    if (document.readyState === 'complete') setTimeout(toAbout, 100); else window.addEventListener('load', function () { setTimeout(toAbout, 100); });
+  }
   // Dark and light logos differ, so redraw when the theme changes.
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (x) {}
   new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
