@@ -1,0 +1,453 @@
+<title>CFP Odds Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Layout: a single operating board. Controls, projected field, then the full-width odds table, with method notes below. */
+:root {
+  --bg: #f2f6f4; --panel: #ffffff; --ink: #14201c; --muted: #55645e; --line: #d4dfda;
+  --accent: #0b6e4f; --accent-soft: #d8ece4; --bar: #1f8a66; --bar-track: #e3ebe7; --up: #0b6e4f; --down: #a33a2c;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #101815; --panel: #18221e; --ink: #e8f0ec; --muted: #9aaaa3; --line: #2d3b36;
+  --accent: #5cc9a3; --accent-soft: #1e3a30; --bar: #45b08c; --bar-track: #26332e; --up: #5cc9a3; --down: #ee8d7e; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #101815; --panel: #18221e; --ink: #e8f0ec; --muted: #9aaaa3; --line: #2d3b36;
+  --accent: #5cc9a3; --accent-soft: #1e3a30; --bar: #45b08c; --bar-track: #26332e; --up: #5cc9a3; --down: #ee8d7e; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font: 400 15px/1.45 var(--body); font-variant-numeric: tabular-nums; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 22px 56px; display: grid; gap: 20px; }
+.wrap > * { min-width: 0; }
+h1, h2 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h1 { font-size: clamp(34px, 6vw, 50px); line-height: 1; text-transform: uppercase; }
+h2 { font-size: 22px; text-transform: uppercase; }
+header { display: grid; gap: 6px; }
+.lede { margin: 0; color: var(--muted); max-width: 70ch; }
+.status { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); }
+.status b { color: var(--ink); font-weight: 600; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: end; }
+.ctl { display: grid; gap: 4px; min-width: 0; }
+.ctl > label, .ctl > span { font: 600 13px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.seg { display: flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); overflow: hidden; }
+.seg button { font: 500 14px var(--body); color: var(--ink); background: transparent; border: 0; padding: 7px 12px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); font-weight: 600; }
+select, input[type=search], .btn { font: 500 14px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; }
+input[type=search] { width: 170px; }
+.btn { cursor: pointer; font-weight: 600; }
+.btn:hover, .seg button:hover:not([aria-pressed="true"]) { background: var(--accent-soft); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.progress { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); min-height: 34px; }
+.progress .track { width: 130px; height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
+.progress .fill { height: 100%; background: var(--bar); width: 0; }
+
+.field { display: grid; gap: 10px; }
+.field-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.field-head p { margin: 0; color: var(--muted); font-size: 13px; }
+.seeds { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.seed { display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: baseline; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+.seed.bye { background: var(--accent-soft); border-color: transparent; }
+.seed .n { font: 700 13px var(--display); color: var(--muted); }
+.seed .ab { font: 700 20px/1.05 var(--display); }
+.seed .pc { grid-column: 2; font-size: 12px; color: var(--muted); }
+.out { font-size: 13px; color: var(--muted); }
+.out b { color: var(--ink); font-weight: 600; }
+
+.table-wrap { overflow: auto; max-height: 82vh; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; transition: opacity .2s; }
+.table-wrap.busy { opacity: .55; }
+table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1010px; }
+th { position: sticky; top: 0; z-index: 3; background: var(--panel); text-align: right; vertical-align: bottom; padding: 9px 10px; border-bottom: 2px solid var(--ink); font: 600 13px/1.15 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+th button { all: unset; cursor: pointer; }
+th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+th[aria-sort="descending"] button::after { content: " \25BC"; font-size: 9px; }
+th[aria-sort="ascending"] button::after { content: " \25B2"; font-size: 9px; }
+th.l, td.l { text-align: left; }
+th.scen select { display: block; margin-top: 5px; padding: 3px 5px; font-size: 13px; text-transform: none; letter-spacing: 0; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.first { position: sticky; left: 0; z-index: 2; background: var(--panel); text-align: left; border-right: 1px solid var(--line); }
+th.first { z-index: 4; }
+.teamcell { display: grid; grid-template-columns: 22px 10px auto; gap: 7px; align-items: center; }
+.teamcell .rk { font: 600 15px var(--display); color: var(--muted); text-align: right; }
+.chip { width: 10px; height: 22px; border-radius: 2px; box-shadow: 0 0 0 1px var(--line); }
+.tname { all: unset; cursor: pointer; display: block; font-weight: 600; line-height: 1.15; }
+.tname:hover { text-decoration: underline; }
+.tname:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tmeta { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+.next { font-size: 14px; }
+.next small { display: block; font-size: 12px; color: var(--muted); }
+.live { font: 700 11px var(--display); letter-spacing: .06em; color: var(--down); }
+.odds { display: grid; gap: 3px; justify-items: end; min-width: 92px; }
+.odds .v { font: 700 19px/1 var(--display); }
+.bar { width: 100%; height: 5px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--bar); border-radius: 0 3px 3px 0; }
+.scen-cell { display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
+.mini { display: flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+.mini button { font: 500 12px var(--body); padding: 3px 7px; background: transparent; border: 0; color: var(--ink); cursor: pointer; }
+.mini button[aria-pressed="true"] { background: var(--accent-soft); font-weight: 600; color: var(--accent); }
+.mini button:disabled { color: var(--muted); cursor: default; }
+.sv { min-width: 62px; text-align: right; }
+.sv b { display: block; font: 700 19px/1 var(--display); }
+.sv small { font-size: 12px; color: var(--muted); }
+.sv small.up { color: var(--up); } .sv small.down { color: var(--down); }
+tr.detail td { padding: 0; white-space: normal; text-align: left; background: var(--bg); }
+.detail-inner { display: flex; flex-wrap: wrap; gap: 18px 34px; padding: 14px 16px 18px; position: sticky; left: 0; width: min(100vw - 60px, 1100px); }
+.detail-inner > div { min-width: 0; flex: 1 1 250px; }
+.detail-inner h3 { margin: 0 0 7px; font: 600 14px var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; margin: 0; }
+.kv dd { margin: 0; font-weight: 600; text-align: right; }
+.kv dt { color: var(--muted); }
+.sched { display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; }
+.sched span:nth-child(even) { font-weight: 600; text-align: right; }
+.hist { display: flex; align-items: flex-end; gap: 2px; height: 74px; border-bottom: 1px solid var(--muted); }
+.hist div { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; }
+.hist i { display: block; width: 100%; min-height: 1px; background: var(--bar); border-radius: 3px 3px 0 0; }
+.hist-x { display: flex; gap: 2px; font-size: 11px; color: var(--muted); margin-top: 3px; }
+.hist-x span { flex: 1; text-align: center; }
+.empty { padding: 24px; text-align: center; color: var(--muted); white-space: normal; }
+
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 22px 38px; }
+.notes > section { min-width: 0; }
+.notes ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 5px; max-width: 66ch; }
+.notes p { margin: 8px 0 0; max-width: 66ch; }
+a { color: var(--accent); }
+@media (max-width: 620px) {
+  th.first, td.first { white-space: normal; width: 128px; max-width: 128px; padding-inline: 6px; }
+  .teamcell { grid-template-columns: 16px 6px minmax(0, 1fr); gap: 4px; }
+  .chip { width: 6px; }
+  .tname { font-size: 14px; }
+  .tmeta { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) { .table-wrap { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>CFP Odds Board</h1>
+    <p class="lede">Each team's chance of making the 12-team College Football Playoff, from simulating every remaining game, conference title game and committee ranking.</p>
+    <div class="status" id="status"></div>
+  </header>
+
+  <div class="controls">
+    <div class="ctl"><span id="rating-label">Ratings used</span><div class="seg" role="group" aria-labelledby="rating-label" id="modes"></div></div>
+    <div class="ctl"><label for="sims">Simulated seasons</label><select id="sims"><option value="10000">10,000</option><option value="25000">25,000</option><option value="40000" selected>40,000</option><option value="100000">100,000</option></select></div>
+    <button class="btn" id="rerun" type="button">Run again</button>
+    <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
+    <div class="ctl"><label for="scope">Show</label><select id="scope"><option value="contenders">Contenders</option><option value="all">All FBS teams</option></select></div>
+    <div class="ctl"><label for="q">Find a team</label><input id="q" type="search" placeholder="Team name"></div>
+    <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="fill"></div></div><span id="progress-text"></span></div>
+  </div>
+
+  <section class="field" aria-label="Most likely field">
+    <div class="field-head"><h2>Most likely field</h2><p id="field-note"></p></div>
+    <div class="seeds" id="seeds"></div>
+    <div class="out" id="out"></div>
+  </section>
+
+  <div class="table-wrap" id="tw"><table>
+    <thead><tr id="head"></tr></thead>
+    <tbody id="body"></tbody>
+  </table></div>
+
+  <div class="notes">
+    <section>
+      <h2>Playoff rules applied</h2>
+      <ul>
+        <li>Automatic bids go to the ACC, Big Ten, Big 12 and SEC champions.</li>
+        <li>One more goes to the highest-ranked champion from the American, Conference USA, MAC, Mountain West, Pac-12 or Sun Belt.</li>
+        <li>Notre Dame gets an automatic bid if ranked in the top 12, leaving six at-large bids. Otherwise there are seven.</li>
+        <li>Seeds follow the committee ranking. Seeds 1-4 get byes, and 5-8 host first-round games.</li>
+        <li>Automatic qualifiers ranked outside the top 12 go at the bottom of the seeding.</li>
+        <li>The bracket is fixed with no reseeding: 1 plays 8/9, 4 plays 5/12, 2 plays 7/10, 3 plays 6/11.</li>
+      </ul>
+      <p><a href="https://collegefootballplayoff.com/sports/2024/5/29/12-team-format" target="_blank" rel="noopener">Official 2026-27 format</a></p>
+    </section>
+    <section>
+      <h2>How a season is simulated</h2>
+      <ul id="method"></ul>
+    </section>
+    <section>
+      <h2>Limits to keep in mind</h2>
+      <ul>
+        <li>The committee is a model. Its weights were tuned against one ranking, the current one, and have not been tested on past seasons.</li>
+        <li>Conference tiebreakers are simplified to head-to-head, then overall losses, then rating. Real tiebreakers go further.</li>
+        <li>Games in progress use the current score and time left, without possession or field position. The page checks ESPN when it loads, so reload for newer scores.</li>
+        <li>FCS opponents without a rating use a low default, so those games are close to certain wins.</li>
+        <li>Win-out odds marked &dagger; come from a separate forced run because too few normal simulations had that team winning. Teams with 5+ losses (6+ outside the power conferences) don't get that run and show a floor value.</li>
+      </ul>
+      <p id="sources"></p>
+    </section>
+  </div>
+</div>
+
+<script id="engine">
+/*__ENGINE__*/
+</script>
+<script id="cfp-data" type="application/json">"__DATA__"</script>
+<script>
+(function () {
+  'use strict';
+  var embedded = JSON.parse(document.getElementById('cfp-data').textContent);
+  var D = embedded.D, results = embedded.results, simsNote = {};
+  var MODES = [['blend', 'Massey + Sagarin'], ['massey', 'Massey Power'], ['sagarin', 'Sagarin Rating'], ['predictor', 'Sagarin Predictor']];
+  var st = { mode: 'blend', scenarioAll: 'next', rowScenario: {}, sort: 'cfp', dir: -1, open: {}, conf: '', scope: 'contenders', q: '', live: 'pending', running: false };
+  var schedCache = {}, worker = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+
+  function pct(v, sims) {
+    if (v == null) return '—';
+    if (v <= 0.0005) return '<0.1%';
+    if (v >= 0.9995) return '>99.9%';
+    return (v * 100).toFixed(v >= 0.1 && v < 0.9 ? 0 : 1) + '%';
+    void sims;
+  }
+  function res() { return results[st.mode]; }
+  function schedule() {
+    if (!schedCache[st.mode]) schedCache[st.mode] = CFP.nextGames(CFP.prep(D, st.mode));
+    return schedCache[st.mode];
+  }
+  function record(i) {
+    var w = 0, l = 0, cw = 0, cl = 0;
+    D.games.forEach(function (g) {
+      if (g.s !== 'post' || (g.h !== i && g.a !== i)) return;
+      var won = g.w === i;
+      if (won) w++; else l++;
+      if (g.c) { if (won) cw++; else cl++; }
+    });
+    return { w: w, l: l, cw: cw, cl: cl, text: w + '-' + l };
+  }
+  function buildRows() {
+    var R = res(), sc = schedule(), rows = [];
+    for (var i = 0; i < D.fbs; i++) {
+      var t = D.teams[i], r = R.teams[i], next = sc[i][0] || null;
+      rows.push({ i: i, t: t, r: r, rec: record(i), next: next, rating: R.rating[i], scenario: st.rowScenario[t.id] || st.scenarioAll });
+    }
+    return rows;
+  }
+  function scenValue(row) { return row.scenario === 'out' ? row.r.ifOut : row.r.ifNext; }
+  var COLS = {
+    team: function (x) { return x.t.rank || 200 - x.r.cfp; }, rating: function (x) { return x.rating; }, next: function (x) { return x.r.pNext == null ? -1 : x.r.pNext; },
+    cfp: function (x) { return x.r.cfp; }, scen: function (x) { var v = scenValue(x); return v == null ? -1 : v; }, bye: function (x) { return x.r.bye; }, champ: function (x) { return x.r.champ; },
+    seed: function (x) { return x.r.seed == null ? 99 : x.r.seed; }, title: function (x) { return x.r.title; }
+  };
+  function visible(rows) {
+    var q = st.q.trim().toLowerCase();
+    var out = rows.filter(function (x) {
+      if (st.conf && x.t.conf !== st.conf) return false;
+      if (q) return (x.t.full + ' ' + x.t.ab).toLowerCase().indexOf(q) >= 0;
+      if (st.scope === 'contenders') return x.t.rank || x.r.cfp >= 0.005 || x.r.ifOut >= 0.1;
+      return true;
+    });
+    var f = COLS[st.sort], d = st.dir;
+    out.sort(function (a, b) { return d * (f(a) - f(b)) || b.r.cfp - a.r.cfp; });
+    return out;
+  }
+  function head() {
+    function th(key, label, cls) {
+      var s = st.sort === key ? (st.dir < 0 ? 'descending' : 'ascending') : 'none';
+      return '<th class="' + (cls || '') + '" aria-sort="' + s + '"><button type="button" data-sort="' + key + '">' + label + '</button>';
+    }
+    $('head').innerHTML =
+      th('team', 'CFP rank / team', 'first') + '</th>' +
+      th('rating', 'Rating') + '</th>' +
+      th('next', 'Next game', 'l') + '</th>' +
+      th('cfp', 'Make CFP') + '</th>' +
+      th('scen', 'Make CFP if they…', 'scen') +
+      '<select id="scenario-all" aria-label="Set the scenario for every team"><option value="next"' + (st.scenarioAll === 'next' ? ' selected' : '') + '>Win next game (all)</option><option value="out"' + (st.scenarioAll === 'out' ? ' selected' : '') + '>Win out (all)</option></select></th>' +
+      th('bye', 'First-round bye') + '</th>' +
+      th('seed', 'Avg seed') + '</th>' +
+      th('champ', 'Win conf.') + '</th>' +
+      th('title', 'Win title') + '</th>';
+  }
+  function nextCell(x) {
+    if (!x.next) return '<span class="next">Done<small>Regular season over</small></span>';
+    var opp = D.teams[x.next.o], where = x.next.home === 1 ? 'vs' : x.next.home === -1 ? 'at' : 'vs';
+    var isLive = x.next.s === 'in';
+    var flag = isLive ? ' <span class="live">LIVE ' + x.next.us + '-' + x.next.them + '</span>' : '';
+    var day = new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+    return '<span class="next">' + where + ' ' + esc(opp.ab || opp.name) + flag + '<small>' + esc(isLive ? x.next.st : day) + ' · ' + Math.round(x.next.p * 100) + '% to win</small></span>';
+  }
+  function scenCell(x) {
+    var v = scenValue(x), base = x.r.cfp, delta = v == null ? null : v - base;
+    var dag = (x.scenario === 'out' ? x.r.forcedOut : x.r.forcedNext) ? '†' : '';
+    var d = delta == null ? '' : Math.abs(delta) < 0.005 ? '<small>no change</small>' : '<small class="' + (delta > 0 ? 'up' : 'down') + '">' + (delta > 0 ? '+' : '−') + Math.abs(delta * 100).toFixed(0) + ' pts</small>';
+    return '<div class="scen-cell"><div class="mini" role="group" aria-label="Scenario for ' + esc(x.t.name) + '">' +
+      '<button type="button" data-scen="next" data-id="' + x.t.id + '" aria-pressed="' + (x.scenario === 'next') + '"' + (x.next ? '' : ' disabled') + '>Next</button>' +
+      '<button type="button" data-scen="out" data-id="' + x.t.id + '" aria-pressed="' + (x.scenario === 'out') + '">Out</button></div>' +
+      '<div class="sv"><b>' + pct(v) + dag + '</b>' + d + '</div></div>';
+  }
+  function detail(x) {
+    var sc = schedule()[x.i], R = x.r, hist = R.hist, maxH = Math.max.apply(null, hist.concat(1)), N = res().sims;
+    var lines = sc.map(function (g) {
+      var o = D.teams[g.o];
+      return '<span>' + (g.home === 1 ? 'vs ' : g.home === -1 ? 'at ' : 'vs ') + esc(o.name) + (g.s === 'in' ? ' <span class="live">LIVE ' + g.us + '-' + g.them + '</span>' : '') + '</span><span>' + Math.round(g.p * 100) + '%</span>';
+    }).join('');
+    var bars = hist.map(function (h, i) {
+      var label = 'Seed ' + (i + 1) + ': ' + (h / N * 100).toFixed(1) + '% of simulations';
+      return '<div title="' + label + '" aria-label="' + label + '"><i style="height:' + (h / maxH * 100).toFixed(1) + '%"></i></div>';
+    }).join('');
+    var xs = hist.map(function (_, i) { return '<span>' + (i + 1) + '</span>'; }).join('');
+    return '<tr class="detail"><td colspan="9"><div class="detail-inner">' +
+      '<div><h3>Regular season left (chance to win)</h3><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
+      '<div><h3>What moves the odds</h3><dl class="kv">' +
+        '<dt>Today</dt><dd>' + pct(R.cfp) + '</dd>' +
+        '<dt>If they win next game</dt><dd>' + pct(R.ifNext) + '</dd>' +
+        '<dt>If they lose next game</dt><dd>' + pct(R.ifLose) + '</dd>' +
+        '<dt>If they win out</dt><dd>' + pct(R.ifOut) + '</dd>' +
+        '<dt>Chance they win out</dt><dd>' + pct(R.pOut) + '</dd>' +
+        (x.t.conf === 'ind' ? '' : '<dt>Reach conference title game</dt><dd>' + pct(R.ccg) + '</dd>') +
+        '<dt>Earn an automatic bid</dt><dd>' + pct(R.aq) + '</dd>' +
+        '<dt>Host a first-round game</dt><dd>' + pct(R.host) + '</dd>' +
+      '</dl></div>' +
+      '<div><h3>Seed distribution, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
+    '</div></td></tr>';
+  }
+  function renderTable() {
+    head();
+    var rows = visible(buildRows());
+    if (!rows.length) { $('body').innerHTML = '<tr><td class="empty" colspan="9">No teams match. Clear the search or pick another conference.</td></tr>'; return; }
+    $('body').innerHTML = rows.map(function (x) {
+      var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf, color = x.t.color ? '#' + x.t.color : 'var(--muted)';
+      var r = '<tr><td class="first"><div class="teamcell"><span class="rk">' + (x.t.rank || '') + '</span><span class="chip" style="background:' + esc(color) + '"></span>' +
+        '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span></span></div></td>' +
+        '<td>' + x.rating.toFixed(1) + '</td><td class="l">' + nextCell(x) + '</td>' +
+        '<td><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span><div class="bar"><i style="width:' + (x.r.cfp * 100).toFixed(1) + '%"></i></div></div></td>' +
+        '<td>' + scenCell(x) + '</td><td>' + pct(x.r.bye) + '</td><td>' + (x.r.seed ? x.r.seed.toFixed(1) : '—') + '</td>' +
+        '<td>' + (x.t.conf === 'ind' ? '—' : pct(x.r.champ)) + '</td><td>' + pct(x.r.title) + '</td></tr>';
+      return r + (st.open[x.t.id] ? detail(x) : '');
+    }).join('');
+  }
+  function renderField() {
+    var all = buildRows().sort(function (a, b) { return b.r.cfp - a.r.cfp; });
+    var field = all.slice(0, 12).sort(function (a, b) { return a.r.seed - b.r.seed; });
+    $('seeds').innerHTML = field.map(function (x, i) {
+      return '<div class="seed' + (i < 4 ? ' bye' : '') + '"><span class="n">' + (i + 1) + '</span><span class="ab">' + esc(x.t.ab) + '</span><span class="pc">' + pct(x.r.cfp) + '</span></div>';
+    }).join('');
+    $('out').innerHTML = '<b>Next in line:</b> ' + all.slice(12, 16).map(function (x) { return esc(x.t.name) + ' ' + pct(x.r.cfp); }).join(', ');
+    $('field-note').textContent = 'The 12 highest odds, ordered by average seed. Shaded teams hold first-round byes.';
+  }
+  function renderStatus() {
+    var as = new Date(D.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+    var left = D.games.filter(function (g) { return g.s !== 'post'; }).length, inp = D.games.filter(function (g) { return g.s === 'in'; }).length;
+    var liveMsg = st.live === 'on' ? '<b>Live ESPN data</b> loaded ' + as + ' ET' :
+      st.live === 'blocked' ? '<b>Couldn’t reach ESPN.</b> Showing the saved data from ' + as + ' ET' :
+      st.live === 'pending' ? '<b>Checking ESPN…</b> Showing the saved data from ' + as + ' ET' :
+      st.live === 'same' ? '<b>ESPN checked</b>, no new results since ' + as + ' ET' : '<b>ESPN snapshot</b> from ' + as + ' ET';
+    $('status').innerHTML = '<span>' + liveMsg + '</span><span>' + left + ' games left' + (inp ? ', ' + inp + ' in progress' : '') + '</span>' +
+      '<span>' + esc(D.rankLabel ? D.rankLabel.replace(/^.*- /, '') : 'CFP rankings') + '</span><span><b>' + res().sims.toLocaleString() + '</b> simulated seasons</span>';
+  }
+  function renderAll() { renderStatus(); renderField(); renderTable(); }
+
+  function renderModes() {
+    $('modes').innerHTML = MODES.map(function (m) { return '<button type="button" data-mode="' + m[0] + '" aria-pressed="' + (st.mode === m[0]) + '">' + m[1] + '</button>'; }).join('');
+  }
+  function setProgress(p, text) {
+    $('progress').hidden = p == null;
+    if (p != null) { $('fill').style.width = (p * 100).toFixed(0) + '%'; $('progress-text').textContent = text; }
+    $('tw').classList.toggle('busy', p != null);
+  }
+  var engineText = $('engine').textContent;
+  var WORKER_TAIL = 'self.onmessage=function(e){var m=e.data,P=CFP.prep(m.D,m.mode),sim=new CFP.Sim(P,m.seed),t=CFP.emptyTally(P.n),min=800,done=0;' +
+    'while(done<m.sims){var c=Math.min(1000,m.sims-done);CFP.baseBatch(sim,t,c);done+=c;if(done%4000===0)postMessage({p:done/m.sims*.8});}' +
+    'var jobs=CFP.forcedJobs(P,t,min),forced={};jobs.forEach(function(j,i){var v=CFP.forcedRun(sim,j,1000);(forced[j.t]=forced[j.t]||{})[j.m===1?"next":"out"]=v;if(i%5===0)postMessage({p:.8+.2*i/jobs.length});});' +
+    'postMessage({result:{sims:m.sims,mode:m.mode,teams:CFP.summarize(P,t,forced,min),rating:Array.prototype.slice.call(P.R.subarray(0,P.fbs))}});};';
+  function run(mode) {
+    var sims = +$('sims').value, seed = (Date.now() % 2147483647) | 1;
+    if (worker) worker.terminate();
+    st.running = true;
+    setProgress(0, 'Simulating ' + sims.toLocaleString() + ' seasons…');
+    var data = st.pendingD || D;
+    function finish(result) {
+      // New ESPN data can reorder teams, so it replaces the old data only once its results exist.
+      if (data !== D) { D = data; st.pendingD = null; schedCache = {}; results = {}; st.live = 'on'; }
+      results[mode] = result; st.running = false; worker = null; setProgress(null);
+      if (mode === st.mode) renderAll();
+    }
+    try {
+      worker = new Worker(URL.createObjectURL(new Blob([engineText + '\n' + WORKER_TAIL], { type: 'text/javascript' })));
+      worker.onmessage = function (e) {
+        if (e.data.result) finish(e.data.result);
+        else setProgress(e.data.p, 'Simulating ' + sims.toLocaleString() + ' seasons…');
+      };
+      worker.onerror = function () { worker = null; setTimeout(function () { finish(CFP.runAll(data, mode, sims, seed, 1000)); }, 30); };
+      worker.postMessage({ D: data, mode: mode, sims: sims, seed: seed });
+    } catch (err) {
+      setTimeout(function () { finish(CFP.runAll(data, mode, sims, seed, 1000)); }, 30);
+    }
+  }
+
+  // Try ESPN directly. This works from a local copy of the file; the published viewer refuses it.
+  function tryLive() {
+    var API = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football';
+    var get = function (u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
+    get(API + '/rankings').then(function (rankings) {
+      var wk = [];
+      for (var w = 1; w <= 15; w++) wk.push(get(API + '/scoreboard?groups=80&limit=400&week=' + w + '&seasontype=2&dates=' + D.season));
+      return Promise.all([Promise.all(wk), get('https://site.web.api.espn.com/apis/v2/sports/football/college-football/standings?group=80&season=' + D.season + '&level=3')]).then(function (x) {
+        var fresh = CFP.parseEspn({ weeks: x[0], rankings: rankings, standings: x[1] });
+        var byId = {}; D.teams.forEach(function (t) { byId[t.id] = t; });
+        fresh.teams.forEach(function (t) {
+          var old = byId[t.id];
+          t.r = old ? old.r : { massey: 28, sagarin: 45, predictor: 45 };
+        });
+        var count = function (d, s) { return d.games.filter(function (g) { return g.s === s; }).length; };
+        var changed = count(fresh, 'post') !== count(D, 'post') || count(fresh, 'in') > 0 || count(D, 'in') > 0 || fresh.rankDate !== D.rankDate;
+        if (!changed) { st.live = 'same'; renderStatus(); return; }
+        fresh.season = D.season; fresh.sources = D.sources; fresh.asOf = new Date().toISOString();
+        st.pendingD = fresh;
+        run(st.mode);
+      });
+    }).catch(function () { st.live = 'blocked'; renderStatus(); });
+  }
+
+  // Controls
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.mode) {
+      st.mode = b.dataset.mode; renderModes();
+      if (results[st.mode] && !st.pendingD) renderAll(); else run(st.mode);
+    } else if (b.dataset.sort) {
+      var k = b.dataset.sort;
+      if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' ? 1 : -1; }
+      renderTable();
+    } else if (b.dataset.scen) {
+      st.rowScenario[b.dataset.id] = b.dataset.scen; renderTable();
+    } else if (b.dataset.open) {
+      st.open[b.dataset.open] = !st.open[b.dataset.open]; renderTable();
+    } else if (b.id === 'rerun') { run(st.mode); }
+  });
+  document.addEventListener('change', function (e) {
+    var id = e.target.id;
+    if (id === 'scenario-all') { st.scenarioAll = e.target.value; st.rowScenario = {}; try { localStorage.setItem('cfp-scenario', st.scenarioAll); } catch (x) {} renderTable(); }
+    else if (id === 'conf') { st.conf = e.target.value; renderTable(); }
+    else if (id === 'scope') { st.scope = e.target.value; renderTable(); }
+    else if (id === 'sims') { run(st.mode); }
+  });
+  $('q').addEventListener('input', function (e) { st.q = e.target.value; renderTable(); });
+
+  // Static text built from the model's own constants
+  var M = CFP.M;
+  $('method').innerHTML = [
+    'Each game is decided by the rating gap plus home field, with ' + M.gameSD + ' points of game randomness. Each team’s true strength also varies by ' + M.teamSD + ' points per simulated season, so hot streaks carry through.',
+    'Conference standings produce two title-game teams each simulation, or one per division in the Sun Belt.',
+    'A simulated committee scores every team: rating × ' + M.wRating + ', −' + M.wLoss + ' per loss with −' + M.wLoss3 + ' more past two losses, schedule strength, +' + M.wTop10 + ' per top-10 win, +' + M.wTop25 + ' per 11-25 win, −' + M.wBadLoss + ' for a loss outside the top 60, +' + M.wChampP4 + ' for a power-conference title.',
+    'Part of the current CFP ranking carries forward (' + Math.round(M.wAnchor * 100) + '% of the gap between it and the model), and committee opinion varies by ' + M.committeeSD + ' points per simulation. A head-to-head winner jumps a team within ' + M.h2hWindow + ' points.',
+    'Win-next and win-out odds count only the simulated seasons where that happened, so they reflect a team that really is playing better.'
+  ].map(function (s) { return '<li>' + s + '</li>'; }).join('');
+  var fmtDay = function (d) { return new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }); };
+  $('sources').innerHTML = 'Sources: <a href="https://www.espn.com/college-football/" target="_blank" rel="noopener">ESPN</a> schedules, scores and rankings; <a href="https://masseyratings.com/cf/fbs/ratings" target="_blank" rel="noopener">Massey</a> through ' + fmtDay(D.sources.massey.thru) + '; <a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin</a> through ' + fmtDay(D.sources.sagarin.thru) + '. Results after those dates adjust the ratings automatically.';
+  var confs = {}; for (var i = 0; i < D.fbs; i++) confs[D.teams[i].conf] = 1;
+  $('conf').innerHTML = '<option value="">All conferences</option>' + Object.keys(confs).sort(function (a, b) { return CFP.CONF_NAME[a] < CFP.CONF_NAME[b] ? -1 : 1; }).map(function (c) { return '<option value="' + c + '">' + esc(CFP.CONF_NAME[c] || c) + '</option>'; }).join('');
+  try { var saved = localStorage.getItem('cfp-scenario'); if (saved === 'next' || saved === 'out') st.scenarioAll = saved; } catch (x) {}
+  renderModes();
+  renderAll();
+  tryLive();
+})();
+</script>
