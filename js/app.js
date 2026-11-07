@@ -1,305 +1,12 @@
-<title>CFP Odds Board</title>
-<script>try { var savedTheme = localStorage.getItem('cfp-theme'); if (savedTheme === 'light' || savedTheme === 'dark') document.documentElement.setAttribute('data-theme', savedTheme); } catch (e) {}</script>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-<style>
-/* Layout: a single operating board. Controls, projected field, then the full-width odds table, with method notes below. */
-:root {
-  color-scheme: light;
-  --bg: #f4f5f8; --panel: #ffffff; --ink: #171a21; --muted: #5a6172; --line: #dde0e7;
-  --accent: #1f4fd1; --accent-soft: #e3e9fb; --bar: #2f62e3; --bar-track: #e5e7ee; --up: #157a3c; --down: #b93a2c;
-  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
-  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
-}
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #13161c; --panel: #1b1f27; --ink: #eef0f4; --muted: #9ba3b2; --line: #2d323d;
-  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --bar-track: #2b303b; --up: #62d092; --down: #f2917f; color-scheme: dark;
-} }
-:root[data-theme="dark"] {
-  --bg: #13161c; --panel: #1b1f27; --ink: #eef0f4; --muted: #9ba3b2; --line: #2d323d;
-  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --bar-track: #2b303b; --up: #62d092; --down: #f2917f; color-scheme: dark;
-}
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-body { background: var(--bg); color: var(--ink); font: 400 15px/1.45 var(--body); font-variant-numeric: tabular-nums; }
-.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 22px 56px; display: grid; gap: 20px; }
-.wrap > * { min-width: 0; }
-h1, h2 { font-family: var(--display); font-weight: 700; margin: 0; text-wrap: balance; letter-spacing: .01em; }
-h1 { font-size: clamp(34px, 6vw, 50px); line-height: 1; text-transform: uppercase; }
-h2 { font-size: 22px; text-transform: uppercase; }
-header { display: grid; gap: 6px; }
-.title-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
-.lede { margin: 0; color: var(--muted); max-width: 70ch; }
-.status { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); }
-.status b { color: var(--ink); font-weight: 600; }
-
-.controls { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: end; }
-.ctl { display: grid; gap: 4px; min-width: 0; }
-.ctl > label, .ctl > span { font: 600 13px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
-select, input[type=search], .btn { font: 500 14px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; }
-input[type=search] { width: 170px; }
-.btn { cursor: pointer; font-weight: 600; }
-.btn:hover { background: var(--accent-soft); }
-.icon-btn { width: 38px; height: 38px; padding: 0; display: grid; place-items: center; flex: none; }
-.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.seg { display: flex; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); overflow: hidden; }
-.seg button { font: 500 14px var(--body); color: var(--ink); background: transparent; border: 0; border-right: 1px solid var(--line); padding: 7px 12px; cursor: pointer; white-space: nowrap; }
-.seg button:last-child { border-right: 0; }
-.seg button:hover { background: var(--accent-soft); }
-.seg button[aria-pressed="true"], .seg button[aria-pressed="true"]:hover { background: var(--accent); color: var(--panel); font-weight: 600; }
-.board { display: grid; gap: 10px; }
-.board > * { min-width: 0; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.progress { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); min-height: 34px; }
-.progress .track { width: 130px; height: 6px; background: var(--bar-track); border-radius: 3px; overflow: hidden; }
-.progress .fill { height: 100%; background: var(--bar); width: 0; }
-
-.field { display: grid; gap: 10px; }
-.field-head { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
-.field-head p { margin: 0; color: var(--muted); font-size: 13px; }
-.seeds { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
-.seed { display: grid; grid-template-columns: auto 1fr; column-gap: 7px; align-items: baseline; width: 100%; font: inherit; color: var(--ink); text-align: left; cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
-.seed.bye { background: var(--accent-soft); border-color: transparent; }
-.seed:hover { border-color: var(--accent); }
-.seed:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.seed[aria-expanded="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
-.field-detail { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin: 8px 0; }
-.fd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-.fd-head .logo { width: 30px; height: 30px; }
-.field-team { display: flex; align-items: center; gap: 9px; margin-inline-end: auto; }
-.field-team b { display: block; font: 700 20px/1.1 var(--display); }
-.field-pick { display: flex; align-items: center; gap: 10px; }
-.field-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 10px 16px; margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line); }
-.field-stats dt { font-size: 12px; color: var(--muted); }
-.field-stats dd { margin: 2px 0 0; font: 700 19px/1.1 var(--display); }
-.field-stats dd small { display: block; font: 400 12px/1.3 var(--body); }
-.field-stats small.up { color: var(--up); } .field-stats small.down { color: var(--down); }
-.field-detail .detail-inner { position: static; width: auto; }
-.seed .n { font: 700 13px var(--display); color: var(--muted); }
-.seed .ab { font: 700 20px/1.05 var(--display); }
-.seed .pc { grid-column: 2; font-size: 12px; color: var(--muted); }
-.out { font-size: 13px; color: var(--muted); }
-.out b { color: var(--ink); font-weight: 600; }
-
-.table-wrap { overflow: auto; max-height: 82vh; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; transition: opacity .2s; }
-.table-wrap.busy { opacity: .55; }
-table { border-collapse: separate; border-spacing: 0; width: 100%; min-width: 1010px; }
-th { position: sticky; top: 0; z-index: 3; background: var(--panel); text-align: right; vertical-align: bottom; padding: 9px 10px; border-bottom: 2px solid var(--ink); font: 600 13px/1.15 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
-th button { all: unset; cursor: pointer; }
-th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-th[aria-sort="descending"] button::after { content: " \25BC"; font-size: 9px; }
-th[aria-sort="ascending"] button::after { content: " \25B2"; font-size: 9px; }
-th.l, td.l { text-align: left; }
-td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-.first { position: sticky; left: 0; z-index: 2; background: var(--panel); text-align: left; border-right: 1px solid var(--line); }
-th.first { z-index: 4; }
-.teamcell { display: grid; grid-template-columns: 22px 30px auto; gap: 7px; align-items: center; }
-.logo { display: inline-block; flex: none; object-fit: contain; vertical-align: middle; }
-.chip.logo { border-radius: 50%; }
-.teamcell .logo { width: 30px; height: 30px; }
-.seed .ab { display: flex; align-items: center; gap: 5px; }
-.seed .logo { width: 22px; height: 22px; }
-.next .logo { width: 18px; height: 18px; margin-inline: 1px 2px; }
-.sched .logo { width: 18px; height: 18px; margin-inline-end: 5px; }
-.teamcell .rk { font: 600 15px var(--display); color: var(--muted); text-align: right; }
-.chip { box-shadow: 0 0 0 1px var(--line); }
-.tname { all: unset; cursor: pointer; display: block; font-weight: 600; line-height: 1.15; }
-.tname:hover { text-decoration: underline; }
-.tname:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.tmeta { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
-.next { font-size: 14px; }
-.next small { display: block; font-size: 12px; color: var(--muted); }
-.live { font: 700 11px var(--display); letter-spacing: .06em; color: var(--down); }
-.live-pill { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: var(--down); color: var(--panel); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
-.live-pill i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.final-pill { display: inline-block; padding: 2px 6px; border-radius: 4px; background: var(--bar-track); color: var(--ink); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
-tr.live-row > td:first-child { box-shadow: inset 3px 0 0 var(--down); }
-.next .score-now { font-weight: 600; color: var(--ink); white-space: nowrap; }
-.live-board { display: grid; gap: 18px; }
-.live-note { margin: 0; font-size: 13px; color: var(--muted); }
-.live-note b { color: var(--ink); font-weight: 600; }
-.live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 8px; }
-.lg { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; display: grid; gap: 6px; align-content: start; }
-.lg.on { border-color: var(--down); }
-.lg-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; color: var(--muted); }
-.lg-top b { color: var(--ink); font-weight: 600; }
-.lg-rows { display: grid; grid-template-columns: minmax(0, 1fr) 34px 46px 62px; align-items: center; gap: 3px 8px; }
-.lg-rows .h { font: 600 11px var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
-.lg-team { display: flex; align-items: center; gap: 6px; min-width: 0; font: 600 18px/1.1 var(--display); }
-.lg-team .logo { width: 22px; height: 22px; flex: none; }
-.lg-team small { font: 500 12px var(--body); color: var(--muted); }
-.lg-score { text-align: right; font: 600 21px/1 var(--display); color: var(--muted); }
-.lg-score.lead { color: var(--ink); font-weight: 700; }
-.lg-num { text-align: right; font-size: 14px; }
-.lg-cfp { text-align: right; padding: 3px 5px; border-radius: 4px; font: 700 15px/1.1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
-.lg-why { margin: 0; padding-top: 6px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
-.lg-why b { color: var(--ink); font-weight: 600; }
-.odds { display: grid; gap: 3px; justify-items: end; min-width: 72px; }
-/* The shade tops out at 55% of the blue so the number stays readable in both themes. */
-.odds .v { display: block; width: 72px; padding: 6px 8px; border-radius: 5px; text-align: right; font: 700 19px/1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
-th.pick, td.pick { text-align: center; }
-.mini { display: inline-flex; vertical-align: middle; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
-.mini button { font: 500 12px var(--body); padding: 3px 7px; background: transparent; border: 0; color: var(--ink); cursor: pointer; }
-.mini button[aria-pressed="true"] { background: var(--accent-soft); font-weight: 600; color: var(--accent); }
-.mini button:disabled { color: var(--muted); cursor: default; }
-.odds small.up { color: var(--up); } .odds small.down { color: var(--down); }
-.odds small { font-size: 12px; line-height: 1; }
-.mini button:hover:not(:disabled) { background: var(--accent-soft); }
-.mini button.pick-box { width: 30px; min-width: 30px; height: 28px; padding: 0; display: block; }
-.mini button.pick-w, .mini button.pick-w:hover:not(:disabled), .mini button.pick-l, .mini button.pick-l:hover:not(:disabled) { color: var(--panel); font-weight: 700; }
-.mini button.pick-w, .mini button.pick-w:hover:not(:disabled) { background: var(--up); }
-.mini button.pick-l, .mini button.pick-l:hover:not(:disabled) { background: var(--down); }
-.next small b { font-weight: 600; color: var(--ink); }
-.picks-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0; font-size: 13px; color: var(--muted); flex: 1 1 260px; min-height: 36px; justify-content: flex-end; text-align: right; }
-.picks-bar b { color: var(--ink); font-weight: 600; }
-tr.detail td { padding: 0; white-space: normal; text-align: left; background: var(--bg); }
-.detail-inner { display: flex; flex-wrap: wrap; gap: 18px 34px; padding: 14px 16px 18px; position: sticky; left: 0; width: min(100vw - 60px, 1100px); }
-.detail-inner > div { min-width: 0; flex: 1 1 250px; }
-.detail-inner h3 { margin: 0 0 7px; font: 600 14px var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
-.detail-inner .split { min-width: 0; width: 100%; margin: 0 0 8px; border-collapse: collapse; }
-.detail-inner .split th, .detail-inner .split td { position: static; padding: 1.5px 0 1.5px 14px; border: 0; background: transparent; text-align: right; }
-.detail-inner .split thead th { padding-bottom: 4px; border-bottom: 1px solid var(--line); font: 600 12px/1.15 var(--display); letter-spacing: .05em; color: var(--muted); }
-.detail-inner .split thead td { border-bottom: 1px solid var(--line); }
-.detail-inner .split tbody th { padding-left: 0; font: inherit; letter-spacing: normal; text-transform: none; color: var(--muted); text-align: left; white-space: normal; }
-.detail-inner .split tbody td { font-weight: 600; white-space: nowrap; }
-.detail-inner .split tbody tr:first-child > * { padding-top: 5px; }
-.kv { display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; margin: 0; }
-.kv dd { margin: 0; font-weight: 600; text-align: right; }
-.kv dt { color: var(--muted); }
-.sched { display: grid; grid-template-columns: 1fr auto; gap: 3px 16px; }
-.sched span:nth-child(even) { font-weight: 600; text-align: right; }
-.hist { display: flex; align-items: flex-end; gap: 2px; height: 74px; border-bottom: 1px solid var(--muted); }
-.hist div { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; }
-.hist i { display: block; width: 100%; min-height: 1px; background: var(--bar); border-radius: 3px 3px 0 0; }
-.hist-x { display: flex; gap: 2px; font-size: 11px; color: var(--muted); margin-top: 3px; }
-.hist-x span { flex: 1; text-align: center; }
-.empty { padding: 24px; text-align: center; color: var(--muted); white-space: normal; }
-
-.page { display: grid; gap: 20px; }
-.page > * { min-width: 0; }
-.tabs { display: flex; gap: 4px; box-shadow: inset 0 -1px 0 var(--line); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
-.tabs a { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px 8px; color: var(--muted); text-decoration: none; font: 600 17px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; border-bottom: 3px solid transparent; white-space: nowrap; }
-.tabs a:hover { color: var(--ink); }
-.tabs a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.tabs a[aria-current="page"] { color: var(--ink); border-bottom-color: var(--accent); }
-.site-footer { display: grid; gap: 14px; margin-top: 18px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 14px; }
-.site-footer h3 { margin: 0; font: 700 17px var(--display); letter-spacing: .04em; text-transform: uppercase; }
-.site-footer li, .site-footer p { color: var(--muted); }
-.live-group { display: grid; gap: 8px; }
-.live-group h3 { margin: 0; font: 600 15px var(--display); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
-.live-empty { margin: 0; padding: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
-.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 22px 38px; }
-.notes > section { min-width: 0; }
-.notes ul { margin: 8px 0 0; padding-left: 18px; display: grid; gap: 5px; max-width: 66ch; }
-.notes p { margin: 8px 0 0; max-width: 66ch; }
-a { color: var(--accent); }
-@media (max-width: 620px) {
-  th.first, td.first { white-space: normal; width: 128px; max-width: 128px; padding-inline: 6px; }
-  .teamcell { grid-template-columns: 16px 22px minmax(0, 1fr); gap: 4px; }
-  .teamcell .logo { width: 22px; height: 22px; }
-  .tname { font-size: 14px; }
-  .tmeta { font-size: 11px; }
-}
-@media (prefers-reduced-motion: reduce) { .table-wrap { transition: none; } }
-</style>
-
-<div class="wrap">
-  <header>
-    <div class="title-row">
-      <h1>CFP Odds Board</h1>
-      <button class="btn icon-btn" id="theme" type="button"></button>
-    </div>
-    <p class="lede">Each team's chance of making the 12-team College Football Playoff, from simulating every remaining game, conference title game and committee ranking.</p>
-    <div class="status" id="status"></div>
-  </header>
-
-  <nav class="tabs" aria-label="Pages">
-    <a href="#odds" data-page="odds">Odds</a>
-    <a href="#scoreboard" data-page="scoreboard">Scoreboard</a>
-  </nav>
-
-  <div class="controls" id="top-controls">
-    <div class="ctl"><label for="mode">Ratings used</label><select id="mode"></select></div>
-    <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="fill"></div></div><span id="progress-text"></span></div>
-  </div>
-
-  <div class="page" id="page-scoreboard" hidden>
-    <section class="live-board" id="live-board" aria-label="Scoreboard"></section>
-  </div>
-
-  <div class="page" id="page-odds">
-  <section class="field" aria-label="Most likely field">
-    <div class="field-head"><h2>Most likely field</h2><p id="field-note"></p></div>
-    <div class="seeds" id="seeds"></div>
-    <div class="field-detail" id="field-detail" hidden></div>
-    <div class="out" id="out"></div>
-  </section>
-
-  <section class="board" aria-label="Odds by team">
-    <div class="controls">
-      <div class="ctl"><span id="view-label">Teams</span><div class="seg" role="group" aria-labelledby="view-label" id="view"></div></div>
-      <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
-      <div class="ctl"><label for="q">Find a team</label><input id="q" type="search" placeholder="Team name"></div>
-      <div class="picks-bar" id="picks-bar" aria-live="polite"></div>
-    </div>
-    <div class="table-wrap" id="tw"><table>
-      <thead><tr id="head"></tr></thead>
-      <tbody id="body"></tbody>
-    </table></div>
-  </section>
-  </div>
-
-  <footer class="site-footer" id="about" aria-labelledby="about-title">
-    <h2 id="about-title">About</h2>
-    <div class="notes">
-    <section>
-      <h3>Playoff rules applied</h3>
-      <ul>
-        <li>Automatic bids go to the ACC, Big Ten, Big 12 and SEC champions.</li>
-        <li>One more goes to the highest-ranked champion from the American, Conference USA, MAC, Mountain West, Pac-12 or Sun Belt.</li>
-        <li>Notre Dame gets an automatic bid if ranked in the top 12, leaving six at-large bids. Otherwise there are seven.</li>
-        <li>Seeds follow the committee ranking. Seeds 1-4 get byes, and 5-8 host first-round games.</li>
-        <li>Automatic qualifiers ranked outside the top 12 go at the bottom of the seeding.</li>
-        <li>The bracket is fixed with no reseeding: 1 plays 8/9, 4 plays 5/12, 2 plays 7/10, 3 plays 6/11.</li>
-      </ul>
-      <p><a href="https://collegefootballplayoff.com/sports/2024/5/29/12-team-format" target="_blank" rel="noopener">Official 2026-27 format</a></p>
-    </section>
-    <section>
-      <h3>How a season is simulated</h3>
-      <ul id="method"></ul>
-    </section>
-    <section>
-      <h3>Limits to keep in mind</h3>
-      <ul>
-        <li>The committee is a model. Its weights were tuned against one ranking, the current one, and have not been tested on past seasons.</li>
-        <li>Conference tiebreakers are simplified to head-to-head, then overall losses, then rating. Real tiebreakers go further.</li>
-        <li>Games in progress use the current score and time left, without possession or field position. While games are on and this tab is open, the page checks ESPN every minute and re-simulates, so odds can shift between checks.</li>
-        <li>Team logos come from ESPN and belong to their schools.</li>
-        <li>In the team toggle, G5 means the six non-power conferences named in the playoff rules, including the Pac-12. Notre Dame is grouped with Power 4 and UConn with G5.</li>
-        <li>FCS opponents without a rating use a low default, so those games are close to certain wins.</li>
-        <li>Every model is shifted onto a common scale. FEI, Jeff Howell, Laz Index, Wolfe and Rothman don't publish point margins here, so their gaps are also stretched to match Massey's spread, which is an estimate. Sagarin's options keep Sagarin's scale. Teams a model doesn't rate use Massey.</li>
-        <li>Wolfe and Rothman use wins and losses only, so they're the weakest guide to margins. All models average leaves them out, along with Jeff Howell, whose conversion to points is the roughest, plus recent-form models and extra Sagarin variants. Each remaining source counts once.</li>
-        <li>FPI updates each time the page loads. Other models update when the page is rebuilt.</li>
-      </ul>
-      <p id="sources"></p>
-    </section>
-    </div>
-  </footer>
-</div>
-
-<script id="engine">
-/*__ENGINE__*/
-</script>
-<script id="cfp-data" type="application/json">"__DATA__"</script>
-<script>
+// Odds and Scoreboard views: simulation runs, live ESPN updates and rendering.
 (function () {
   'use strict';
-  var embedded = JSON.parse(document.getElementById('cfp-data').textContent);
+  // data.js sets CFP_DATA: teams, games, ratings and the default simulation.
+  var embedded = window.CFP_DATA;
   // 40,000 seasons gives about +/-0.5 points at 50% odds in roughly a second. More adds wait for little precision.
   var SIMS = 40000;
   var D = embedded.D, results = embedded.results, simsNote = {};
-  var st = { mode: 'blend', picks: {}, sort: 'rating', dir: -1, open: {}, conf: '', view: 'all', q: '', live: 'pending', running: false };
+  var st = { mode: 'blend', picks: {}, sort: 'team', dir: 1, open: {}, conf: '', view: 'all', q: '', live: 'pending', running: false };
   var schedCache = {}, worker = null;
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
@@ -397,16 +104,17 @@ a { color: var(--accent); }
       var s = st.sort === key ? (st.dir < 0 ? 'descending' : 'ascending') : 'none';
       return '<th class="' + (cls || '') + '" aria-sort="' + s + '"><button type="button" data-sort="' + key + '">' + label + '</button>';
     }
+    // Fixed column widths live on these header classes. Columns marked sec are hidden on phones.
     $('head').innerHTML =
-      th('team', 'CFP rank / team', 'first') + '</th>' +
-      th('rating', 'Rating') + '</th>' +
-      th('next', 'Next game', 'l') + '</th>' +
-      '<th class="pick">Pick</th>' +
-      th('cfp', 'Make CFP') + '</th>' +
-      th('bye', 'First-round bye') + '</th>' +
-      th('seed', 'Avg seed') + '</th>' +
-      th('champ', 'Win conf.') + '</th>' +
-      th('title', 'Win title') + '</th>';
+      th('team', 'CFP rank / team', 'first c-team') + '</th>' +
+      th('rating', 'Rating', 'c-rating sec') + '</th>' +
+      th('next', 'Next game', 'l c-next sec') + '</th>' +
+      '<th class="pick c-pick">Pick</th>' +
+      th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
+      th('bye', 'First-round bye', 'c-bye sec') + '</th>' +
+      th('seed', 'Avg seed', 'c-seed sec') + '</th>' +
+      th('champ', 'Win conf.', 'c-conf sec') + '</th>' +
+      th('title', 'Win title', 'c-title sec') + '</th>';
   }
   function nextChance(g, t) {
     var pk = st.picks[g.id];
@@ -421,6 +129,26 @@ a { color: var(--accent); }
     var day = new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
     return '<span class="next">' + where + ' ' + logo(opp, 18) + esc(opp.ab || opp.name) + flag + '<small>' + esc(isLive ? x.next.st : day) + ' · ' + nextChance(x.next, x.t) + '</small></span>';
   }
+  // Phones hide the Next game column, so a short version sits under the team name.
+  function shortNext(x) {
+    if (!x.next) return '';
+    var opp = D.teams[x.next.o], where = x.next.home === -1 ? 'at ' : 'vs ';
+    if (x.next.s === 'in') return '<span class="tnext"><span class="live-pill"><i></i>LIVE</span> ' + (x.next.us > x.next.them ? 'Up ' : x.next.us < x.next.them ? 'Down ' : 'Tied ') + x.next.us + '-' + x.next.them + ' ' + where + esc(opp.ab || opp.name) + '</span>';
+    return '<span class="tnext">' + where + esc(opp.ab || opp.name) + ' · ' + new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + '</span>';
+  }
+  // The headline numbers for one team. The field panel always shows them; table details show them on phones.
+  function statsList(x, cls) {
+    var R = x.r, delta = hasPicks() && x.base ? R.cfp - x.base.cfp : 0;
+    function stat(label, value) { return '<div><dt>' + label + '</dt><dd>' + value + '</dd></div>'; }
+    return '<dl class="field-stats' + (cls ? ' ' + cls : '') + '">' +
+      stat('Make CFP', pct(R.cfp) + (Math.abs(delta) >= 0.005 ? pts(delta) : '')) +
+      stat('First-round bye', pct(R.bye)) +
+      stat('Avg seed', R.seed ? R.seed.toFixed(1) : '—') +
+      stat('Win conf.', x.t.conf === 'ind' ? '—' : pct(R.champ)) +
+      stat('Win title', pct(R.title)) +
+      stat('Rating', x.rating.toFixed(1)) +
+    '</dl>';
+  }
   function pts(delta) {
     return '<small class="' + (delta > 0 ? 'up' : 'down') + '">' + (delta > 0 ? '+' : '\u2212') + Math.abs(delta * 100).toFixed(0) + ' pts</small>';
   }
@@ -430,8 +158,12 @@ a { color: var(--accent); }
     var label = won ? x.t.name + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + '. Press to pick a win';
     return '<div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(x.next.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(D.teams[x.next.o].id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></div>';
   }
+  // Phones show three columns (styles.css hides the rest below 900px). A full-width row must span
+  // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
+  var WIDE = matchMedia('(min-width: 900px)');
+  function visibleColumns() { return WIDE.matches ? 9 : 3; }
   function detail(x) {
-    return '<tr class="detail"><td colspan="9">' + detailBody(x) + '</td></tr>';
+    return '<tr class="detail"><td colspan="' + visibleColumns() + '">' + statsList(x, 'narrow-only') + detailBody(x) + '</td></tr>';
   }
   function splitRow(label, make) {
     return '<tr><th scope="row">' + label + '</th><td>' + pct(make) + '</td><td>' + pct(make == null ? null : 1 - make) + '</td></tr>';
@@ -464,36 +196,27 @@ a { color: var(--accent); }
   function renderTable() {
     head();
     var rows = visible(buildRows());
-    if (!rows.length) { $('body').innerHTML = '<tr><td class="empty" colspan="9">No teams match. Clear the search or pick another conference.</td></tr>'; return; }
+    if (!rows.length) { $('body').innerHTML = '<tr><td class="empty" colspan="' + visibleColumns() + '">No teams match. Clear the search or pick another conference.</td></tr>'; return; }
     $('body').innerHTML = rows.map(function (x) {
       var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
       var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first"><div class="teamcell"><span class="rk">' + (x.t.rank || '') + '</span>' + logo(x.t, 30) +
-        '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span></span></div></td>' +
-        '<td>' + x.rating.toFixed(1) + '</td><td class="l">' + nextCell(x) + '</td>' +
+        '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span>' + shortNext(x) + '</span></div></td>' +
+        '<td class="sec">' + x.rating.toFixed(1) + '</td><td class="l sec">' + nextCell(x) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
         '<td><div class="odds"><span class="v" style="--p:' + x.r.cfp.toFixed(3) + '">' + pct(x.r.cfp) + '</span>' + (hasPicks() && x.base && Math.abs(x.r.cfp - x.base.cfp) >= 0.005 ? pts(x.r.cfp - x.base.cfp) : '') + '</div></td>' +
-        '<td>' + pct(x.r.bye) + '</td><td>' + (x.r.seed ? x.r.seed.toFixed(1) : '—') + '</td>' +
-        '<td>' + (x.t.conf === 'ind' ? '—' : pct(x.r.champ)) + '</td><td>' + pct(x.r.title) + '</td></tr>';
+        '<td class="sec">' + pct(x.r.bye) + '</td><td class="sec">' + (x.r.seed ? x.r.seed.toFixed(1) : '—') + '</td>' +
+        '<td class="sec">' + (x.t.conf === 'ind' ? '—' : pct(x.r.champ)) + '</td><td class="sec">' + pct(x.r.title) + '</td></tr>';
       return r + (st.open[x.t.id] ? detail(x) : '');
     }).join('');
   }
   function fieldPanel(x) {
-    var R = x.r, conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
-    var delta = hasPicks() && x.base ? R.cfp - x.base.cfp : 0;
-    function stat(label, value) { return '<div><dt>' + label + '</dt><dd>' + value + '</dd></div>'; }
+    var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
     return '<div class="fd-head">' +
         '<div class="field-team">' + logo(x.t, 30) + '<span><b>' + esc(x.t.name) + '</b><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + (x.t.rank ? ' · CFP No. ' + x.t.rank : '') + '</span></span></div>' +
         '<div class="field-pick">' + nextCell(x) + pickCell(x) + '</div>' +
         '<button class="btn" type="button" id="field-close">Close</button>' +
       '</div>' +
-      '<dl class="field-stats">' +
-        stat('Make CFP', pct(R.cfp) + (Math.abs(delta) >= 0.005 ? pts(delta) : '')) +
-        stat('First-round bye', pct(R.bye)) +
-        stat('Avg seed', R.seed ? R.seed.toFixed(1) : '—') +
-        stat('Win conf.', x.t.conf === 'ind' ? '—' : pct(R.champ)) +
-        stat('Win title', pct(R.title)) +
-        stat('Rating', x.rating.toFixed(1)) +
-      '</dl>' + detailBody(x);
+      statsList(x) + detailBody(x);
   }
   function renderField() {
     var all = buildRows().sort(function (a, b) { return b.r.cfp - a.r.cfp; });
@@ -569,25 +292,30 @@ a { color: var(--accent); }
     var checked = st.live === 'blocked' ? '<b>Couldn’t reach ESPN.</b> Scores are from ' + etTime(D.asOf) + ' ET.' :
       'Scores from <b>' + etTime(D.asOf) + ' ET</b>' + (live.length ? ', checked every minute while this page is open.' : '.');
     var next = D.games.filter(function (g) { return g.s === 'pre' && counts(g); })[0];
-    $('live-board').innerHTML = '<div class="field-head"><h2>Scoreboard</h2><p>' + checked + ' Win and Make CFP odds use the current score and clock.</p></div>' +
+    $('live-board').innerHTML = '<p class="live-note">' + checked + ' Win and Make CFP odds use the current score and clock.</p>' +
       (live.length || later.length || done.length ?
         group('In progress', live, 'Your picks first, then the biggest playoff impact.') + group('Later today', later) + group('Final today', done) :
         '<p class="live-empty">No games today.' + (next ? ' Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '') + '</p>');
   }
-  // Pages: Odds (default) and Scoreboard, chosen by the address's #. #about jumps to the footer.
+  // Views: Odds (default) and Scoreboard, chosen by the address's #. About is its own page.
   var PAGES = { odds: 'CFP Odds Board', scoreboard: 'Scoreboard · CFP Odds Board' };
   function showPage() {
     var hash = location.hash.replace('#', ''), p = hash === 'live' ? 'scoreboard' : hash; // #live was the old name
+    if (hash === 'about') { location.replace('about.html'); return hash; } // older links
     if (!PAGES[p]) p = $('page-scoreboard').hidden ? 'odds' : 'scoreboard';
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== p; });
     [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
       if (a.dataset.page === p) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.title = PAGES[p];
+    // Each view gets its own title and intro, so the Scoreboard leads with scores.
+    $('page-title').textContent = p === 'scoreboard' ? 'Scoreboard' : 'College Football Playoff odds';
+    $('page-lede').textContent = p === 'scoreboard' ? 'Today’s games, with each team’s win chance and what the result means for its playoff odds.' : 'Each team’s chance of making the 12-team playoff, from simulating every remaining game, conference title game and committee ranking.';
     return hash;
   }
   window.addEventListener('hashchange', function () {
-    if (showPage() === 'about') $('about').scrollIntoView(); else window.scrollTo(0, 0);
+    showPage();
+    window.scrollTo(0, 0);
   });
   function renderStatus() {
     var as = new Date(D.asOf).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
@@ -599,21 +327,13 @@ a { color: var(--accent); }
     $('status').innerHTML = '<span>' + liveMsg + '</span><span>' + left + ' games left' + (inp ? ', ' + inp + ' in progress' : '') + '</span>' +
       '<span>' + esc(D.rankLabel ? D.rankLabel.replace(/^.*- /, '') : 'CFP rankings') + '</span><span><b>' + res().sims.toLocaleString() + '</b> simulated seasons</span>';
   }
-  var SUN = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>';
-  var MOON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>';
-  function renderThemeButton() {
-    var dark = isDark(), label = dark ? 'Switch to light theme' : 'Switch to dark theme', b = $('theme');
-    b.innerHTML = dark ? SUN : MOON;
-    b.setAttribute('aria-label', label);
-    b.title = label;
-  }
   function renderPicksBar() {
     var n = Object.keys(st.picks).length;
     $('picks-bar').innerHTML = n
       ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '; +/\u2212 shows the change.</span><button class="btn" id="clear-picks" type="button">Clear picks</button>'
       : '<span>Press a team\u2019s box to cycle its next game through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update.</span>';
   }
-  function renderAll() { renderThemeButton(); renderPicksBar(); renderStatus(); renderLive(); renderField(); renderTable(); }
+  function renderAll() { renderPicksBar(); renderStatus(); renderLive(); renderField(); renderTable(); }
 
   function renderModes() {
     function option(k, label) { return '<option value="' + k + '"' + (st.mode === k ? ' selected' : '') + '>' + esc(label) + '</option>'; }
@@ -631,7 +351,8 @@ a { color: var(--accent); }
     if (p != null) { $('fill').style.width = (p * 100).toFixed(0) + '%'; $('progress-text').textContent = text; }
     $('tw').classList.toggle('busy', p != null);
   }
-  var engineText = $('engine').textContent;
+  // The worker loads the same engine file this page uses.
+  var ENGINE_URL = new URL(document.querySelector('script[src*="engine.js"]').getAttribute('src'), location.href).href;
   var WORKER_TAIL = 'self.onmessage=function(e){var m=e.data,P=CFP.prep(m.D,m.mode,m.picks),sim=new CFP.Sim(P,m.seed),t=CFP.emptyTally(P.n),min=800,done=0;' +
     'while(done<m.sims){var c=Math.min(1000,m.sims-done);CFP.baseBatch(sim,t,c);done+=c;if(done%4000===0)postMessage({p:done/m.sims*.8});}' +
     'var jobs=CFP.forcedJobs(P,t,min),forced={};jobs.forEach(function(j,i){forced[j.t]=CFP.forcedRun(sim,j,1000);if(i%5===0)postMessage({p:.8+.2*i/jobs.length});});' +
@@ -656,7 +377,7 @@ a { color: var(--accent); }
       done(result);
     }
     try {
-      worker = new Worker(URL.createObjectURL(new Blob([engineText + '\n' + WORKER_TAIL], { type: 'text/javascript' })));
+      worker = new Worker(URL.createObjectURL(new Blob(['importScripts(' + JSON.stringify(ENGINE_URL) + ');\n' + WORKER_TAIL], { type: 'text/javascript' })));
       worker.onmessage = function (e) {
         if (e.data.result) finish(e.data.result);
         else setProgress(e.data.p, 'Simulating ' + sims.toLocaleString() + ' seasons\u2026');
@@ -779,10 +500,6 @@ a { color: var(--accent); }
       // Redrawing replaces the buttons, so keyboard focus goes back to this team.
       var fieldBtn = $('seeds').querySelector('[data-field="' + fieldId + '"]');
       if (fieldBtn) fieldBtn.focus();
-    } else if (b.id === 'theme') {
-      var nextTheme = isDark() ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', nextTheme); // the observer below redraws the logos
-      try { localStorage.setItem('cfp-theme', nextTheme); } catch (x) {}
     }
   });
   document.addEventListener('change', function (e) {
@@ -797,38 +514,14 @@ a { color: var(--accent); }
   });
   $('q').addEventListener('input', function (e) { st.q = e.target.value; renderTable(); });
 
-  // Static text built from the model's own constants
-  var M = CFP.M;
-  $('method').innerHTML = [
-    'Each game is decided by the rating gap plus home field, with ' + M.gameSD + ' points of game randomness. Each team’s true strength also varies by ' + M.teamSD + ' points per simulated season, so hot streaks carry through.',
-    'Conference standings produce two title-game teams each simulation, or one per division in the Sun Belt.',
-    'A simulated committee scores every team: rating × ' + M.wRating + ', −' + M.wLoss + ' per loss with −' + M.wLoss3 + ' more past two losses, schedule strength, +' + M.wTop10 + ' per top-10 win, +' + M.wTop25 + ' per 11-25 win, −' + M.wBadLoss + ' for a loss outside the top 60, +' + M.wChampP4 + ' for a power-conference title.',
-    'Part of the current CFP ranking carries forward (' + Math.round(M.wAnchor * 100) + '% of the gap between it and the model), and committee opinion varies by ' + M.committeeSD + ' points per simulation. A head-to-head winner jumps a team within ' + M.h2hWindow + ' points.',
-    'Picking a winner locks that game in every simulation, so its opponent loses it. All odds on the page then update, including those of teams that weren\u2019t playing in it.'
-  ].map(function (s) { return '<li>' + s + '</li>'; }).join('');
-  var fmtDay = function (d) { return new Date(d + 'T12:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }); };
-  // Sagarin's variants share one link and date, so it's listed once.
-  var sourceSeen = {};
-  $('sources').innerHTML = 'Sources: <a href="https://www.espn.com/college-football/" target="_blank" rel="noopener">ESPN</a> schedules, scores and rankings; ' + D.sources.models.filter(function (m) {
-    if (sourceSeen[m.url]) return false;
-    sourceSeen[m.url] = 1;
-    return true;
-  }).map(function (m) {
-    var name = m.url.indexOf('sagarin.com') >= 0 ? 'Sagarin' : m.label;
-    return '<a href="' + m.url + '" target="_blank" rel="noopener">' + esc(name) + '</a> through ' + fmtDay(D.sources.thru[m.k]);
-  }).join('; ') + '. Results after those dates adjust the ratings automatically.';
-  var startHash = showPage();
+  showPage();
   renderModes();
   renderViewControls();
   renderAll();
   tryLive();
-  // Wait for the table and logos to take their space, or the footer moves after the scroll.
-  if (startHash === 'about') {
-    var toAbout = function () { $('about').scrollIntoView(); };
-    if (document.readyState === 'complete') setTimeout(toAbout, 100); else window.addEventListener('load', function () { setTimeout(toAbout, 100); });
-  }
   // Dark and light logos differ, so redraw when the theme changes.
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (x) {}
+  try { WIDE.addEventListener('change', renderTable); } catch (x) {}
+  // js/theme.js sets data-theme when the button is pressed.
   new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 })();
-</script>

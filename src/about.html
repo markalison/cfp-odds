@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+{{HEAD}}
+  <title>About · CFP Odds Board</title>
+  <meta name="description" content="How the CFP Odds Board simulates the season: the playoff rules it applies, the ratings it uses and its limits.">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+{{HEADER}}
+
+<div class="container main">
+  <main class="about" id="main">
+    <section class="intro" aria-labelledby="page-title">
+      <h1 id="page-title">About these odds</h1>
+      <p class="lede">How the board simulates the rest of the season, where its numbers come from and what to keep in mind when reading them.</p>
+    </section>
+
+    <section aria-labelledby="rules">
+      <h2 id="rules">Playoff rules applied</h2>
+      <ul>
+        <li>Automatic bids go to the ACC, Big Ten, Big 12 and SEC champions.</li>
+        <li>One more goes to the highest-ranked champion from the American, Conference USA, MAC, Mountain West, Pac-12 or Sun Belt.</li>
+        <li>Notre Dame gets an automatic bid if ranked in the top 12, leaving six at-large bids. Otherwise there are seven.</li>
+        <li>Seeds follow the committee ranking. Seeds 1-4 get byes, and 5-8 host first-round games.</li>
+        <li>Automatic qualifiers ranked outside the top 12 go at the bottom of the seeding.</li>
+        <li>The bracket is fixed with no reseeding: 1 plays 8/9, 4 plays 5/12, 2 plays 7/10, 3 plays 6/11.</li>
+      </ul>
+      <p><a href="https://collegefootballplayoff.com/sports/2024/5/29/12-team-format" target="_blank" rel="noopener">Read the official 12-team format</a></p>
+    </section>
+
+    <section aria-labelledby="method">
+      <h2 id="method">How a season is simulated</h2>
+      <ul>
+{{METHOD}}
+      </ul>
+    </section>
+
+    <section aria-labelledby="sources">
+      <h2 id="sources">Data and ratings</h2>
+      <p>Schedules, scores, standings and CFP rankings come from <a href="https://www.espn.com/college-football/" target="_blank" rel="noopener">ESPN</a> each time the Odds page loads. Each ratings model covers results through the date shown, and later results adjust its ratings automatically. Ratings last refreshed {{UPDATED}}.</p>
+{{SOURCES}}
+    </section>
+
+    <section aria-labelledby="limits">
+      <h2 id="limits">Limits to keep in mind</h2>
+      <ul>
+        <li>The committee is a model. Its weights were tuned against one ranking, the current one, and have not been tested on past seasons.</li>
+        <li>Conference tiebreakers are simplified to head-to-head, then overall losses, then rating. Real tiebreakers go further.</li>
+        <li>Games in progress use the current score and time left, without possession or field position. While games are on and the Odds page is open, it checks ESPN every minute and re-simulates, so odds can shift between checks.</li>
+        <li>In the team toggle, G5 means the six non-power conferences named in the playoff rules, including the Pac-12. Notre Dame is grouped with Power 4 and UConn with G5.</li>
+        <li>FCS opponents without a rating use a low default, so those games are close to certain wins.</li>
+        <li>Every model is shifted onto a common scale. FEI, Jeff Howell, Laz Index, Wolfe and Rothman don't publish point margins here, so their gaps are also stretched to match Massey's spread, which is an estimate. Sagarin's options keep Sagarin's scale. Teams a model doesn't rate use Massey.</li>
+        <li>Wolfe and Rothman use wins and losses only, so they're the weakest guide to margins. All models average leaves them out, along with Jeff Howell, whose conversion to points is the roughest, plus recent-form models and extra Sagarin variants. Each remaining source counts once.</li>
+        <li>Team logos come from ESPN and belong to their schools.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+{{FOOTER}}
+</body>
+</html>

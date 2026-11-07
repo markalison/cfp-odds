@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+{{HEAD}}
+  <title>CFP Odds Board</title>
+  <meta name="description" content="Live odds of making the 12-team College Football Playoff, from simulating the rest of the season with ESPN data and computer ratings.">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+{{HEADER}}
+
+<main class="container main" id="main">
+  <section class="intro" aria-labelledby="page-title">
+    <h1 id="page-title">College Football Playoff odds</h1>
+    <p class="lede" id="page-lede">Each team's chance of making the 12-team playoff, from simulating every remaining game, conference title game and committee ranking.</p>
+    <div class="status" id="status"></div>
+  </section>
+
+  <div class="toolbar" id="top-controls">
+    <div class="ctl"><label for="mode">Ratings used</label><select id="mode"></select></div>
+    <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="fill"></div></div><span id="progress-text"></span></div>
+  </div>
+
+  <div class="stack" id="page-scoreboard" hidden>
+    <section class="live-board" id="live-board" aria-label="Scoreboard"></section>
+  </div>
+
+  <div class="stack" id="page-odds">
+    <section class="section field" aria-labelledby="field-title">
+      <div class="section-head"><h2 id="field-title">Projected field</h2><p id="field-note"></p></div>
+      <div class="seeds" id="seeds"></div>
+      <div class="field-detail" id="field-detail" hidden></div>
+      <div class="out" id="out"></div>
+    </section>
+
+    <section class="section board" aria-labelledby="board-title">
+      <div class="section-head"><h2 id="board-title">Every team</h2><p>Select a team for its schedule and what moves its odds.</p></div>
+      <div class="filters">
+        <div class="ctl"><span id="view-label">Teams</span><div class="seg" role="group" aria-labelledby="view-label" id="view"></div></div>
+        <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
+        <div class="ctl ctl-search"><label for="q">Find a team</label><input id="q" type="search" placeholder="Team name"></div>
+        <div class="picks-bar" id="picks-bar" aria-live="polite"></div>
+      </div>
+      <div class="table-wrap" id="tw"><table class="odds-table">
+        <thead><tr id="head"></tr></thead>
+        <tbody id="body"></tbody>
+      </table></div>
+    </section>
+  </div>
+</main>
+
+{{FOOTER}}
+<script src="engine.js?v={{V}}"></script>
+<script src="data.js?v={{V}}"></script>
+<script src="js/app.js?v={{V}}"></script>
+</body>
+</html>

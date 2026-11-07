@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/styles.css?v=9f7b4bc9b8">
+  <script src="js/theme.js?v=9f7b4bc9b8"></script>
+  <title>About · CFP Odds Board</title>
+  <meta name="description" content="How the CFP Odds Board simulates the season: the playoff rules it applies, the ratings it uses and its limits.">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="container header-bar">
+    <a class="brand" href="./">CFP Odds Board</a>
+    <nav class="tabs" aria-label="Views">
+      <a href="./#odds" data-page="odds">Odds</a>
+      <a href="./#scoreboard" data-page="scoreboard">Scoreboard</a>
+    </nav>
+    <button class="btn icon-btn" id="theme" type="button"></button>
+  </div>
+</header>
+
+<div class="container main">
+  <main class="about" id="main">
+    <section class="intro" aria-labelledby="page-title">
+      <h1 id="page-title">About these odds</h1>
+      <p class="lede">How the board simulates the rest of the season, where its numbers come from and what to keep in mind when reading them.</p>
+    </section>
+
+    <section aria-labelledby="rules">
+      <h2 id="rules">Playoff rules applied</h2>
+      <ul>
+        <li>Automatic bids go to the ACC, Big Ten, Big 12 and SEC champions.</li>
+        <li>One more goes to the highest-ranked champion from the American, Conference USA, MAC, Mountain West, Pac-12 or Sun Belt.</li>
+        <li>Notre Dame gets an automatic bid if ranked in the top 12, leaving six at-large bids. Otherwise there are seven.</li>
+        <li>Seeds follow the committee ranking. Seeds 1-4 get byes, and 5-8 host first-round games.</li>
+        <li>Automatic qualifiers ranked outside the top 12 go at the bottom of the seeding.</li>
+        <li>The bracket is fixed with no reseeding: 1 plays 8/9, 4 plays 5/12, 2 plays 7/10, 3 plays 6/11.</li>
+      </ul>
+      <p><a href="https://collegefootballplayoff.com/sports/2024/5/29/12-team-format" target="_blank" rel="noopener">Read the official 12-team format</a></p>
+    </section>
+
+    <section aria-labelledby="method">
+      <h2 id="method">How a season is simulated</h2>
+      <ul>
+        <li>Each game is decided by the rating gap plus home field, with 14 points of game randomness. Each team’s true strength also varies by 3 points per simulated season, so hot streaks carry through.</li>
+        <li>Conference standings produce two title-game teams each simulation, or one per division in the Sun Belt.</li>
+        <li>A simulated committee scores every team: rating × 0.65, −7 per loss with −2 more past two losses, schedule strength, +2.5 per top-10 win, +1.25 per 11-25 win, −3 for a loss outside the top 60, +4 for a power-conference title.</li>
+        <li>Part of the current CFP ranking carries forward (60% of the gap between it and the model), and committee opinion varies by 2.2 points per simulation. A head-to-head winner jumps a team within 3 points.</li>
+        <li>40,000 seasons are simulated each time, which puts a team near 50% within about half a point.</li>
+        <li>Picking a winner locks that game in every simulation, so its opponent loses it. All odds then update, including those of teams that weren’t playing in it.</li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="sources">
+      <h2 id="sources">Data and ratings</h2>
+      <p>Schedules, scores, standings and CFP rankings come from <a href="https://www.espn.com/college-football/" target="_blank" rel="noopener">ESPN</a> each time the Odds page loads. Each ratings model covers results through the date shown, and later results adjust its ratings automatically. Ratings last refreshed November 7, 2026.</p>
+      <h3>Point-based</h3>
+      <ul>
+        <li><a href="https://masseyratings.com/cf/fbs/ratings" target="_blank" rel="noopener">Massey Power</a>, through Nov 6</li>
+        <li><a href="https://www.espn.com/college-football/fpi" target="_blank" rel="noopener">ESPN FPI</a>, updated each time the Odds page loads</li>
+        <li><a href="https://www.bcftoys.com/2026-fei/" target="_blank" rel="noopener">FEI</a>, through Oct 31</li>
+        <li><a href="https://www.teamrankings.com/college-football/ranking/predictive-by-other" target="_blank" rel="noopener">TeamRankings Predictive</a>, through Nov 6</li>
+        <li><a href="https://talismanred.com/ratings/cf/" target="_blank" rel="noopener">Talisman Red</a>, through Oct 31</li>
+        <li><a href="https://jhowell.net/cf/cfindex.htm" target="_blank" rel="noopener">Jeff Howell</a>, through Oct 31</li>
+        <li><a href="https://www.lazindex.com/college-rankings" target="_blank" rel="noopener">Laz Index</a>, through Oct 31</li>
+        <li><a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin Predictor</a>, through Oct 31</li>
+        <li><a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin Rating</a>, through Oct 31</li>
+        <li><a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin Golden Mean</a>, through Oct 31</li>
+      </ul>
+      <h3>Recent form</h3>
+      <ul>
+        <li><a href="https://www.teamrankings.com/college-football/ranking/last-5-games-by-other" target="_blank" rel="noopener">TeamRankings Last 5 Games</a>, through Nov 6</li>
+        <li><a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin Recent</a>, through Oct 31</li>
+        <li><a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin Strong Recent</a>, through Oct 31</li>
+      </ul>
+      <h3>Results only</h3>
+      <ul>
+        <li><a href="https://wolferatings.com/ratings.htm" target="_blank" rel="noopener">Wolfe</a>, through Oct 31</li>
+        <li><a href="https://wolferatings.com/rothman.txt" target="_blank" rel="noopener">Rothman</a>, through Oct 31</li>
+      </ul>
+      <p><b>All models average</b> uses one rating from each of these: Massey Power, Sagarin Predictor, ESPN FPI, FEI, TeamRankings Predictive, Talisman Red, Laz Index.</p>
+    </section>
+
+    <section aria-labelledby="limits">
+      <h2 id="limits">Limits to keep in mind</h2>
+      <ul>
+        <li>The committee is a model. Its weights were tuned against one ranking, the current one, and have not been tested on past seasons.</li>
+        <li>Conference tiebreakers are simplified to head-to-head, then overall losses, then rating. Real tiebreakers go further.</li>
+        <li>Games in progress use the current score and time left, without possession or field position. While games are on and the Odds page is open, it checks ESPN every minute and re-simulates, so odds can shift between checks.</li>
+        <li>In the team toggle, G5 means the six non-power conferences named in the playoff rules, including the Pac-12. Notre Dame is grouped with Power 4 and UConn with G5.</li>
+        <li>FCS opponents without a rating use a low default, so those games are close to certain wins.</li>
+        <li>Every model is shifted onto a common scale. FEI, Jeff Howell, Laz Index, Wolfe and Rothman don't publish point margins here, so their gaps are also stretched to match Massey's spread, which is an estimate. Sagarin's options keep Sagarin's scale. Teams a model doesn't rate use Massey.</li>
+        <li>Wolfe and Rothman use wins and losses only, so they're the weakest guide to margins. All models average leaves them out, along with Jeff Howell, whose conversion to points is the roughest, plus recent-form models and extra Sagarin variants. Each remaining source counts once.</li>
+        <li>Team logos come from ESPN and belong to their schools.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <p class="footer-name">CFP Odds Board</p>
+      <p>Playoff odds for the 2026 season, from simulating every remaining game and committee ranking.</p>
+    </div>
+    <nav aria-label="Footer">
+      <a class="footer-link" href="about.html" aria-current="page">About these odds<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+    </nav>
+    <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
+  </div>
+</footer>
+</body>
+</html>
