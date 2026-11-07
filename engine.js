@@ -335,13 +335,15 @@ var CFP = (function () {
     this.tL.fill(0); this.champ.fill(0);
     var np = P.np, pw = this.pw, pl = this.pl, nextOfForced = forced >= 0 ? P.nextGame[forced] : -1;
     for (var k = 0; k < m; k++) {
-      var h = P.tH[k], a = P.tA[k], w;
+      // Every game takes its random draw, even when a pick decides it. That keeps the rest of the season on
+      // the same random numbers, so a pick only changes the seasons it affects (common random numbers).
+      var h = P.tH[k], a = P.tA[k], w, z = this.g();
       if (P.tLock[k] >= 0) {
         w = P.tLock[k];
       } else if (k === nextOfForced) {
         w = forced;
       } else {
-        w = P.tCur[k] + P.tF[k] * (P.tS[k] + eps[h] - eps[a]) + P.tRootF[k] * this.g() * M.gameSD > 0 ? h : a;
+        w = P.tCur[k] + P.tF[k] * (P.tS[k] + eps[h] - eps[a]) + P.tRootF[k] * z * M.gameSD > 0 ? h : a;
       }
       var l = w === h ? a : h;
       this.res[k] = w;
@@ -499,6 +501,13 @@ var CFP = (function () {
     }
     return out;
   }
+  // One fixed seed per ratings model, shared by the build and the page, so every run with the same data uses
+  // the same random numbers. Picks and live updates then move only the odds they actually affect.
+  function seedFor(mode) {
+    var h = 2166136261;
+    for (var i = 0; i < mode.length; i++) { h ^= mode.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0) || 1;
+  }
   function runAll(D, mode, sims, seed, forcedN, picks) {
     var P = prep(D, mode, picks), sim = new Sim(P, seed), tally = emptyTally(P.n), minSample = 800;
     baseBatch(sim, tally, sims);
@@ -510,7 +519,7 @@ var CFP = (function () {
   }
 
   return {
-    M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, parseEspn: parseEspn, applyFpi: applyFpi, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
+    M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
     forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi
   };
 })();

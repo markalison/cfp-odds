@@ -6,7 +6,16 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const CFP = require('./engine.js');
 const rd = (f) => readFileSync(new URL(f, import.meta.url), 'utf8');
-const wr = (f, s) => writeFileSync(new URL(f, import.meta.url), s);
+// OneDrive sometimes holds a file for a moment while it syncs, so a failed write is retried briefly.
+const wr = (f, s) => {
+  for (let tries = 1; ; tries++) {
+    try { return writeFileSync(new URL(f, import.meta.url), s); }
+    catch (e) {
+      if (tries >= 8 || !['UNKNOWN', 'EBUSY', 'EPERM'].includes(e.code)) throw e;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250 * tries);
+    }
+  }
+};
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // ---------- data.js ----------
@@ -37,7 +46,6 @@ const HEAD = `  <meta charset="utf-8">
 // The Odds page marks the current tab itself, from the address's #.
 const HEADER = `<header class="site-header">
   <div class="container header-bar">
-    <a class="brand" href="./">CFP Odds Board</a>
     <nav class="tabs" aria-label="Views">
       <a href="./#rankings" data-page="rankings">Rankings</a>
       <a href="./#playoff" data-page="playoff">Playoff</a>
@@ -55,7 +63,7 @@ const footer = (page) => `<footer class="site-footer">
     <nav aria-label="Footer">
       <a class="footer-link" href="about.html"${page === 'about' ? ' aria-current="page"' : ''}>About these odds<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
     </nav>
-    <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
+${page === 'odds' ? '    <div class="status footer-status" id="status" aria-live="polite"></div>\n' : ''}    <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
   </div>
 </footer>`;
 
@@ -66,7 +74,7 @@ const METHOD = [
   'Conference standings produce two title-game teams each simulation, or one per division in the Sun Belt.',
   `A simulated committee scores every team: rating × ${M.wRating}, −${M.wLoss} per loss with −${M.wLoss3} more past two losses, schedule strength, +${M.wTop10} per top-10 win, +${M.wTop25} per 11-25 win, −${M.wBadLoss} for a loss outside the top 60, +${M.wChampP4} for a power-conference title.`,
   `Part of the current CFP ranking carries forward (${Math.round(M.wAnchor * 100)}% of the gap between it and the model), and committee opinion varies by ${M.committeeSD} points per simulation. A head-to-head winner jumps a team within ${M.h2hWindow} points.`,
-  'The Playoff page seeds the 12 teams most likely to make it by average seed. With Simulate games on, each game’s win chance comes from the two ratings, with home field for the higher seed in the first round, and the favorite advances. Title odds come from the full simulation, so a team can lead them without being favored in this one bracket.',
+  'The projected field follows the bid rules: the likeliest champion of each power conference, the likeliest Group of 5 bid, then the seven best remaining odds. The Playoff page seeds it by average seed. With Simulate games on, each game’s win chance comes from the two ratings, with home field for the higher seed in the first round, and the favorite advances. Title odds come from the full simulation, so a team can lead them without being favored in this one bracket.',
   '40,000 seasons are simulated each time, which puts a team near 50% within about half a point.',
   'Picking a winner locks that game in every simulation, so its opponent loses it. All odds then update, including those of teams that weren’t playing in it.'
 ].map((s) => `        <li>${s}</li>`).join('\n');

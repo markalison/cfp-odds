@@ -142,7 +142,7 @@ const results = {};
 const T0 = (i) => D.teams[i].ab;
 for (const mode of ['blend', 'all'].concat(models.map((m) => m.k))) {
   const t0 = Date.now();
-  results[mode] = CFP.runAll(D, mode, SIMS, 12345 + mode.length, 1000);
+  results[mode] = CFP.runAll(D, mode, SIMS, CFP.seedFor(mode), 1000);
   const field = results[mode].teams.reduce((s, x) => s + x.cfp, 0);
   const top = results[mode].teams.map((x, i) => [T0(i), x.cfp]).sort((p, q) => q[1] - p[1]).slice(0, 6).map((p) => `${p[0]} ${(p[1] * 100).toFixed(0)}`).join(', ');
   console.log(mode.padEnd(10), ((Date.now() - t0) / 1000).toFixed(1) + 's', 'field', field.toFixed(2), '|', top);

@@ -135,36 +135,48 @@
     if (!pk) return Math.round(g.p * 100) + '% to win';
     return '<b>' + (pk === t.id ? 'picked to win' : 'picked to lose') + '</b>';
   }
+  // A live game as a small scoreboard: away team and score on the left, home score and team on the right.
+  // The row's own team is bold, and so is the leading score.
+  var gameIndex = { D: null, byId: {} };
+  function gameById(id) {
+    if (gameIndex.D !== D) { gameIndex = { D: D, byId: {} }; D.games.forEach(function (g) { gameIndex.byId[g.id] = g; }); }
+    return gameIndex.byId[id];
+  }
+  function miniScore(x) {
+    var g = gameById(x.next.id);
+    if (!g) return '';
+    var away = D.teams[g.a], home = D.teams[g.h];
+    function side(t) { return '<span class="ms-t' + (t === x.t ? ' me' : '') + '">' + esc(t.ab || t.name) + '</span>'; }
+    function score(n, other) { return '<span class="ms-s' + (n > other ? ' lead' : '') + '">' + n + '</span>'; }
+    var label = away.name + ' ' + g.as + ', ' + home.name + ' ' + g.hs;
+    return '<span class="mscore" role="img" aria-label="' + esc(label) + '">' + side(away) + score(g.as, g.hs) + score(g.hs, g.as) + side(home) + '</span>';
+  }
   function nextCell(x) {
     if (!x.next) return '<span class="next">Done<small>Regular season over</small></span>';
-    var opp = D.teams[x.next.o], where = x.next.home === 1 ? 'vs' : x.next.home === -1 ? 'at' : 'vs';
-    var isLive = x.next.s === 'in';
-    var flag = isLive ? ' <span class="score-now">' + (x.next.us > x.next.them ? 'Up ' : x.next.us < x.next.them ? 'Down ' : 'Tied ') + x.next.us + '-' + x.next.them + '</span>' : '';
+    if (x.next.s === 'in') return '<span class="next">' + miniScore(x) + '<small>' + esc(x.next.st) + ' · ' + nextChance(x.next, x.t) + '</small></span>';
+    var opp = D.teams[x.next.o], where = x.next.home === -1 ? 'at' : 'vs';
     var day = new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
-    return '<span class="next">' + where + ' ' + logo(opp, 18) + esc(opp.ab || opp.name) + flag + '<small>' + esc(isLive ? x.next.st : day) + ' · ' + nextChance(x.next, x.t) + '</small></span>';
+    return '<span class="next">' + where + ' ' + esc(opp.ab || opp.name) + '<small>' + day + ' · ' + nextChance(x.next, x.t) + '</small></span>';
   }
   // Phones hide the Next game column, so a short version sits under the team name.
   function shortNext(x) {
     if (!x.next) return '';
     var opp = D.teams[x.next.o], where = x.next.home === -1 ? 'at ' : 'vs ';
-    if (x.next.s === 'in') return '<span class="tnext"><b>' + (x.next.us > x.next.them ? 'Up ' : x.next.us < x.next.them ? 'Down ' : 'Tied ') + x.next.us + '-' + x.next.them + '</b> ' + where + esc(opp.ab || opp.name) + ' · ' + esc(x.next.st) + '</span>';
+    if (x.next.s === 'in') return '<span class="tnext">' + miniScore(x) + '<span>' + esc(x.next.st) + '</span></span>';
     return '<span class="tnext">' + where + esc(opp.ab || opp.name) + ' · ' + new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + '</span>';
   }
   // The headline numbers for one team. The field panel always shows them; table details show them on phones.
   function statsList(x, cls) {
-    var R = x.r, delta = hasPicks() && x.base ? R.cfp - x.base.cfp : 0;
+    var R = x.r;
     function stat(label, value) { return '<div><dt>' + label + '</dt><dd>' + value + '</dd></div>'; }
     return '<dl class="field-stats' + (cls ? ' ' + cls : '') + '">' +
-      stat('Make CFP', pct(R.cfp) + (Math.abs(delta) >= 0.005 ? pts(delta) : '')) +
+      stat('Make CFP', pct(R.cfp)) +
       stat('First-round bye', pct(R.bye)) +
       stat('Avg seed', R.seed ? R.seed.toFixed(1) : '—') +
       stat('Win conf.', x.t.conf === 'ind' ? '—' : pct(R.champ)) +
       stat('Win title', pct(R.title)) +
       stat('Rating', x.rating.toFixed(1)) +
     '</dl>';
-  }
-  function pts(delta) {
-    return '<small class="' + (delta > 0 ? 'up' : 'down') + '">' + (delta > 0 ? '+' : '\u2212') + Math.abs(delta * 100).toFixed(0) + ' pts</small>';
   }
   function pickCell(x) {
     if (!x.next) return '\u2014';
@@ -207,9 +219,16 @@
       '<div><h3>Seed distribution, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
     '</div>';
   }
+  // The table heading names what's shown: a conference if one is chosen, otherwise the team group.
+  var VIEW_NAME = { all: 'All teams', p4: 'Power 4', g5: 'Group of 5' };
+  function renderBoardTitle(count) {
+    $('board-title').textContent = st.conf ? (CFP.CONF_NAME[st.conf] || st.conf) : VIEW_NAME[st.view];
+    $('board-count').textContent = count + (count === 1 ? ' team' : ' teams') + (st.q.trim() ? ' matching “' + st.q.trim() + '”' : '');
+  }
   function renderTable() {
     head();
     var rows = visible(buildRows());
+    renderBoardTitle(rows.length);
     if (!rows.length) { $('body').innerHTML = '<tr><td class="empty" colspan="' + visibleColumns() + '">No teams match. Clear the search or pick another conference.</td></tr>'; return; }
     $('body').innerHTML = rows.map(function (x) {
       var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
@@ -217,7 +236,7 @@
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span>' + shortNext(x) + '</span></div></td>' +
         '<td class="sec">' + x.rating.toFixed(1) + '</td><td class="l sec">' + nextCell(x) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
-        '<td><div class="odds"><span class="v" style="--p:' + x.r.cfp.toFixed(3) + '">' + pct(x.r.cfp) + '</span>' + (hasPicks() && x.base && Math.abs(x.r.cfp - x.base.cfp) >= 0.005 ? pts(x.r.cfp - x.base.cfp) : '') + '</div></td>' +
+        '<td><div class="odds"><span class="v" style="--p:' + x.r.cfp.toFixed(3) + '">' + pct(x.r.cfp) + '</span></div></td>' +
         '<td class="sec">' + pct(x.r.bye) + '</td><td class="sec">' + (x.r.seed ? x.r.seed.toFixed(1) : '—') + '</td>' +
         '<td class="sec">' + (x.t.conf === 'ind' ? '—' : pct(x.r.champ)) + '</td><td class="sec">' + pct(x.r.title) + '</td></tr>';
       return r + (st.open[x.t.id] ? detail(x) : '');
@@ -233,9 +252,20 @@
       statsList(x) + detailBody(x);
   }
   // The 12 teams most likely to make it, in order of average seed. Shared by the field and the bracket.
+  // Built the way the bids work: the most likely champion of each power conference and the Group of 5 team
+  // most likely to earn its automatic bid, then the best remaining odds. Taking the 12 highest odds alone can
+  // leave out the Group of 5 bid when it's split among several teams, say after the favorite loses.
   function projectedField() {
     var all = buildRows().sort(function (a, b) { return b.r.cfp - a.r.cfp; });
-    return { all: all, field: all.slice(0, 12).sort(function (a, b) { return a.r.seed - b.r.seed; }) };
+    var field = [], used = {};
+    function add(x) { if (x && !used[x.t.id] && field.length < 12) { used[x.t.id] = 1; field.push(x); } }
+    function likeliestBid(teams) { return teams.sort(function (a, b) { return b.r.aq - a.r.aq || b.r.cfp - a.r.cfp; })[0]; }
+    CFP.P4.forEach(function (c) { add(likeliestBid(all.filter(function (x) { return x.t.conf === c; }))); });
+    add(likeliestBid(all.filter(function (x) { return CFP.G6.indexOf(x.t.conf) >= 0; })));
+    all.forEach(add);
+    var seedOf = function (x) { return x.r.seed == null ? 99 : x.r.seed; };
+    field.sort(function (a, b) { return seedOf(a) - seedOf(b); });
+    return { all: all, field: field, rest: all.filter(function (x) { return !used[x.t.id]; }) };
   }
   function renderField() {
     var pf = projectedField(), all = pf.all, field = pf.field;
@@ -247,8 +277,8 @@
     var opened = all.filter(function (x) { return x.t.id === st.fieldOpen; })[0];
     $('field-detail').hidden = !opened;
     $('field-detail').innerHTML = opened ? fieldPanel(opened) : '';
-    $('out').innerHTML = '<b>Next in line:</b> ' + all.slice(12, 16).map(function (x) { return esc(x.t.name) + ' ' + pct(x.r.cfp); }).join(', ');
-    $('field-note').textContent = 'The 12 teams most likely to make it, ordered by average seed. Select a team for details.';
+    $('out').innerHTML = '<b>Next in line:</b> ' + pf.rest.slice(0, 4).map(function (x) { return esc(x.t.name) + ' ' + pct(x.r.cfp); }).join(', ');
+    $('field-note').textContent = 'The likeliest champion of each power conference and the likeliest Group of 5 bid, plus the seven best remaining odds, ordered by average seed. Select a team for details.';
   }
 
   // ---------- Playoff bracket ----------
@@ -263,7 +293,7 @@
   // st.bkPicks maps a game key (r1-0 ... f) to the seed the viewer picked to win it.
   function bracketRow(key, slot, opp, cls, chance, host) {
     if (slot.tbd) {
-      return '<div class="bk-team tbd"><span class="bk-seed"></span><span aria-hidden="true"></span><span class="bk-name">TBD<small>' + slot.tbd + '</small></span><span class="bk-p"></span></div>';
+      return '<div class="bk-team tbd"><span class="bk-name">TBD<small>' + slot.tbd + '</small></span></div>';
     }
     var inner = '<span class="bk-seed">' + slot.seed + '</span>' + logo(slot.x.t, 22) +
       '<span class="bk-name">' + esc(slot.x.t.name) + (host ? '<small>Home</small>' : '') + '</span><span class="bk-p">' + (chance == null ? '' : Math.round(chance * 100) + '%') + '</span>';
@@ -424,7 +454,6 @@
     document.title = PAGES[p];
     // Each view gets its own title and intro.
     $('page-title').textContent = INTRO[p][0];
-    $('page-lede').textContent = INTRO[p][1];
     return hash;
   }
   window.addEventListener('hashchange', function () {
@@ -444,7 +473,7 @@
   function renderPicksBar() {
     var n = Object.keys(st.picks).length;
     $('picks-bar').innerHTML = n
-      ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '; +/\u2212 shows the change.</span><button class="btn" id="clear-picks" type="button">Clear picks</button>'
+      ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '.</span><button class="btn" id="clear-picks" type="button">Clear picks</button>'
       : '<span>Press a team\u2019s box to cycle its next game through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update.</span>';
   }
   function renderAll() { renderPicksBar(); renderStatus(); renderLive(); renderField(); renderBracket(); renderTable(); }
@@ -472,7 +501,8 @@
     'var jobs=CFP.forcedJobs(P,t,min),forced={};jobs.forEach(function(j,i){forced[j.t]=CFP.forcedRun(sim,j,1000);if(i%5===0)postMessage({p:.8+.2*i/jobs.length});});' +
     'postMessage({result:{sims:m.sims,mode:m.mode,teams:CFP.summarize(P,t,forced,min),rating:Array.prototype.slice.call(P.R.subarray(0,P.fbs))}});};';
   function runJob(mode, picks, done) {
-    var sims = SIMS, seed =(Date.now() % 2147483647) | 1, id = ++jobId;
+    // The same seed for every run of this model, so picks and live updates only move what they affect.
+    var sims = SIMS, seed = CFP.seedFor(mode), id = ++jobId;
     if (worker) worker.terminate();
     worker = null;
     setProgress(0, 'Simulating ' + sims.toLocaleString() + ' seasons\u2026');

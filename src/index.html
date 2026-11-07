@@ -10,11 +10,8 @@
 {{HEADER}}
 
 <main class="container main" id="main">
-  <section class="intro" aria-labelledby="page-title">
-    <h1 id="page-title">College Football Playoff odds</h1>
-    <p class="lede" id="page-lede">Each team's chance of making the 12-team playoff, from simulating every remaining game, conference title game and committee ranking.</p>
-    <div class="status" id="status"></div>
-  </section>
+  <!-- The page heading is hidden on screen; the tabs and section headings carry the layout. -->
+  <h1 class="sr-only" id="page-title">College Football Playoff odds</h1>
 
   <div class="toolbar" id="top-controls">
     <div class="ctl"><label for="mode">Ratings used</label><select id="mode"></select></div>
@@ -47,7 +44,7 @@
     </section>
 
     <section class="section board" aria-labelledby="board-title">
-      <div class="section-head"><h2 id="board-title">Every team</h2><p>Select a team for its schedule and what moves its odds.</p></div>
+      <div class="section-head"><h2 id="board-title">All teams</h2><p id="board-count"></p></div>
       <div class="filters">
         <div class="ctl"><span id="view-label">Teams</span><div class="seg" role="group" aria-labelledby="view-label" id="view"></div></div>
         <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
