@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=2a1bb44918">
-  <script src="js/theme.js?v=2a1bb44918"></script>
+  <link rel="stylesheet" href="css/styles.css?v=3a217ec92d">
+  <script src="js/theme.js?v=3a217ec92d"></script>
   <title>About · CFP Odds Board</title>
   <meta name="description" content="How the CFP Odds Board simulates the season: the playoff rules it applies, the ratings it uses and its limits.">
 </head>
@@ -51,7 +51,7 @@
         <li>Conference standings produce two title-game teams each simulation, or one per division in the Sun Belt.</li>
         <li>A simulated committee scores every team: rating × 0.65, −7 per loss with −2 more past two losses, schedule strength, +2.5 per top-10 win, +1.25 per 11-25 win, −3 for a loss outside the top 60, +4 for a power-conference title.</li>
         <li>Part of the current CFP ranking carries forward (60% of the gap between it and the model), and committee opinion varies by 2.2 points per simulation. A head-to-head winner jumps a team within 3 points.</li>
-        <li>The projected field follows the bid rules: the likeliest champion of each power conference, the likeliest Group of 5 bid, then the seven best remaining odds. The Playoff page seeds it by average seed. With Simulate games on, each game’s win chance comes from the two ratings, with home field for the higher seed in the first round, and the favorite advances. Title odds come from the full simulation, so a team can lead them without being favored in this one bracket.</li>
+        <li>The projected field follows the bid rules: the likeliest champion of each power conference, the likeliest Group of 6 bid, then the seven best remaining odds. The Playoff page seeds it by average seed. With Simulate games on, each game’s win chance comes from the two ratings, with home field for the higher seed in the first round, and the favorite advances. Title odds come from the full simulation, so a team can lead them without being favored in this one bracket.</li>
         <li>40,000 seasons are simulated each time, which puts a team near 50% within about half a point.</li>
         <li>Picking a winner locks that game in every simulation, so its opponent loses it. All odds then update, including those of teams that weren’t playing in it.</li>
       </ul>
@@ -93,7 +93,7 @@
         <li>The committee is a model. Its weights were tuned against one ranking, the current one, and have not been tested on past seasons.</li>
         <li>Conference tiebreakers are simplified to head-to-head, then overall losses, then rating. Real tiebreakers go further.</li>
         <li>Games in progress use the current score and time left, without possession or field position. While games are on and the Odds page is open, it checks ESPN every minute and re-simulates, so odds can shift between checks.</li>
-        <li>In the team toggle, G5 means the six non-power conferences named in the playoff rules, including the Pac-12. Notre Dame is grouped with Power 4 and UConn with G5.</li>
+        <li>In the Conference menu, Group of 6 means the six non-power conferences named in the playoff rules, including the Pac-12. Notre Dame is grouped with Power 4 and UConn with the Group of 6.</li>
         <li>FCS opponents without a rating use a low default, so those games are close to certain wins.</li>
         <li>Every model is shifted onto a common scale. FEI, Jeff Howell, Laz Index, Wolfe and Rothman don't publish point margins here, so their gaps are also stretched to match Massey's spread, which is an estimate. Sagarin's options keep Sagarin's scale. Teams a model doesn't rate use Massey.</li>
         <li>Wolfe and Rothman use wins and losses only, so they're the weakest guide to margins. All models average leaves them out, along with Jeff Howell, whose conversion to points is the roughest, plus recent-form models and extra Sagarin variants. Each remaining source counts once.</li>

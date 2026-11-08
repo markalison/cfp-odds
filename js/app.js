@@ -74,21 +74,21 @@
     cfp: function (x) { return x.r.cfp; }, bye: function (x) { return x.r.bye; }, champ: function (x) { return x.r.champ; },
     seed: function (x) { return x.r.seed == null ? 99 : x.r.seed; }, title: function (x) { return x.r.title; }
   };
-  // Notre Dame sits with the power conferences and UConn with the G5.
-  // Power 4 includes Notre Dame; Group of 5 is everyone else, UConn included.
+  // Notre Dame sits with the power conferences and UConn with the Group of 6.
+  // Power 4 includes Notre Dame; Group of 6 is everyone else, UConn included.
   function inGroup(t, group) {
     if (!group || group === 'all') return true;
     var power = CFP.P4.indexOf(t.conf) >= 0 || t.ab === 'ND';
     return group === 'p4' ? power : !power;
   }
   function inView(t) { return inGroup(t, st.view); }
-  var GROUP_NAME = { p4: 'Power 4', g5: 'Group of 5' };
+  var GROUP_NAME = { p4: 'Power 4', g5: 'Group of 6' };
   // The Conference dropdowns: team groups first, then each conference. Groups are stored as "group:p4".
   function confOptions(selected) {
     var confs = {};
     for (var i = 0; i < D.fbs; i++) confs[D.teams[i].conf] = 1;
     function option(v, label) { return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + esc(label) + '</option>'; }
-    return '<optgroup label="Teams">' + option('', 'All teams') + option('group:p4', 'Power 4') + option('group:g5', 'Group of 5') + '</optgroup>' +
+    return '<optgroup label="Teams">' + option('', 'All teams') + option('group:p4', 'Power 4') + option('group:g5', 'Group of 6') + '</optgroup>' +
       '<optgroup label="Conferences">' + Object.keys(confs).sort(function (a, b) { return (CFP.CONF_NAME[a] || a) < (CFP.CONF_NAME[b] || b) ? -1 : 1; }).map(function (c) { return option(c, CFP.CONF_NAME[c] || c); }).join('') + '</optgroup>';
   }
   function renderScoreboardControls() { $('sb-conf').innerHTML = confOptions(st.sbConf || ''); }
@@ -278,7 +278,7 @@
     '</div>';
   }
   // The table heading names what's shown: a conference if one is chosen, otherwise the team group.
-  var VIEW_NAME = { all: 'All teams', p4: 'Power 4', g5: 'Group of 5' };
+  var VIEW_NAME = { all: 'All teams', p4: 'Power 4', g5: 'Group of 6' };
   function renderBoardTitle(count) {
     $('board-title').textContent = st.conf ? (CFP.CONF_NAME[st.conf] || st.conf) : VIEW_NAME[st.view];
     $('board-count').textContent = count + (count === 1 ? ' team' : ' teams') + (st.q.trim() ? ' matching “' + st.q.trim() + '”' : '');
@@ -314,9 +314,9 @@
       statsList(x) + detailBody(x);
   }
   // The 12 teams most likely to make it, in order of average seed. Shared by the field and the bracket.
-  // Built the way the bids work: the most likely champion of each power conference and the Group of 5 team
+  // Built the way the bids work: the most likely champion of each power conference and the Group of 6 team
   // most likely to earn its automatic bid, then the best remaining odds. Taking the 12 highest odds alone can
-  // leave out the Group of 5 bid when it's split among several teams, say after the favorite loses.
+  // leave out the Group of 6 bid when it's split among several teams, say after the favorite loses.
   function projectedField() {
     var all = buildRows().sort(function (a, b) { return b.r.cfp - a.r.cfp; });
     var field = [], used = {};
@@ -342,7 +342,7 @@
     $('field-detail').hidden = !opened;
     $('field-detail').innerHTML = opened ? fieldPanel(opened) : '';
     $('out').innerHTML = '<b>Next in line:</b> ' + pf.rest.slice(0, 4).map(function (x) { return esc(x.t.name) + ' ' + pct(x.r.cfp); }).join(', ');
-    $('field-note').textContent = 'The likeliest champion of each power conference and the likeliest Group of 5 bid, plus the seven best remaining odds, ordered by average seed. Select a team for details.';
+    $('field-note').textContent = 'The likeliest champion of each power conference and the likeliest Group of 6 bid, plus the seven best remaining odds, ordered by average seed. Select a team for details.';
   }
 
   // ---------- Playoff bracket ----------
@@ -453,13 +453,21 @@
     var t = D.teams[i], isFbs = i < D.fbs, r = isFbs ? res().teams[i] : null, nx = isFbs ? schedule()[i][0] : null;
     var done = g.s === 'post', win = '';
     // A shaded odds tile, or a dash when there's no number.
-    function tile(v) { return v == null ? '<div class="lg-num">—</div>' : '<div class="lg-cfp" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; }
+    function tile(v, cls) { cls = cls ? ' ' + cls : ''; return v == null ? '<div class="lg-num' + cls + '">—</div>' : '<div class="lg-cfp' + cls + '" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; }
     if (!done) {
       if (st.picks[g.id]) win = st.picks[g.id] === t.id ? 'Pick' : '';
       else if (nx && nx.id === g.id) win = Math.round(nx.p * 100) + '%';
       else win = '—';
     }
-    return '<div class="lg-team">' + logo(t, 22) + '<span>' + esc(t.ab || t.name) + (t.rank ? ' <small>No. ' + t.rank + '</small>' : '') + '</span></div>' +
+    var name = '<div class="lg-team">' + logo(t, 22) + '<span>' + (t.rank ? '<small class="lg-rank">' + t.rank + '</small>' : '') + esc(t.ab || t.name) + (isFbs ? ' <small class="lg-rec">(' + record(i).text + ')</small>' : '') + '</span></div>';
+    // Upcoming games: no score; Make CFP odds if this team wins or loses it. A picked game has one outcome left.
+    if (g.s === 'pre') {
+      var ifW = null, ifL = null;
+      if (r && st.picks[g.id]) { if (st.picks[g.id] === t.id) ifW = r.cfp; else ifL = r.cfp; }
+      else if (r && nx && nx.id === g.id) { ifW = r.ifNext; ifL = r.ifLose; }
+      return name + '<div class="lg-num">' + win + '</div>' + tile(r ? r.cfp : null) + tile(ifW, 'lg-if') + tile(ifL, 'lg-if');
+    }
+    return name +
       '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + score + '</div>' +
       '<div class="lg-num">' + win + '</div>' +
       tile(r ? r.cfp : null);
@@ -490,15 +498,17 @@
     var now = dog === g.h ? lh : 1 - lh;
     return now >= 0.5 ? { dog: dog, pre: dogPre, now: now } : null;
   }
-  function whole(v) { return Math.round(v * 100) + '%'; }
   function liveCard(g) {
     var isLive = g.s === 'in', isPre = g.s === 'pre';
     var u = upset(g);
     var top = isLive ? '<span class="lg-live"><b>' + esc(clock(g)) + '</b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' :
-      isPre ? '<span>Kickoff</span><b>' + etTime(g.d) + ' ET</b>' : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span>Today</span>';
+      isPre ? '<span class="lg-kick">Kickoff</span><b>' + (etDay(g.d) === etDay(Date.now()) ? '' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + ', ') +
+        // ESPN marks a kickoff time that hasn't been set as midnight Eastern.
+        (etTime(g.d) === '12:00 AM' ? 'time TBA' : etTime(g.d) + ' ET') + '</b>' : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span>' + (etDay(g.d) === etDay(Date.now()) ? 'Today' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })) + '</span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
       '<div class="lg-top">' + top + '</div>' +
-      '<div class="lg-rows"><span></span><span class="h">' + (isPre ? '' : 'Score') + '</span><span class="h">' + (isPre || isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span>' +
+      (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
+        '<div class="lg-rows"><span></span><span class="h">Score</span><span class="h">' + (isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span>') +
         liveRow(g, g.a, isPre ? '' : g.as, isPre ? '' : g.hs) + liveRow(g, g.h, isPre ? '' : g.hs, isPre ? '' : g.as) +
       '</div>' +
     '</article>';
@@ -545,9 +555,32 @@
     } catch (err) {}
     return null;
   }
-  // Live games with the most playoff impact come first, then today's finished games.
+  // The weeks on the Scores page, with their date range, e.g. "Week 10 · Nov 3–7".
+  function scoreWeeks() {
+    var m = {};
+    D.games.forEach(function (g) {
+      if (g.wk == null || (g.h >= D.fbs && g.a >= D.fbs)) return;
+      var w = m[g.wk] = m[g.wk] || { wk: g.wk, first: g.d, last: g.d };
+      if (g.d < w.first) w.first = g.d;
+      if (g.d > w.last) w.last = g.d;
+    });
+    return Object.keys(m).map(function (k) { return m[k]; }).sort(function (x, y) { return x.wk - y.wk; });
+  }
+  function weekLabel(w) {
+    function md(d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }); }
+    var a = md(w.first), b = md(w.last);
+    if (a === b) return 'Week ' + w.wk + ' · ' + a;
+    if (a.split(' ')[0] === b.split(' ')[0]) b = b.split(' ')[1];
+    return 'Week ' + w.wk + ' · ' + a + '–' + b;
+  }
+  // Live games with the most playoff impact come first, then games still to come, then finals, for the chosen week.
+  // With no week chosen it follows the current week, which moves on when next week's first game kicks off.
   function renderLive() {
-    var today = etDay(Date.now());
+    var weeks = scoreWeeks(), current = weekGames().wk;
+    var sel = st.sbWeek != null && weeks.some(function (w) { return w.wk === st.sbWeek; }) ? st.sbWeek : current;
+    $('sb-week').innerHTML = weeks.map(function (w) {
+      return '<option value="' + w.wk + '"' + (w.wk === sel ? ' selected' : '') + '>' + esc(weekLabel(w)) + (w.wk === current ? ' (current)' : '') + '</option>';
+    }).join('');
     var sbConf = st.sbConf || '';
     var sbGroup = sbConf.indexOf('group:') === 0 ? sbConf.slice(6) : '';
     var inConf = function (g) {
@@ -555,30 +588,34 @@
       var h = D.teams[g.h], a = D.teams[g.a];
       return sbGroup ? (g.h < D.fbs && inGroup(h, sbGroup)) || (g.a < D.fbs && inGroup(a, sbGroup)) : h.conf === sbConf || a.conf === sbConf;
     };
-    var counts = function (g) { return (g.h < D.fbs || g.a < D.fbs) && inConf(g); };
+    var inWeek = function (g) { return g.wk === sel && (g.h < D.fbs || g.a < D.fbs); };
+    var counts = function (g) { return inWeek(g) && inConf(g); };
     var R = res();
     var best = function (g) { return Math.max(g.h < D.fbs ? R.teams[g.h].cfp : 0, g.a < D.fbs ? R.teams[g.a].cfp : 0); };
     var stake = function (g) { var s = gameStakes(g); return s ? s.swing : 0; };
     var byTime = st.sbSort === 'time';
     var kickoff = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
-    // Pre-game swing for every game today, once measured; until then the live stakes stand in.
-    var sw = byTime ? null : gameSwings(D.games.filter(function (g) { return (g.h < D.fbs || g.a < D.fbs) && etDay(g.d) === today; }));
+    // Pre-game swing for every game that week, once measured; until then the live stakes stand in.
+    var sw = byTime ? null : gameSwings(D.games.filter(inWeek));
     var swing = function (g) { return sw ? sw[g.id] || 0 : g.s === 'post' ? best(g) : stake(g); };
     var impact = function (a, b) { return (st.picks[b.id] ? 1 : 0) - (st.picks[a.id] ? 1 : 0) || swing(b) - swing(a) || best(b) - best(a); };
     var order = byTime ? function (a, b) { return kickoff(a, b) || best(b) - best(a); } : function (a, b) { return impact(a, b) || kickoff(a, b); };
     var live = D.games.filter(function (g) { return g.s === 'in' && counts(g); }).sort(order);
-    var done = D.games.filter(function (g) { return g.s === 'post' && counts(g) && etDay(g.d) === today; }).sort(byTime ? order : function (a, b) { return swing(b) - swing(a) || kickoff(a, b); });
-    var later = D.games.filter(function (g) { return g.s === 'pre' && counts(g) && etDay(g.d) === today; }).sort(order);
+    var later = D.games.filter(function (g) { return g.s === 'pre' && counts(g); }).sort(byTime ? order : function (a, b) { return impact(a, b) || kickoff(a, b); });
+    var done = D.games.filter(function (g) { return g.s === 'post' && counts(g); }).sort(byTime ? order : function (a, b) { return swing(b) - swing(a) || kickoff(a, b); });
     function group(title, games, note) {
-      return games.length ? '<div class="live-group"><h3>' + title + ' <span class="lg-count">' + games.length + '</span></h3>' + (note ? '<p class="live-note">' + note + '</p>' : '') + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></div>' : '';
+      return games.length ? '<div class="live-group">' + (title ? '<h4>' + title + '</h4>' : '') + (note ? '<p class="live-note">' + note + '</p>' : '') + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></div>' : '';
     }
-    var checked = st.live === 'blocked' ? '<b>Couldn’t reach ESPN.</b> Scores are from ' + etTime(D.asOf) + ' ET.' :
-      'Scores from <b>' + etTime(D.asOf) + ' ET</b>' + (live.length ? ', checked every minute while this page is open.' : '.');
-    var next = D.games.filter(function (g) { return g.s === 'pre' && counts(g); })[0];
-    $('live-board').innerHTML = '<p class="live-note">' + checked + ' Win and Make CFP odds use the current score and clock.</p>' +
+    var updated = new Date(D.asOf).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
+    var checked = (st.live === 'blocked' ? '<b>Couldn’t reach ESPN.</b> ' : '') + 'Last updated <b>' + updated + '</b>';
+    var next = D.games.filter(function (g) { return g.s === 'pre' && (g.h < D.fbs || g.a < D.fbs) && inConf(g); }).sort(kickoff)[0];
+    var nextText = next ? 'Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '';
+    var impactNote = byTime ? 'Earliest kickoff first.' : 'Your picks first, then the biggest possible swing in playoff odds, judged before kickoff.';
+    var who = sbConf ? esc(sbGroup ? GROUP_NAME[sbGroup] : CFP.CONF_NAME[sbConf] || sbConf) + ' ' : '';
+    $('live-board').innerHTML = '<p class="live-note">' + checked + '</p>' +
       (live.length || later.length || done.length ?
-        group('In progress', live, byTime ? 'Earliest kickoff first.' : 'Your picks first, then the biggest possible swing in playoff odds, judged before kickoff.') + group('Later today', later) + group('Final today', done, byTime ? '' : 'Biggest total swing in playoff odds first.') :
-        '<p class="live-empty">No ' + (sbConf ? esc(sbGroup ? GROUP_NAME[sbGroup] : CFP.CONF_NAME[sbConf] || sbConf) + ' ' : '') + 'games today.' + (next ? ' Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '') + '</p>');
+        '<h3 class="week-head">Week ' + sel + '</h3>' + group(live.length && (later.length || done.length) ? 'In progress' : '', live, impactNote) + group(later.length && (live.length || done.length) ? 'Upcoming' : '', later, impactNote) + group('', done) :
+        '<p class="live-empty">No ' + who + 'games in week ' + sel + '.' + (nextText ? ' ' + nextText : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
   var PAGES = { rankings: 'CFP Odds Board', playoff: 'Playoff bracket · CFP Odds Board', scoreboard: 'Scores · CFP Odds Board' };
@@ -749,6 +786,10 @@
   setInterval(function () {
     if (!document.hidden && !st.pendingD && gamesActive()) tryLive(true);
   }, 60000);
+  // Coming back to the tab catches up right away instead of waiting for the next minute.
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden && !st.pendingD && gamesActive()) tryLive(true);
+  });
 
   // Controls
   document.addEventListener('click', function (e) {
@@ -822,6 +863,7 @@
     }
     else if (id === 'sb-conf') { st.sbConf = e.target.value; renderLive(); }
     else if (id === 'sb-sort') { st.sbSort = e.target.value; renderLive(); }
+    else if (id === 'sb-week') { st.sbWeek = +e.target.value === weekGames().wk ? null : +e.target.value; renderLive(); }
     else if (e.target.classList.contains('mode-select')) {
       st.mode = e.target.value;
       [].forEach.call(document.querySelectorAll('.mode-select'), function (s) { s.value = st.mode; });
