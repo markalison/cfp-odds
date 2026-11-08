@@ -147,6 +147,22 @@ for (const mode of ['blend', 'all'].concat(models.map((m) => m.k))) {
   const top = results[mode].teams.map((x, i) => [T0(i), x.cfp]).sort((p, q) => q[1] - p[1]).slice(0, 6).map((p) => `${p[0]} ${(p[1] * 100).toFixed(0)}`).join(', ');
   console.log(mode.padEnd(10), ((Date.now() - t0) / 1000).toFixed(1) + 's', 'field', field.toFixed(2), '|', top);
 }
+// Playoff impact for this week's and next week's games under the default ratings, measured here so the
+// Scores page has its final order as soon as it loads. Same method and seed as the page (5,000 seasons).
+{
+  const t0 = Date.now(), now = Date.now();
+  const started = D.games.filter((g) => g.wk != null && Date.parse(g.d) <= now).map((g) => g.wk);
+  const wkNow = started.length ? Math.max(...started) : Math.min(...D.games.map((g) => g.wk || 99));
+  let n = 0;
+  for (const wk of [wkNow, wkNow + 1]) {
+    const ids = D.games.filter((g) => g.wk === wk && (g.h < D.fbs || g.a < D.fbs)).map((g) => g.id);
+    if (!ids.length) continue;
+    const sw = CFP.measureSwings(D, 'blend', CFP.seedFor('blend'), 5000, ids);
+    D.games.forEach((g) => { if (sw[g.id] != null) { g.sw = sw[g.id]; g.swS = g.s; n++; } });
+  }
+  D.swMode = 'blend';
+  console.log('playoff impact measured for', n, 'games in', ((Date.now() - t0) / 1000).toFixed(1) + 's');
+}
 writeFileSync(new URL('./data.json', import.meta.url), JSON.stringify({ D, results }));
 const R = results.massey, T = D.teams;
 const rows = R.teams.map((x, i) => ({ i, ...x })).sort((p, q) => q.cfp - p.cfp).slice(0, 34);

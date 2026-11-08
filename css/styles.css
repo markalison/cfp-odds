@@ -320,6 +320,10 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .live-group h4 { font: 700 var(--text-md)/1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .live-note { font-size: var(--text-sm); color: var(--muted); }
 .live-note b { color: var(--ink); font-weight: 600; }
+#live-head:empty { display: none; }
+/* Conference on the left, Sort by pushed to the right, between the week heading and the games. */
+.sb-bar { justify-content: space-between; }
+.sb-bar .sb-sort { margin-left: auto; }
 .live-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: var(--s3); }
 .live-empty { padding: var(--s5); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); color: var(--muted); }
 .lg { display: grid; gap: var(--s2); align-content: start; padding: var(--s3) var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -369,18 +373,29 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .bk-toggle[aria-pressed="true"], .bk-toggle[aria-pressed="true"]:hover { background: var(--accent); border-color: var(--accent); color: var(--panel); }
 .bracket { display: grid; gap: var(--s5); }
 .bk-rounds { position: relative; display: grid; gap: var(--s5); }
-.bk-round { display: grid; grid-template-rows: auto 1fr; gap: var(--s3); min-width: 0; }
+.bk-round { display: grid; grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); gap: var(--s3); min-width: 0; }
 .bk-round h3 { padding: var(--s2) var(--s3); background: var(--bar-track); border-radius: 0; font-size: var(--text-xs); letter-spacing: .08em; color: var(--ink); }
 /* Bowl branding: dates and sites on rounds and games. */
 .bk-round h3 small { display: block; margin-top: 2px; font: 500 11px/1.3 var(--body); letter-spacing: 0; text-transform: none; color: var(--muted); }
 /* Each game is a card: a header with the bowl or site and the time and TV, then the two teams. */
-.bk-game { position: relative; z-index: 1; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
-.bk-where { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 8px; min-height: 36px; padding: 5px var(--s3); border-bottom: 1px solid var(--line); background: var(--bar-track); font-size: 12px; line-height: 1.3; color: var(--muted); }
+.bk-game { position: relative; z-index: 1; min-width: 0; container-type: inline-size; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.bk-where { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; padding: 5px var(--s3); border-bottom: 1px solid var(--line); background: var(--bar-track); font-size: 12px; line-height: 1.3; color: var(--muted); }
 .bk-place, .bk-air { display: inline-flex; align-items: center; gap: 6px; }
 .bk-place { color: var(--ink); font-weight: 600; }
-.bk-air { margin-left: auto; }
-/* Desktop bracket columns are narrow: every game line gets room for two rows so the boxes stay level. */
-@media (min-width: 1000px) { .bk-where { min-height: 60px; align-content: center; } }
+.bk-place { flex: 1 1 auto; min-width: 0; }
+.bk-place > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.bk-air { flex: none; margin-left: auto; gap: 5px; }
+.bk-where { overflow: hidden; }
+/* Narrow cards keep one line by trimming: first the bowl name (its logo stays, name on hover), then "ET", then smaller network logos. */
+@container (max-width: 330px) { .bk-bowl + span { display: none; } }
+@container (max-width: 270px) { .bk-et { display: none; } .bk-air, .bk-air .net-logos { gap: 4px; } }
+@container (max-width: 240px) {
+  .bk-where { gap: 6px; padding-inline: var(--s2); font-size: 11px; }
+  .bk-air .net-logos img { height: 11px; max-width: 32px; }
+  .bk-air .net-logos img:is(.net-espn, .net-espn2, .net-espnu, .net-espnews) { height: 8px; }
+  .bk-air .net-logos img:is(.net-trutv, .net-hbomax) { height: 10px; }
+}
+/* Card headers are always one line: the bowl or site on the left (its name trims with … if space runs short), the time and networks on the right. */
 .bk-where b { color: var(--ink); font-weight: 600; white-space: nowrap; }
 /* TV network badges: the network's name in its brand color, with the time beside it. */
 .tv { display: inline-block; padding: 1px 5px; background: var(--tv); color: #fff; font: 700 10px/1.4 var(--display); letter-spacing: .04em; white-space: nowrap; }

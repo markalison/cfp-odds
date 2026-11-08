@@ -20,9 +20,12 @@
   <div class="stack" id="page-scoreboard" hidden>
     <div class="filters">
       <div class="ctl"><label for="sb-week">Week</label><select id="sb-week"></select></div>
+    </div>
+    <div id="live-head"></div>
+    <!-- Between the week heading and the games: conference on the left, sort order on the right. -->
+    <div class="filters sb-bar">
       <div class="ctl"><label for="sb-conf">Conference</label><select id="sb-conf"></select></div>
-      <div class="ctl"><label for="sb-sort">Sort by</label><select id="sb-sort"><option value="impact">Playoff impact</option><option value="time">Start time</option></select></div>
-      <div class="ctl"><label for="mode-sb">Ratings used</label><select id="mode-sb" class="mode-select"></select></div>
+      <div class="ctl sb-sort"><label for="sb-sort">Sort by</label><select id="sb-sort"><option value="impact">Playoff impact</option><option value="time">Start time</option></select></div>
     </div>
     <section class="live-board" id="live-board" aria-label="Scores"></section>
   </div>

@@ -453,8 +453,8 @@
   // The line above a bracket game: TV logos and time, then the bowl or site. "proj." marks a projected slot.
   function gameLine(tv, when, place) {
     // "Fri, Jan 1 · 12:00 PM" -> "Jan 1 · 12 PM ET"
-    var short = when.replace(/^\w+, /, '').replace(':00 ', ' ') + ' ET';
-    return '<span class="bk-place">' + place + '</span><span class="bk-air"><b>' + esc(short) + '</b>' + netLogos(tv) + '</span>';
+    var short = when.replace(/^\w+, /, '').replace(':00 ', ' ');
+    return '<span class="bk-place">' + place + '</span><span class="bk-air"><b>' + esc(short) + '<span class="bk-et"> ET</span></b>' + netLogos(tv) + '</span>';
   }
   var ROUND_INFO = {
     'First round': 'Dec 18–19 · higher seed hosts',
@@ -633,38 +633,35 @@
   // All runs share one seed and the same game list (finals become locked games), so each difference comes
   // from that one game (common random numbers). Runs in its own worker after the main odds are ready.
   var SWING_SIMS = 5000;
-  var SWING_TAIL = 'self.onmessage=function(e){var m=e.data,out={};' +
-    'function cfp(lock){var P=CFP.prep(m.D,m.mode,lock),sim=new CFP.Sim(P,m.seed),t=CFP.emptyTally(P.n),r=[];CFP.baseBatch(sim,t,m.sims);for(var i=0;i<P.fbs;i++)r.push(t.cfp[i]/m.sims);return r;}' +
-    'function diff(a,b){var s=0;for(var i=0;i<a.length;i++)s+=Math.abs(a[i]-b[i]);return s;}' +
-    'function with_(id,v){var pk={};for(var k in m.lock)if(k!==id)pk[k]=m.lock[k];if(v)pk[id]=v;return pk;}' +
-    'var base=m.done.length?cfp(m.lock):null;' +
-    'm.done.forEach(function(id){out[id]=diff(cfp(with_(id,null)),base);});' +
-    'm.open.forEach(function(o){out[o.id]=diff(cfp(with_(o.id,o.h)),cfp(with_(o.id,o.a)));});' +
-    'postMessage(out);};';
-  var swings = { key: null, val: null, worker: null };
+  var SWING_TAIL = 'self.onmessage=function(e){var m=e.data;postMessage(CFP.measureSwings(m.D,m.mode,m.seed,m.sims,m.ids));};';
+  // Results are remembered per ratings model and game list, so a week that's been measured never reshuffles.
+  // The build measures the default ratings' current and next week ahead of time (g.sw), so those show their
+  // final order straight away.
+  var swings = { key: null, worker: null }, swingCache = {};
   function gameSwings(games) {
     if (!games.length) return null;
     var key = st.mode + '|' + games.map(function (g) { return g.id + g.s.charAt(0); }).sort().join(',');
-    if (swings.key === key) return swings.val;
+    if (swingCache[key]) return swingCache[key];
+    if (st.mode === D.swMode && games.every(function (g) { return g.sw != null && g.swS === g.s; })) {
+      var pre = {};
+      games.forEach(function (g) { pre[g.id] = g.sw; });
+      return (swingCache[key] = pre);
+    }
+    if (swings.key === key) return null; // being measured
     if (swings.worker) swings.worker.terminate();
-    swings = { key: key, val: null, worker: null };
-    var ids = {}, lock = {}, done = [], open = [];
-    games.forEach(function (g) {
-      ids[g.id] = 1;
-      if (g.s === 'post') { lock[g.id] = D.teams[g.w].id; done.push(g.id); }
-      else open.push({ id: g.id, h: D.teams[g.h].id, a: D.teams[g.a].id });
-    });
-    var data = Object.assign({}, D, { games: D.games.map(function (g) { return ids[g.id] ? Object.assign({}, g, { s: 'pre', hs: 0, as: 0, w: null }) : g; }) });
+    swings = { key: key, worker: null };
+    var data = D, ids = games.map(function (g) { return g.id; });
     try {
       var w = new Worker(URL.createObjectURL(new Blob(['importScripts(' + JSON.stringify(ENGINE_URL) + ');\n' + SWING_TAIL], { type: 'text/javascript' })));
       w.onmessage = function (e) {
+        swingCache[key] = e.data;
         if (swings.key !== key) return;
-        swings.val = e.data; swings.worker = null; w.terminate();
+        swings.worker = null; w.terminate();
         if (st.sbSort !== 'time') renderLive();
       };
       w.onerror = function () { if (swings.worker === w) swings.worker = null; };
       swings.worker = w;
-      w.postMessage({ D: data, mode: st.mode, seed: CFP.seedFor(st.mode), sims: SWING_SIMS, lock: lock, done: done, open: open });
+      w.postMessage({ D: data, mode: st.mode, seed: CFP.seedFor(st.mode), sims: SWING_SIMS, ids: ids });
     } catch (err) {}
     return null;
   }
@@ -719,15 +716,15 @@
     function group(title, games, note) {
       return games.length ? '<div class="live-group">' + (title ? '<h4>' + title + '</h4>' : '') + (note ? '<p class="live-note">' + note + '</p>' : '') + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></div>' : '';
     }
-    var updated = new Date(D.asOf).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
-    var checked = (st.live === 'blocked' ? '<b>Couldn’t reach ESPN.</b> ' : '') + 'Last updated <b>' + updated + '</b>';
     var next = D.games.filter(function (g) { return g.s === 'pre' && (g.h < D.fbs || g.a < D.fbs) && inConf(g); }).sort(kickoff)[0];
     var nextText = next ? 'Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '';
     var impactNote = byTime ? 'Earliest kickoff first.' : 'Your picks first, then the biggest possible swing in playoff odds, judged before kickoff.';
     var who = sbConf ? esc(sbGroup ? GROUP_NAME[sbGroup] : CFP.CONF_NAME[sbConf] || sbConf) + ' ' : '';
-    $('live-board').innerHTML = '<p class="live-note">' + checked + '</p>' +
+    // Only a failed ESPN check is worth a line here.
+    $('live-head').innerHTML = st.live === 'blocked' ? '<p class="live-note"><b>Couldn’t reach ESPN.</b> Showing the saved scores.</p>' : '';
+    $('live-board').innerHTML =
       (live.length || later.length || done.length ?
-        '<h3 class="week-head">Week ' + sel + '</h3>' + group(live.length && (later.length || done.length) ? 'In progress' : '', live, impactNote) + group(later.length && (live.length || done.length) ? 'Upcoming' : '', later, impactNote) + group('', done) :
+        group(live.length && (later.length || done.length) ? 'In progress' : '', live, impactNote) + group(later.length && (live.length || done.length) ? 'Upcoming' : '', later, impactNote) + group('', done) :
         '<p class="live-empty">No ' + who + 'games in week ' + sel + '.' + (nextText ? ' ' + nextText : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
@@ -872,6 +869,9 @@
           t.r = old ? old.r : { massey: 28, sagarin: 45, predictor: 45 };
         });
         fresh.sources = D.sources;
+        fresh.swMode = D.swMode;
+        var oldGame = {}; D.games.forEach(function (g) { oldGame[g.id] = g; });
+        fresh.games.forEach(function (g) { var o = oldGame[g.id]; if (o && o.sw != null) { g.sw = o.sw; g.swS = o.swS; } });
         // Teams share their rating objects with D, so new FPI values reach both copies.
         var fpiFresh = x[2] && CFP.applyFpi(fresh, x[2]);
         if (fpiFresh) { delete results.fpi; delete results.all; pickResults = {}; }

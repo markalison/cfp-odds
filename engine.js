@@ -201,6 +201,34 @@ var CFP = (function () {
     }).catch(function () { return rankings; });
   }
 
+  // ---------- Playoff impact of single games ----------
+  // Total swing in Make CFP odds across every team, for each game in ids. All of those games go back to
+  // unplayed (a pre-game view): a final compares its real result with the game left open; any other game
+  // compares a home win with an away win. Every run shares one seed and one game list (finals become locked
+  // games), so each difference comes from that one game.
+  function measureSwings(D, mode, seed, sims, ids) {
+    var set = {}, lock = {}, done = [], open = [], out = {};
+    ids.forEach(function (id) { set[id] = 1; });
+    D.games.forEach(function (g) {
+      if (!set[g.id]) return;
+      if (g.s === 'post') { lock[g.id] = D.teams[g.w].id; done.push(g.id); }
+      else open.push({ id: g.id, h: D.teams[g.h].id, a: D.teams[g.a].id });
+    });
+    var data = Object.assign({}, D, { games: D.games.map(function (g) { return set[g.id] ? Object.assign({}, g, { s: 'pre', hs: 0, as: 0, w: null }) : g; }) });
+    function cfp(lk) {
+      var P = prep(data, mode, lk), sim = new Sim(P, seed), t = emptyTally(P.n), r = [];
+      baseBatch(sim, t, sims);
+      for (var i = 0; i < P.fbs; i++) r.push(t.cfp[i] / sims);
+      return r;
+    }
+    function diff(a, b) { var s = 0; for (var i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return Math.round(s * 1e4) / 1e4; }
+    function withPick(id, v) { var pk = {}; for (var k in lock) if (k !== id) pk[k] = lock[k]; if (v) pk[id] = v; return pk; }
+    var base = done.length ? cfp(lock) : null;
+    done.forEach(function (id) { out[id] = diff(cfp(withPick(id, null)), base); });
+    open.forEach(function (o) { out[o.id] = diff(cfp(withPick(o.id, o.h)), cfp(withPick(o.id, o.a))); });
+    return out;
+  }
+
   // ---------- Prepare one rating mode ----------
   // picks: { gameId: ESPN id of the team picked to win }
   function prep(D, mode, picks) {
@@ -552,7 +580,7 @@ var CFP = (function () {
 
   return {
     M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, CONF_ABBR: CONF_ABBR, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
-    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor, withCfp: withCfp
+    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor, withCfp: withCfp, measureSwings: measureSwings
   };
 })();
 if (typeof module !== 'undefined') module.exports = CFP;
