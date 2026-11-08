@@ -49,7 +49,7 @@ const HEADER = `<header class="site-header">
     <nav class="tabs" aria-label="Views">
       <a href="./#rankings" data-page="rankings">Rankings</a>
       <a href="./#playoff" data-page="playoff">Playoff</a>
-      <a href="./#scoreboard" data-page="scoreboard">Scoreboard</a>
+      <a href="./#scores" data-page="scoreboard">Scores</a>
     </nav>
     <button class="btn icon-btn" id="theme" type="button"></button>
   </div>

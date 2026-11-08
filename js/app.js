@@ -80,6 +80,13 @@
     var power = CFP.P4.indexOf(t.conf) >= 0 || t.ab === 'ND';
     return st.view === 'p4' ? power : !power;
   }
+  function renderScoreboardControls() {
+    var confs = {};
+    for (var i = 0; i < D.fbs; i++) confs[D.teams[i].conf] = 1;
+    $('sb-conf').innerHTML = '<option value="">All conferences</option>' + Object.keys(confs).sort(function (a, b) { return (CFP.CONF_NAME[a] || a) < (CFP.CONF_NAME[b] || b) ? -1 : 1; }).map(function (c) {
+      return '<option value="' + c + '"' + (st.sbConf === c ? ' selected' : '') + '>' + esc(CFP.CONF_NAME[c] || c) + '</option>';
+    }).join('');
+  }
   function renderViewControls() {
     $('view').innerHTML = [['all', 'All'], ['p4', 'Power 4'], ['g5', 'G5']].map(function (v) {
       return '<button type="button" data-view="' + v[0] + '" aria-pressed="' + (st.view === v[0]) + '">' + v[1] + '</button>';
@@ -123,13 +130,12 @@
     }
     // Fixed column widths live on these header classes. Columns marked sec are hidden on phones.
     $('head').innerHTML =
-      th('team', 'CFP rank / team', 'first c-team') + '</th>' +
-      th('rating', 'Model rank', 'c-rating sec') + '</th>' +
-      th('next', 'Next game', 'l c-next sec') + '</th>' +
+      th('team', 'CFP', 'first c-rk') + '</th>' +
+      '<th class="l c-team team-col">Team</th>' +
+      th('next', 'This week', 'l c-next sec') + '</th>' +
       '<th class="pick c-pick">Pick</th>' +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
-      th('bye', 'First-round bye', 'c-bye sec') + '</th>' +
-      th('seed', 'Avg seed', 'c-seed sec') + '</th>' +
+      th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
       th('champ', 'Win conf.', 'c-conf sec') + '</th>' +
       th('title', 'Win title', 'c-title sec') + '</th>';
   }
@@ -145,8 +151,25 @@
     if (gameIndex.D !== D) { gameIndex = { D: D, byId: {} }; D.games.forEach(function (g) { gameIndex.byId[g.id] = g; }); }
     return gameIndex.byId[id];
   }
-  function miniScore(x) {
-    var g = gameById(x.next.id);
+  // The current week: the ESPN week of the most recent kickoff, so today's finals still count as this week.
+  var weekIndex = { D: null, at: 0, wk: null, byTeam: {} };
+  function weekGames() {
+    var now = Date.now();
+    if (weekIndex.D !== D || now - weekIndex.at > 60000) {
+      var started = D.games.filter(function (g) { return g.wk != null && Date.parse(g.d) <= now; });
+      var wk = started.length ? Math.max.apply(null, started.map(function (g) { return g.wk; })) : Math.min.apply(null, D.games.map(function (g) { return g.wk || 99; }));
+      var byTeam = {};
+      D.games.forEach(function (g) { if (g.wk === wk) { byTeam[g.h] = g; byTeam[g.a] = g; } });
+      weekIndex = { D: D, at: now, wk: wk, byTeam: byTeam };
+    }
+    return weekIndex;
+  }
+  function thisWeek(x) { return weekGames().byTeam[x.i] || null; }
+  function shortDay(d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }); }
+  // "at ND" or "vs ND" for team i's side of a game.
+  function matchup(g, i) { var opp = D.teams[g.h === i ? g.a : g.h]; return (g.n || g.h === i ? 'vs ' : 'at ') + esc(opp.ab || opp.name); }
+  function miniScore(x, g) {
+    g = g || gameById(x.next.id);
     if (!g) return '';
     var away = D.teams[g.a], home = D.teams[g.h];
     function side(t) { return '<span class="ms-t' + (t === x.t ? ' me' : '') + '">' + esc(t.ab || t.name) + '</span>'; }
@@ -154,19 +177,28 @@
     var label = away.name + ' ' + g.as + ', ' + home.name + ' ' + g.hs;
     return '<span class="mscore" role="img" aria-label="' + esc(label) + '">' + side(away) + score(g.as, g.hs) + score(g.hs, g.as) + side(home) + '</span>';
   }
+  // This week's game: the final score, the live score, or the matchup to come. After a final or a bye,
+  // the next game is listed too, since that's the game the pick box applies to.
+  function nextLine(x) {
+    if (!x.next) return 'Regular season over';
+    var g = gameById(x.next.id);
+    return 'Next: ' + (g ? matchup(g, x.i) : esc(D.teams[x.next.o].ab)) + ' ' + shortDay(x.next.d);
+  }
   function nextCell(x) {
-    if (!x.next) return '<span class="next">Done<small>Regular season over</small></span>';
-    if (x.next.s === 'in') return '<span class="next">' + miniScore(x) + '<small>' + esc(x.next.st) + ' · ' + nextChance(x.next, x.t) + '</small></span>';
-    var opp = D.teams[x.next.o], where = x.next.home === -1 ? 'at' : 'vs';
-    var day = new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' });
-    return '<span class="next">' + where + ' ' + esc(opp.ab || opp.name) + '<small>' + day + ' · ' + nextChance(x.next, x.t) + '</small></span>';
+    var g = thisWeek(x);
+    if (!g) return '<span class="next">Bye week<small>' + nextLine(x) + '</small></span>';
+    var isNext = x.next && x.next.id === g.id;
+    if (g.s === 'post') return '<span class="next">' + miniScore(x, g) + '<small>Final · <b>' + (g.w === x.i ? 'W' : 'L') + '</b> · ' + nextLine(x) + '</small></span>';
+    if (g.s === 'in') return '<span class="next">' + miniScore(x, g) + '<small>' + esc(g.st) + (isNext ? ' · ' + nextChance(x.next, x.t) : '') + '</small></span>';
+    return '<span class="next">' + matchup(g, x.i) + '<small>' + shortDay(g.d) + (isNext ? ' · ' + nextChance(x.next, x.t) : '') + '</small></span>';
   }
   // Phones hide the Next game column, so a short version sits under the team name.
   function shortNext(x) {
-    if (!x.next) return '';
-    var opp = D.teams[x.next.o], where = x.next.home === -1 ? 'at ' : 'vs ';
-    if (x.next.s === 'in') return '<span class="tnext">' + miniScore(x) + '<span>' + esc(x.next.st) + '</span></span>';
-    return '<span class="tnext">' + where + esc(opp.ab || opp.name) + ' · ' + new Date(x.next.d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + '</span>';
+    var g = thisWeek(x);
+    if (!g) return '<span class="tnext">Bye week</span>';
+    if (g.s === 'post') return '<span class="tnext">' + miniScore(x, g) + '<span>Final</span></span>';
+    if (g.s === 'in') return '<span class="tnext">' + miniScore(x, g) + '<span>' + esc(g.st) + '</span></span>';
+    return '<span class="tnext">' + matchup(g, x.i) + ' · ' + shortDay(g.d) + '</span>';
   }
   // The headline numbers for one team. The field panel always shows them; table details show them on phones.
   function statsList(x, cls) {
@@ -187,10 +219,10 @@
     var label = won ? x.t.name + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + '. Press to pick a win';
     return '<div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(x.next.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(D.teams[x.next.o].id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></div>';
   }
-  // Phones show three columns (styles.css hides the rest below 900px). A full-width row must span
+  // Phones show four columns: CFP, team, pick and Make CFP (styles.css hides the rest below 900px). A full-width row must span
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
   var WIDE = matchMedia('(min-width: 900px)');
-  function visibleColumns() { return WIDE.matches ? 9 : 3; }
+  function visibleColumns() { return WIDE.matches ? 8 : 4; }
   function detail(x) {
     return '<tr class="detail"><td colspan="' + visibleColumns() + '">' + statsList(x, 'narrow-only') + detailBody(x) + '</td></tr>';
   }
@@ -228,6 +260,8 @@
     $('board-title').textContent = st.conf ? (CFP.CONF_NAME[st.conf] || st.conf) : VIEW_NAME[st.view];
     $('board-count').textContent = count + (count === 1 ? ' team' : ' teams') + (st.q.trim() ? ' matching “' + st.q.trim() + '”' : '');
   }
+  // A percentage column cell, shaded by its value like Make CFP.
+  function shaded(v) { return '<td class="sec pct-cell" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</td>'; }
   function renderTable() {
     head();
     var rows = visible(buildRows());
@@ -235,13 +269,14 @@
     if (!rows.length) { $('body').innerHTML = '<tr><td class="empty" colspan="' + visibleColumns() + '">No teams match. Clear the search or pick another conference.</td></tr>'; return; }
     $('body').innerHTML = rows.map(function (x) {
       var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
-      var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first"><div class="teamcell"><span class="rk">' + (x.t.rank || '') + '</span>' + logo(x.t, 30) +
+      var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first c-rk">' + (x.t.rank || '') + '</td>' +
+        '<td class="team-col"><div class="teamcell">' + logo(x.t, 30) +
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span>' + shortNext(x) + '</span></div></td>' +
-        '<td class="sec c-rating" title="Rating ' + x.rating.toFixed(1) + '">' + x.modelRank + '</td><td class="l sec">' + nextCell(x) + '</td>' +
+        '<td class="l sec">' + nextCell(x) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
-        '<td><div class="odds"><span class="v" style="--p:' + x.r.cfp.toFixed(3) + '">' + pct(x.r.cfp) + '</span></div></td>' +
-        '<td class="sec">' + pct(x.r.bye) + '</td><td class="sec">' + (x.r.seed ? x.r.seed.toFixed(1) : '—') + '</td>' +
-        '<td class="sec">' + (x.t.conf === 'ind' ? '—' : pct(x.r.champ)) + '</td><td class="sec">' + pct(x.r.title) + '</td></tr>';
+        '<td class="odds-cell" style="--p:' + x.r.cfp.toFixed(3) + '"><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span></div></td>' +
+        shaded(x.r.bye) +
+        (x.t.conf === 'ind' ? '<td class="sec">—</td>' : shaded(x.r.champ)) + shaded(x.r.title) + '</tr>';
       return r + (st.open[x.t.id] ? detail(x) : '');
     }).join('');
   }
@@ -270,7 +305,9 @@
     field.sort(function (a, b) { return seedOf(a) - seedOf(b); });
     return { all: all, field: field, rest: all.filter(function (x) { return !used[x.t.id]; }) };
   }
+  // The Projected field section was removed from the page; the bracket still uses projectedField().
   function renderField() {
+    if (!$('seeds')) return;
     var pf = projectedField(), all = pf.all, field = pf.field;
     $('seeds').innerHTML = field.map(function (x, i) {
       var isOpen = st.fieldOpen === x.t.id;
@@ -407,7 +444,7 @@
         ifW = r.ifNext; ifL = r.ifLose;
       }
     }
-    // Finished games keep the original four columns; only games still to be decided get With W and With L.
+    // Finished games use four columns; live and upcoming games add With W and With L.
     return '<div class="lg-team">' + logo(t, 22) + '<span>' + esc(t.ab || t.name) + (t.rank ? ' <small>No. ' + t.rank + '</small>' : '') + '</span></div>' +
       '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + score + '</div>' +
       '<div class="lg-num">' + win + '</div>' +
@@ -421,7 +458,7 @@
     else if (stakes && stakes.swing >= 0.01) why = '<b>' + esc(D.teams[stakes.i].ab) + '</b> is the most affected: <b>' + pct(stakes.win) + '</b> with a win, <b>' + pct(stakes.lose) + '</b> with a loss.';
     else if (stakes) why = 'Little effect on the playoff race.';
     else why = 'One team is a heavy favorite' + (isLive ? ' right now' : '') + ', so this barely moves the odds.';
-    var top = isLive ? '<b>' + esc(g.st) + '</b>' :
+    var top = isLive ? '<span class="lg-live"><span class="live-pill">LIVE</span><b>' + esc(g.st) + '</b></span>' :
       isPre ? '<span>Kickoff</span><b>' + etTime(g.d) + ' ET</b>' : '<span class="final-pill">FINAL</span><span>Today</span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
       '<div class="lg-top">' + top + '</div>' +
@@ -434,13 +471,19 @@
   // Live games with the most playoff impact come first, then today's finished games.
   function renderLive() {
     var today = etDay(Date.now());
-    var counts = function (g) { return g.h < D.fbs || g.a < D.fbs; };
+    var sbConf = st.sbConf || '';
+    var inConf = function (g) { return !sbConf || D.teams[g.h].conf === sbConf || D.teams[g.a].conf === sbConf; };
+    var counts = function (g) { return (g.h < D.fbs || g.a < D.fbs) && inConf(g); };
     var R = res();
     var best = function (g) { return Math.max(g.h < D.fbs ? R.teams[g.h].cfp : 0, g.a < D.fbs ? R.teams[g.a].cfp : 0); };
     var stake = function (g) { var s = gameStakes(g); return s ? s.swing : 0; };
-    var live = D.games.filter(function (g) { return g.s === 'in' && counts(g); }).sort(function (a, b) { return (st.picks[b.id] ? 1 : 0) - (st.picks[a.id] ? 1 : 0) || stake(b) - stake(a) || best(b) - best(a); });
-    var done = D.games.filter(function (g) { return g.s === 'post' && counts(g) && etDay(g.d) === today; }).sort(function (a, b) { return best(b) - best(a); });
-    var later = D.games.filter(function (g) { return g.s === 'pre' && counts(g) && etDay(g.d) === today; }).sort(function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : stake(b) - stake(a); });
+    var byTime = st.sbSort === 'time';
+    var kickoff = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
+    var impact = function (a, b) { return (st.picks[b.id] ? 1 : 0) - (st.picks[a.id] ? 1 : 0) || stake(b) - stake(a) || best(b) - best(a); };
+    var order = byTime ? function (a, b) { return kickoff(a, b) || best(b) - best(a); } : function (a, b) { return impact(a, b) || kickoff(a, b); };
+    var live = D.games.filter(function (g) { return g.s === 'in' && counts(g); }).sort(order);
+    var done = D.games.filter(function (g) { return g.s === 'post' && counts(g) && etDay(g.d) === today; }).sort(byTime ? order : function (a, b) { return best(b) - best(a) || kickoff(a, b); });
+    var later = D.games.filter(function (g) { return g.s === 'pre' && counts(g) && etDay(g.d) === today; }).sort(order);
     function group(title, games, note) {
       return games.length ? '<div class="live-group"><h3>' + title + ' (' + games.length + ')</h3>' + (note ? '<p class="live-note">' + note + '</p>' : '') + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></div>' : '';
     }
@@ -449,17 +492,17 @@
     var next = D.games.filter(function (g) { return g.s === 'pre' && counts(g); })[0];
     $('live-board').innerHTML = '<p class="live-note">' + checked + ' Win and Make CFP odds use the current score and clock.</p>' +
       (live.length || later.length || done.length ?
-        group('In progress', live, 'Your picks first, then the biggest playoff impact.') + group('Later today', later) + group('Final today', done) :
-        '<p class="live-empty">No games today.' + (next ? ' Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '') + '</p>');
+        group('In progress', live, byTime ? 'Earliest kickoff first.' : 'Your picks first, then the biggest playoff impact.') + group('Later today', later) + group('Final today', done) :
+        '<p class="live-empty">No ' + (sbConf ? esc(CFP.CONF_NAME[sbConf] || sbConf) + ' ' : '') + 'games today.' + (next ? ' Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
-  var PAGES = { rankings: 'CFP Odds Board', playoff: 'Playoff bracket · CFP Odds Board', scoreboard: 'Scoreboard · CFP Odds Board' };
+  var PAGES = { rankings: 'CFP Odds Board', playoff: 'Playoff bracket · CFP Odds Board', scoreboard: 'Scores · CFP Odds Board' };
   var INTRO = {
     rankings: ['College Football Playoff odds', 'Each team’s chance of making the 12-team playoff, from simulating every remaining game, conference title game and committee ranking.'],
     playoff: ['Projected playoff', 'The most likely 12-team field in its bracket. Simulate the games to see who’s favored in each round.'],
-    scoreboard: ['Scoreboard', 'Today’s games, with each team’s win chance and what the result means for its playoff odds.']
+    scoreboard: ['Scores', 'Today\u2019s games, with each team\u2019s win chance and what the result means for its playoff odds.']
   };
-  var OLD_HASH = { odds: 'rankings', live: 'scoreboard' }; // names used by earlier versions of the site
+  var OLD_HASH = { odds: 'rankings', live: 'scoreboard', scores: 'scoreboard' }; // names used by earlier versions of the site
   function showPage() {
     var hash = location.hash.replace('#', ''), p = OLD_HASH[hash] || hash;
     if (hash === 'about') { location.replace('about.html'); return hash; } // older links
@@ -501,13 +544,14 @@
     ['Point-based', 'Recent form', 'Results only'].forEach(function (g) {
       groups += '<optgroup label="' + g + '">' + D.sources.models.filter(function (m) { return m.group === g; }).map(function (m) { return option(m.k, m.label); }).join('') + '</optgroup>';
     });
-    $('mode').innerHTML = groups;
+    [].forEach.call(document.querySelectorAll('.mode-select'), function (s) { s.innerHTML = groups; });
   }
   function setProgress(p, text) {
     // Minute-by-minute score checks update quietly, without dimming the table.
     if (p == null) st.quiet = false;
     else if (st.quiet) return;
     $('progress').hidden = p == null;
+    $('top-controls').hidden = p == null;
     if (p != null) { $('fill').style.width = (p * 100).toFixed(0) + '%'; $('progress-text').textContent = text; }
     $('tw').classList.toggle('busy', p != null);
   }
@@ -680,8 +724,11 @@
   document.addEventListener('change', function (e) {
     var id = e.target.id;
     if (id === 'conf') { st.conf = e.target.value; renderTable(); }
-    else if (id === 'mode') {
+    else if (id === 'sb-conf') { st.sbConf = e.target.value; renderLive(); }
+    else if (id === 'sb-sort') { st.sbSort = e.target.value; renderLive(); }
+    else if (e.target.classList.contains('mode-select')) {
       st.mode = e.target.value;
+      [].forEach.call(document.querySelectorAll('.mode-select'), function (s) { s.value = st.mode; });
       st.quiet = false;
       st.lockOrder = null;
       clearTimeout(pickTimer);
@@ -693,6 +740,7 @@
   showPage();
   renderModes();
   renderViewControls();
+  renderScoreboardControls();
   renderAll();
   tryLive();
   // Dark and light logos differ, so redraw when the theme changes.

@@ -8,7 +8,7 @@
   color-scheme: light;
   /* Color: one blue accent, neutral surfaces, and red/green kept for results and live games */
   --bg: #f4f5f8; --panel: #ffffff; --ink: #171a21; --muted: #5a6172; --line: #dde0e7;
-  --accent: #1f4fd1; --accent-soft: #e3e9fb; --bar: #2f62e3; --bar-track: #e5e7ee; --up: #157a3c; --down: #b93a2c;
+  --accent: #1f4fd1; --accent-soft: #e3e9fb; --bar: #2f62e3; --heat: #15803d; --bar-track: #e5e7ee; --up: #157a3c; --down: #b93a2c;
   --shadow: 0 1px 2px rgb(16 24 40 / .06), 0 1px 3px rgb(16 24 40 / .05);
   /* Type: two families and a fixed scale */
   --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
@@ -23,12 +23,12 @@
 }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #13161c; --panel: #1b1f27; --ink: #eef0f4; --muted: #9ba3b2; --line: #2d323d;
-  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --bar-track: #2b303b; --up: #62d092; --down: #f2917f;
+  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --heat: #22c55e; --bar-track: #2b303b; --up: #62d092; --down: #f2917f;
   --shadow: none; color-scheme: dark;
 } }
 :root[data-theme="dark"] {
   --bg: #13161c; --panel: #1b1f27; --ink: #eef0f4; --muted: #9ba3b2; --line: #2d323d;
-  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --bar-track: #2b303b; --up: #62d092; --down: #f2917f;
+  --accent: #86a8ff; --accent-soft: #252e47; --bar: #6f95f7; --heat: #22c55e; --bar-track: #2b303b; --up: #62d092; --down: #f2917f;
   --shadow: none; color-scheme: dark;
 }
 
@@ -134,29 +134,34 @@ input[type=search] { width: 100%; min-width: 0; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .odds-table { table-layout: fixed; }
 .odds-table .sec { display: none; }
-.c-pick { width: 56px; } .c-cfp { width: 92px; }
+.c-rk { width: 48px; } .c-pick { width: 56px; } .c-cfp { width: 92px; }
 th { position: sticky; top: 0; z-index: 3; background: var(--panel); text-align: right; vertical-align: bottom; padding: var(--s3) var(--s2); border-bottom: 2px solid var(--ink); font: 600 var(--text-xs)/1.15 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 th button { all: unset; cursor: pointer; }
 th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 th[aria-sort="descending"] button::after { content: " \25BC"; font-size: 9px; }
 th[aria-sort="ascending"] button::after { content: " \25B2"; font-size: 9px; }
 th.l, td.l { text-align: left; }
-td { padding: var(--s2); border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-.odds-table td.first, .odds-table td.l { white-space: normal; overflow-wrap: break-word; }
+td { padding: 4px var(--s2); border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+.odds-table td.team-col, .odds-table td.l { white-space: normal; overflow-wrap: break-word; }
 .first { position: sticky; left: 0; z-index: 2; background: var(--panel); text-align: left; }
 th.first { z-index: 4; }
+/* CFP and Model rank: narrow, centered numbers in the display face. */
+.odds-table .c-rk { text-align: center; }
+.odds-table td.c-rk { font: 600 var(--text-md) var(--display); color: var(--muted); }
+th.team-col, td.team-col { text-align: left; }
 th.pick, td.pick { text-align: center; }
-tr.live-row > td:first-child { box-shadow: inset 3px 0 0 var(--down); }
-.teamcell { display: grid; grid-template-columns: 18px 24px minmax(0, 1fr); gap: var(--s2); align-items: center; }
-.teamcell .rk { font: 600 var(--text-sm) var(--display); color: var(--muted); text-align: right; }
+/* Extra padding at the table's two ends. On phones the last visible column is Make CFP. */
+.odds-table th:first-child, .odds-table tr:not(.detail) > td:first-child { padding-left: var(--s3); }
+.odds-table th.c-cfp, .odds-table td.odds-cell { padding-right: var(--s3); }
+.teamcell { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--s2); align-items: center; }
 .teamcell .logo { width: 24px; height: 24px; }
-.tname { all: unset; cursor: pointer; display: block; font-weight: 600; line-height: 1.2; }
+.tname { all: unset; cursor: pointer; display: block; font-weight: 600; line-height: 1.15; }
 .tname:hover { text-decoration: underline; }
 .tname:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.tmeta { display: block; font-size: var(--text-xs); color: var(--muted); }
-.tnext { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1); margin-top: 2px; font-size: var(--text-xs); color: var(--ink); }
+.tmeta { display: block; font-size: var(--text-xs); line-height: 1.3; color: var(--muted); }
+.tnext { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--s1); margin-top: 0; line-height: 1.3; font-size: var(--text-xs); color: var(--ink); }
 .next { font-size: var(--text-sm); }
-.next small { display: block; font-size: var(--text-xs); color: var(--muted); }
+.next small { display: block; font-size: var(--text-xs); line-height: 1.3; color: var(--muted); }
 .next small b { font-weight: 600; color: var(--ink); }
 .next .logo { width: 18px; height: 18px; margin-inline: 1px 2px; }
 /* Live game in the table: a small scoreboard, away on the left and home on the right. */
@@ -172,29 +177,36 @@ tr.live-row > td:first-child { box-shadow: inset 3px 0 0 var(--down); }
 .tnext .ms-s { min-width: 0; font-size: var(--text-sm); }
 .tnext .ms-s + .ms-s { padding-left: 4px; }
 .odds { display: grid; gap: 3px; justify-items: end; }
-/* The shade tops out at 55% of the blue so the number stays readable in both themes. */
-.odds .v { display: block; width: 72px; padding: 6px var(--s2); border-radius: 0; text-align: right; font: 700 var(--text-md)/1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
+/* Make CFP shading fills the whole cell, top to bottom. It tops out at 55% of the blue so the number stays readable in both themes. */
+.odds-table td.odds-cell, .odds-table td.pct-cell { background: color-mix(in srgb, var(--heat) calc(var(--p) * 55%), transparent); }
+.odds .v { display: block; text-align: right; font: 700 var(--text-md)/1 var(--display); }
 .odds small { font-size: var(--text-xs); line-height: 1; }
 .mini { display: inline-flex; vertical-align: middle; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
-.mini button.pick-box { display: block; width: 34px; height: 34px; padding: 0; background: transparent; border: 0; color: var(--ink); font: 700 var(--text-sm) var(--body); cursor: pointer; }
+.mini button.pick-box { display: block; width: 30px; height: 30px; padding: 0; background: transparent; border: 0; color: var(--ink); font: 700 var(--text-sm) var(--body); cursor: pointer; }
 .mini button.pick-box:hover { background: var(--accent-soft); }
 .mini button.pick-w, .mini button.pick-w:hover { background: var(--up); color: var(--panel); }
 .mini button.pick-l, .mini button.pick-l:hover { background: var(--down); color: var(--panel); }
 .empty { padding: var(--s5); text-align: center; color: var(--muted); white-space: normal; }
 @media (min-width: 900px) {
   .table-wrap { max-height: 82vh; }
-  .odds-table { min-width: 1108px; }
+  /* Each column sized to its content; headings wrap onto two lines rather than widening a column. */
+  .odds-table { min-width: 834px; }
   .odds-table .sec { display: table-cell; }
-  .c-team { width: 230px; } .c-rating { width: 64px; } .c-next { width: 240px; }
-  /* Model rank: a narrow, centered column with its heading on two lines. */
-  th.c-rating { white-space: normal; text-align: center; }
-  .odds-table td.c-rating { text-align: center; } .c-pick { width: 64px; } .c-cfp { width: 110px; }
-  .c-bye { width: 124px; } .c-seed { width: 92px; } .c-conf { width: 92px; } .c-title { width: 92px; }
-  th { padding-inline: var(--s3); }
-  td { padding: var(--s2) var(--s3); }
-  .first { border-right: 1px solid var(--line); }
-  .teamcell { grid-template-columns: 22px 30px minmax(0, 1fr); }
-  .teamcell .logo { width: 30px; height: 30px; }
+  .odds-table th { white-space: normal; }
+  .c-rk { width: 52px; } .c-team { width: 190px; } .c-next { width: 220px; }
+  /* Pick through Win title share one width; the last also holds the end padding. */
+  .c-pick, .c-cfp, .c-bye, .c-conf, .c-title { width: 72px; }
+  .c-title { width: 84px; }
+  .odds-table th:first-child, .odds-table tr:not(.detail) > td:first-child { padding-left: var(--s4); }
+  .odds-table th.c-cfp, .odds-table td.odds-cell { padding-right: var(--s2); }
+  .odds-table th:last-child, .odds-table tr:not(.detail) > td:last-child { padding-right: var(--s4); }
+  /* CFP, Model rank and Team stay pinned on the left: offsets are the widths of the columns before them. */
+  .odds-table .team-col { position: sticky; z-index: 2; left: 52px; background: var(--panel); border-right: 1px solid var(--line); }
+  .odds-table th.team-col { z-index: 4; }
+  th { padding-inline: var(--s2); }
+  td { padding: 5px var(--s2); }
+  .teamcell { grid-template-columns: 24px minmax(0, 1fr); }
+  .teamcell .logo { width: 24px; height: 24px; }
   .tnext { display: none; }
   .odds .v { font-size: 19px; }
 }
@@ -202,9 +214,9 @@ tr.live-row > td:first-child { box-shadow: inset 3px 0 0 var(--down); }
 /* Small phones: narrower pick and odds columns leave room for team names. */
 @media (max-width: 400px) {
   .c-pick { width: 46px; } .c-cfp { width: 76px; }
-  .odds .v { width: 62px; padding-inline: 6px; }
   .mini button.pick-box { width: 30px; height: 30px; }
-  .teamcell { grid-template-columns: 16px 20px minmax(0, 1fr); gap: 6px; }
+  .c-rk { width: 40px; }
+  .teamcell { grid-template-columns: 20px minmax(0, 1fr); gap: 6px; }
   .teamcell .logo { width: 20px; height: 20px; }
   .odds-table th, .odds-table td { padding-inline: 6px; }
 }
@@ -252,7 +264,9 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .lg { display: grid; gap: var(--s2); align-content: start; padding: var(--s3) var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
 .lg-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); font-size: var(--text-sm); color: var(--muted); }
 .lg-top b { color: var(--ink); font-weight: 600; }
-/* Finished games: team, score, (win), Make CFP. Games still to play (.wide) add Make CFP with a win and with a loss. */
+.lg-live { display: inline-flex; align-items: center; gap: var(--s2); }
+.live-pill { display: inline-block; padding: 2px 6px; background: var(--down); color: var(--panel); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
+/* Finished games: team, score, Make CFP. Live and upcoming games (.wide) add win chance and Make CFP with a win and with a loss. */
 .lg-rows { display: grid; grid-template-columns: minmax(0, 1fr) 40px 46px 64px; align-items: center; gap: var(--s1) var(--s2); }
 .lg-rows.wide { grid-template-columns: minmax(0, 1fr) 36px 36px 56px 50px 50px; gap: var(--s1) 6px; }
 .lg-rows .h { align-self: end; font: 600 11px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
@@ -263,7 +277,7 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .lg-score { text-align: right; font: 600 21px/1 var(--display); color: var(--muted); }
 .lg-score.lead { color: var(--ink); font-weight: 700; }
 .lg-num { text-align: right; font-size: var(--text-sm); }
-.lg-cfp { text-align: right; padding: 3px 5px; border-radius: 0; font: 700 15px/1.1 var(--display); background: color-mix(in srgb, var(--bar) calc(var(--p) * 55%), transparent); }
+.lg-cfp { text-align: right; padding: 3px 5px; border-radius: 0; font: 700 15px/1.1 var(--display); background: color-mix(in srgb, var(--heat) calc(var(--p) * 55%), transparent); }
 .lg-why { padding-top: var(--s2); border-top: 1px solid var(--line); font-size: var(--text-sm); color: var(--muted); }
 .lg-why b { color: var(--ink); font-weight: 600; }
 .final-pill { display: inline-block; padding: 2px 6px; border-radius: 0; background: var(--bar-track); color: var(--ink); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
@@ -283,7 +297,7 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .bk-box { position: relative; z-index: 1; background: var(--panel); border: 1px solid var(--line); border-radius: 0; overflow: hidden; }
 .bk-team { display: grid; grid-template-columns: 18px 22px minmax(0, 1fr) auto; align-items: center; gap: var(--s2); min-height: 46px; padding: 0 var(--s3); border-bottom: 1px solid var(--line); color: var(--ink); }
 .bk-team:last-child { border-bottom: 0; }
-.bk-actions { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.bk-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s2); }
 /* Teams whose opponent is known are buttons: select one to advance it. */
 button.bk-team { width: 100%; margin: 0; font: inherit; text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; }
 button.bk-team:last-child { border-bottom: 0; }
