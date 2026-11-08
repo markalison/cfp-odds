@@ -520,7 +520,7 @@ var CFP = (function () {
 
   return {
     M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
-    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi
+    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor
   };
 })();
 if (typeof module !== 'undefined') module.exports = CFP;

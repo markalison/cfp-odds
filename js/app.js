@@ -65,14 +65,15 @@
     var modelRank = []; order.forEach(function (i, n) { modelRank[i] = n + 1; });
     for (var i = 0; i < D.fbs; i++) {
       var t = D.teams[i], r = R.teams[i], next = sc[i][0] || null;
-      rows.push({ i: i, t: t, r: r, rec: record(i), next: next, rating: R.rating[i], modelRank: modelRank[i], base: results[st.mode] && results[st.mode].teams[i] });
+      rows.push({ i: i, t: t, r: r, rec: record(i), index: CFP.ratingFor(t, st.mode, D.sources), next: next, rating: R.rating[i], modelRank: modelRank[i], base: results[st.mode] && results[st.mode].teams[i] });
     }
     return rows;
   }
   var COLS = {
     team: function (x) { return x.t.rank || 200 - x.r.cfp; }, rating: function (x) { return x.modelRank; }, next: function (x) { return x.r.pNext == null ? -1 : x.r.pNext; },
     cfp: function (x) { return x.r.cfp; }, bye: function (x) { return x.r.bye; }, champ: function (x) { return x.r.champ; },
-    seed: function (x) { return x.r.seed == null ? 99 : x.r.seed; }, title: function (x) { return x.r.title; }
+    seed: function (x) { return x.r.seed == null ? 99 : x.r.seed; }, title: function (x) { return x.r.title; },
+    rec: function (x) { var n = x.rec.w + x.rec.l; return (n ? x.rec.w / n : 0) + x.rec.w / 1000; }, index: function (x) { return x.index; }
   };
   // Notre Dame sits with the power conferences and UConn with the Group of 6.
   // Power 4 includes Notre Dame; Group of 6 is everyone else, UConn included.
@@ -109,6 +110,10 @@
     return sortRows(out);
   }
   function sortRows(rows) {
+    if (st.sort === 'conf') {
+      var name = function (x) { return CFP.CONF_NAME[x.t.conf] || x.t.conf; };
+      return rows.sort(function (a, b) { return st.dir * name(a).localeCompare(name(b)) || b.r.cfp - a.r.cfp; });
+    }
     var f = COLS[st.sort], d = st.dir;
     return rows.sort(function (a, b) { return d * (f(a) - f(b)) || b.r.cfp - a.r.cfp; });
   }
@@ -127,8 +132,9 @@
     $('head').innerHTML =
       th('team', '<abbr title="CFP ranking">RK</abbr>', 'first c-rk') + '</th>' +
       '<th class="l c-team team-col">Team</th>' +
-      th('next', 'This week', 'l c-next sec nx') + '</th>' +
-      '<th class="l c-sc ph">Score</th>' +
+      th('conf', 'Conf.', 'l c-cn tc') + '</th>' +
+      th('rec', 'Rec', 'c-rec') + '</th>' +
+      th('index', '<abbr title="' + esc(modeName()) + ' rating as last published">Index</abbr>', 'c-idx') + '</th>' +
       '<th class="pick c-pick">Next</th>' +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
       th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
@@ -200,13 +206,6 @@
     var info = g.s === 'post' ? '' : (g.s === 'in' ? esc(clock(g)) : shortDay(g.d)) + (isNext ? ' · ' + nextChance(x.next, x.t) : '');
     return '<span class="next"><span class="ss" role="img" aria-label="' + esc(scoreLabel(g)) + '">' + stackRows(g) + '</span>' + (info ? '<small>' + info + '</small>' : '') + '</span>';
   }
-  // Phones hide This week, so a small scoreboard gets its own column: away team over home team, then the status.
-  function stackScore(x) {
-    var g = thisWeek(x);
-    if (!g) return '<span class="ss"><span class="ss-st">Bye</span></span>';
-    var status = g.s === 'post' ? '' : g.s === 'in' ? esc(clock(g)) : shortDay(g.d);
-    return '<span class="ss" role="img" aria-label="' + esc(scoreLabel(g) + (status ? ', ' + status : ', final')) + '">' + stackRows(g) + (status ? '<span class="ss-st">' + status + '</span>' : '') + '</span>';
-  }
 
   // The headline numbers for one team. The field panel always shows them; table details show them on phones.
   function statsList(x, cls) {
@@ -245,7 +244,10 @@
   // Phones show four columns: CFP, team, pick and Make CFP (styles.css hides the rest below 900px). A full-width row must span
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
   var WIDE = matchMedia('(min-width: 900px)');
-  function visibleColumns() { return WIDE.matches || st.expanded ? 8 : 5; }
+  var TABLET = matchMedia('(min-width: 600px)');
+  function visibleColumns() { return WIDE.matches || st.expanded ? 10 : TABLET.matches ? 7 : 6; }
+  // The selected ratings' name, as the Ratings menu shows it.
+  function modeName() { var o = $('mode') && $('mode').selectedOptions[0]; return o ? o.textContent : st.mode; }
   function detail(x) {
     return '<tr class="detail"><td colspan="' + visibleColumns() + '">' + statsList(x, 'narrow-only') + detailBody(x) + '</td></tr>';
   }
@@ -294,9 +296,10 @@
       var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
       var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first c-rk">' + (x.t.rank || '') + '</td>' +
         '<td class="team-col"><div class="teamcell">' + logo(x.t, 30) +
-        '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '">' + esc(x.t.name) + '</button><span class="tmeta">' + x.rec.text + ' · ' + esc(conf) + '</span></span></div></td>' +
-        '<td class="l sec nx">' + nextCell(x) + '</td>' +
-        '<td class="l ph">' + stackScore(x) + '</td>' +
+        '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '" aria-label="' + esc(x.t.name) + '"><span class="tn-long">' + esc(x.t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(x.t.ab || x.t.name) + '</span></button></span></div></td>' +
+        '<td class="l tc c-cn-cell">' + esc(conf) + '</td>' +
+        '<td class="num">' + x.rec.text + '</td>' +
+        '<td class="num">' + x.index.toFixed(1) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
         '<td class="odds-cell" style="--p:' + x.r.cfp.toFixed(3) + '"><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span></div></td>' +
         shaded(x.r.bye) +
@@ -797,7 +800,7 @@
     if (!b) return;
     if (b.dataset.sort) {
       var k = b.dataset.sort;
-      if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' || k === 'rating' ? 1 : -1; }
+      if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' || k === 'rating' || k === 'conf' ? 1 : -1; }
       st.lockOrder = null;
       renderTable();
     } else if (b.dataset.view) {

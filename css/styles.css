@@ -127,9 +127,14 @@ input[type=search] { width: 100%; min-width: 0; }
 .table-wrap.busy { opacity: .55; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .odds-table { table-layout: fixed; }
-.odds-table .sec { display: none; }
+.odds-table .sec, .odds-table .tc { display: none; }
+/* Conf. (tablets and up), Rec and Index. */
+.c-cn { width: 96px; } .c-rec { width: 44px; } .c-idx { width: 50px; }
+.odds-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.odds-table th.c-rec, .odds-table th.c-idx { text-align: right; }
+.odds-table td.c-cn-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
 .c-rk { width: var(--rk-w); } .c-pick { width: 56px; } .c-cfp { width: 66px; }
-.odds-table td.pick { padding-inline: 2px; } .c-sc { width: 72px; }
+.odds-table td.pick { padding-inline: 2px; }
 /* Phones: the stacked scoreboard column. Wide screens and the full table use This week instead. */
 .ss { display: grid; gap: 1px; font-size: var(--text-xs); line-height: 1.25; }
 /* Mini scoreboards: no bold and no highlighted team, just names and scores. */
@@ -139,7 +144,6 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 /* The This week column uses the same stack, a size up. */
 .next .ss { font-size: var(--text-sm); }
 .next .ss + small { margin-top: 3px; }
-.ss-st { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 th { position: sticky; top: 0; z-index: 3; background: var(--panel); text-align: right; vertical-align: bottom; padding: var(--s3) var(--s2); border-bottom: 2px solid var(--ink); font: 600 var(--text-xs)/1.15 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 th button { all: unset; cursor: pointer; }
 th abbr[title] { text-decoration: none; }
@@ -163,6 +167,10 @@ th.pick, td.pick { text-align: center; }
 .teamcell .logo { width: 24px; height: 24px; }
 .tname { all: unset; cursor: pointer; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; line-height: 1.15; }
 .tname:hover { text-decoration: underline; }
+/* Small phones show the team abbreviation so the name isn't cut off; the full table keeps full names. */
+.tn-short { display: none; }
+@media (max-width: 419px) { .odds-table:not(.expanded) .tn-long { display: none; } .odds-table:not(.expanded) .tn-short { display: inline; } }
+@media (max-width: 359px) { .odds-table:not(.expanded) .teamcell { grid-template-columns: minmax(0, 1fr); } .odds-table:not(.expanded) .teamcell .logo { display: none; } }
 .tname:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tmeta { display: block; font-size: var(--text-xs); line-height: 1.3; color: var(--muted); }
 .next { font-size: var(--text-sm); }
@@ -203,33 +211,30 @@ th.pick, td.pick { text-align: center; }
   .odds-table:not(.expanded) th.c-cfp, .odds-table:not(.expanded) td.odds-cell { padding-inline: 4px; text-align: center; white-space: normal; }
   .odds-table:not(.expanded) .odds { justify-items: center; }
   .odds-table:not(.expanded) .odds .v { text-align: center; }
-  .odds-table.expanded { min-width: 760px; }
-  .odds-table.expanded .sec { display: table-cell; }
-  .odds-table.expanded .ph { display: none; }
+  .odds-table.expanded { min-width: 860px; }
+  .odds-table.expanded .sec, .odds-table.expanded .tc { display: table-cell; }
   .odds-table.expanded .c-pick { width: 56px; } .odds-table.expanded .c-cfp { width: 80px; }
   .odds-table.expanded th { white-space: normal; }
   .odds-table.expanded .c-team { width: 160px; }
-  .odds-table.expanded .c-next { width: 190px; }
   .odds-table.expanded .c-bye, .odds-table.expanded .c-conf, .odds-table.expanded .c-title { width: 72px; }
   .odds-table.expanded .team-col { position: sticky; z-index: 2; left: var(--rk-w); background: var(--panel); border-right: 1px solid var(--line); }
   .odds-table.expanded th.team-col { z-index: 4; }
 }
-/* Tablets: room for the full This week column, so the team column stops at a set width. */
+/* Tablets: room for the Conf. column, so the team column stops at a set width. */
 @media (min-width: 600px) and (max-width: 899px) {
-  .odds-table:not(.expanded) .nx { display: table-cell; }
-  .odds-table:not(.expanded) .ph { display: none; }
+  .odds-table .tc { display: table-cell; }
   .odds-table:not(.expanded) .c-team { width: 190px; }
 }
 @media (min-width: 900px) {
   .table-wrap { max-height: 82vh; }
   /* Each column sized to its content; headings wrap onto two lines rather than widening a column. */
   .odds-table { min-width: 834px; }
-  .odds-table .sec { display: table-cell; }
-  .odds-table .ph { display: none; }
+  .odds-table .sec, .odds-table .tc { display: table-cell; }
+  .c-cn { width: 120px; } .c-rec { width: 60px; } .c-idx { width: 68px; }
   .mini button.pick-box { width: 30px; height: 30px; }
   .odds-table th { white-space: normal; }
   :root { --rk-w: 52px; }
-  .c-team { width: 190px; } .c-next { width: 220px; }
+  .c-team { width: 190px; }
   /* Pick through Win title share one width; the last also holds the end padding. */
   .c-pick, .c-cfp, .c-bye, .c-conf, .c-title { width: 72px; }
   .c-title { width: 84px; }
@@ -248,9 +253,10 @@ th.pick, td.pick { text-align: center; }
 
 /* Small phones: narrower pick and odds columns leave room for team names. */
 @media (max-width: 400px) {
-  .c-sc { width: 64px; }
   .c-cfp { width: 58px; }
   .c-pick { width: 50px; }
+  .c-rec { width: 38px; } .c-idx { width: 42px; }
+  .odds-table td.num, .odds-table th.c-rec, .odds-table th.c-idx { padding-inline: 3px; }
   :root { --rk-w: 44px; }
   .teamcell { grid-template-columns: 20px minmax(0, 1fr); gap: 6px; }
   .teamcell .logo { width: 20px; height: 20px; }
@@ -308,17 +314,21 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .lg-rows { display: grid; grid-template-columns: minmax(0, 1fr) 40px 46px 80px; align-items: center; gap: var(--s1) var(--s2); }
 /* Upcoming games: win chance, Make CFP, and Make CFP if they win or lose. */
 .lg-rows.pre { grid-template-columns: minmax(0, 1fr) 40px 64px 64px 64px; gap: var(--s1) 6px; }
-/* Cards size themselves by their own width. Tight cards narrow the columns; very tight cards drop
-   If win and If loss, the rank and the record, and the word Kickoff, so nothing overlaps. */
+/* Cards size themselves by their own width, giving things up in this order so nothing overlaps:
+   narrower number columns, then the rank, record and the word Kickoff, and only on the tightest
+   cards If win and If loss. */
 .lg { container-type: inline-size; }
 @container (max-width: 22rem) {
   .lg-rows.pre { grid-template-columns: minmax(0, 1fr) 30px 50px 50px 50px; gap: var(--s1) 3px; }
   .lg-rows.pre .lg-cfp { padding-inline: 4px; }
   .lg-rows.pre .lg-team { gap: 6px; }
 }
-@container (max-width: 19rem) {
+@container (max-width: 20rem) {
+  .lg-team .lg-rec, .lg-team .lg-rank, .lg-kick { display: none; }
+}
+@container (max-width: 16rem) {
   .lg-rows.pre { grid-template-columns: minmax(0, 1fr) 40px 64px; gap: var(--s1) var(--s2); }
-  .lg-if, .lg-team .lg-rec, .lg-team .lg-rank, .lg-kick { display: none; }
+  .lg-if { display: none; }
 }
 .lg-rows .h { align-self: end; font: 600 11px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
 .lg-team { display: flex; align-items: center; gap: var(--s2); min-width: 0; font: 600 var(--text-md)/1.1 var(--display); }
