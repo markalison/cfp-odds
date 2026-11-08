@@ -92,6 +92,11 @@ var CFP = (function () {
         if (!known) return;
         var h = addTeam(hc.team, 'fcs'), a = addTeam(ac.team, 'fcs');
         var g = { id: String(ev.id), d: ev.date, h: h, a: a, n: c.neutralSite ? 1 : 0, c: c.conferenceCompetition ? 1 : 0, s: state, w: -1, wk: ev.week ? ev.week.number : null };
+        // TV networks, national first, e.g. ["ABC"] or ["ESPN+", "SECN+"].
+        var tv = [];
+        (c.broadcasts || []).slice().sort(function (x, y) { return (x.market === 'national' ? 0 : 1) - (y.market === 'national' ? 0 : 1); })
+          .forEach(function (b) { (b.names || []).forEach(function (nm) { if (nm && tv.indexOf(nm) < 0) tv.push(nm); }); });
+        if (tv.length) g.tv = tv.slice(0, 2);
         if (state === 'post') {
           g.hs = +hc.score; g.as = +ac.score;
           g.w = (hc.winner === true || (hc.winner !== false && g.hs > g.as)) ? h : a;

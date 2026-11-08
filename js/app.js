@@ -365,25 +365,27 @@
   // st.bkPicks maps a game key (r1-0 ... f) to the seed the viewer picked to win it.
   function bracketRow(key, slot, opp, cls, chance, host) {
     if (slot.tbd) {
-      return '<div class="bk-team tbd"><span class="bk-name">TBD<small>' + slot.tbd + '</small></span></div>';
+      return '<div class="bk-team tbd" aria-label="To be decided: ' + esc(slot.tbd) + '"></div>';
     }
     var inner = '<span class="bk-seed">' + slot.seed + '</span>' + logo(slot.x.t, 22) +
-      '<span class="bk-name">' + esc(slot.x.t.name) + (host ? '<small>Home</small>' : '') + '</span><span class="bk-p">' + (chance == null ? '' : Math.round(chance * 100) + '%') + '</span>';
+      '<span class="bk-name">' + esc(slot.x.t.name) + '</span><span class="bk-p">' + (chance == null ? '' : Math.round(chance * 100) + '%') + '</span>';
     if (opp.tbd) return '<div class="bk-team' + (cls ? ' ' + cls : '') + '">' + inner + '</div>';
-    var picked = st.bkPicks[key] === slot.seed;
-    var label = picked ? 'Remove the pick of ' + slot.x.t.name : 'Pick ' + slot.x.t.name + ' to beat ' + opp.x.t.name;
-    return '<button type="button" class="bk-team' + (cls ? ' ' + cls : '') + '" data-bk="' + key + '" data-seed="' + slot.seed + '" aria-pressed="' + picked + '" aria-label="' + esc(label) + '">' + inner + '</button>';
+    var picked = st.bkPicks[key] === slot.seed, lost = st.bkPicks[key] === opp.seed;
+    var label = picked ? slot.x.t.name + ' picked to win. Press to pick a loss' : lost ? slot.x.t.name + ' picked to lose. Press to clear the pick' : 'No pick for ' + slot.x.t.name + ' vs ' + opp.x.t.name + '. Press to pick a win';
+    // The same box as the Rankings table: W for the team you picked, L for its opponent, empty otherwise.
+    var box = '<span class="mini"><span class="pick-box' + (picked ? ' pick-w' : lost ? ' pick-l' : '') + '" aria-hidden="true">' + (picked ? 'W' : lost ? 'L' : '') + '</span></span>';
+    return '<button type="button" class="bk-team picks' + (cls ? ' ' + cls : '') + '" data-bk="' + key + '" data-seed="' + slot.seed + '" data-opp="' + opp.seed + '" aria-pressed="' + picked + '" aria-label="' + esc(label) + '">' + inner + box + '</button>';
   }
   // A game is decided by the viewer's pick, or by the favorite when Simulate games is on.
   // Win chances show for every decided game. A winner carries its chance of getting this far.
-  function bracketGame(key, hi, lo, home, feeds) {
+  function bracketGame(key, hi, lo, home, feeds, where) {
     var known = !hi.tbd && !lo.tbd;
     var pickSeed = st.bkPicks[key], picked = known ? (pickSeed === hi.seed ? hi : pickSeed === lo.seed ? lo : null) : null;
     // A pick whose team is no longer in this game (an earlier pick changed) is dropped, so it can't return unseen.
     if (pickSeed != null && !picked) delete st.bkPicks[key];
     var p = known && (st.bkSim || picked) ? winChance(hi.x, lo.x, home) : null;
     var win = picked || (p != null ? (p >= 0.5 ? hi : lo) : null);
-    var html = '<article class="bk-game"><div class="bk-box">' +
+    var html = '<article class="bk-game">' + (where ? '<p class="bk-where">' + where + '</p>' : '') + '<div class="bk-box">' +
       bracketRow(key, hi, lo, win ? (win === hi ? 'win' : 'lose') : '', p, home) +
       bracketRow(key, lo, hi, win ? (win === lo ? 'win' : 'lose') : '', p == null ? null : 1 - p, false) +
       '</div></article>';
@@ -391,6 +393,77 @@
     var chance = win === hi ? p : 1 - p;
     return { winner: { seed: win.seed, x: win.x, path: (win.path || 1) * chance }, html: html };
   }
+  // 2026-27 playoff schedule, from the CFP's broadcast schedule (times Eastern).
+  // Fixed: the Fiesta Bowl quarterfinal (Dec 30), the Orange and Sugar semifinals and the title game.
+  // Set on Selection Day (Dec 6): which seeds go to which quarterfinal bowl, the Jan 1 windows for the Peach,
+  // Cotton and Rose bowls, and the first-round slots. Until then those are projected (see projectBowls).
+  var NET = {
+    ESPN: { name: 'ESPN', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ESPN_wordmark.svg' },
+    ABC: { name: 'ABC', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ABC-2021-LOGO.svg' },
+    TNT: { name: 'TNT', logo: 'https://upload.wikimedia.org/wikipedia/commons/2/24/TNT_Logo_2016.svg' },
+    truTV: { name: 'truTV', logo: 'https://upload.wikimedia.org/wikipedia/commons/3/36/TruTV_logo.svg' },
+    HBOMax: { name: 'HBO Max', logo: 'https://upload.wikimedia.org/wikipedia/commons/b/b3/HBO_Max_%282025%29.svg' }
+  };
+  var TNT_GROUP = ['TNT', 'truTV', 'HBOMax'], ABC_ESPN = ['ABC', 'ESPN'];
+  var BOWLS = {
+    fiesta: { short: 'Fiesta Bowl', name: 'Vrbo Fiesta Bowl', color: '#7a2a8e', site: 'Glendale, Ariz.', logo: 'https://upload.wikimedia.org/wikipedia/en/9/9d/Fiesta_Bowl_Logo.svg' },
+    peach: { short: 'Peach Bowl', name: 'Chick-fil-A Peach Bowl', color: '#e35205', site: 'Atlanta', logo: 'https://upload.wikimedia.org/wikipedia/en/3/39/Peach_Bowl_logo.svg' },
+    rose: { short: 'Rose Bowl', name: 'Rose Bowl Game', color: '#c8102e', site: 'Pasadena, Calif.', logo: 'https://upload.wikimedia.org/wikipedia/en/a/a3/Rose_Bowl_Game_logo.svg' },
+    cotton: { short: 'Cotton Bowl', name: 'Goodyear Cotton Bowl Classic', color: '#1f3c88', site: 'Arlington, Texas', logo: 'https://upload.wikimedia.org/wikipedia/en/3/3b/Cotton_Bowl_logo.svg' },
+    orange: { short: 'Orange Bowl', name: 'Capital One Orange Bowl', color: '#f47321', site: 'Miami Gardens, Fla.', logo: 'https://upload.wikimedia.org/wikipedia/en/5/51/Orange_Bowl_logo.svg', when: 'Thu, Jan 14 · 7:30 PM', tv: TNT_GROUP },
+    sugar: { short: 'Sugar Bowl', name: 'Allstate Sugar Bowl', color: '#0b3d91', site: 'New Orleans', logo: 'https://upload.wikimedia.org/wikipedia/en/9/98/Sugar_Bowl_Logo.svg', when: 'Fri, Jan 15 · 7:30 PM', tv: ABC_ESPN },
+    title: { short: 'Las Vegas', name: 'CFP National Championship', color: 'var(--accent)', site: 'Allegiant Stadium, Las Vegas', when: 'Mon, Jan 25 · 7:30 PM', tv: ABC_ESPN,
+      logo: 'https://upload.wikimedia.org/wikipedia/commons/4/4d/College_Football_National_Championship_logo.svg' }
+  };
+  // Quarterfinal slots: the Fiesta's is fixed; the Jan 1 windows are projected the way they usually go
+  // (the Rose Bowl in its traditional afternoon slot).
+  var QF_SLOT = {
+    fiesta: { when: 'Wed, Dec 30 · 7:30 PM', tv: TNT_GROUP },
+    peach: { when: 'Fri, Jan 1 · 12:00 PM', tv: TNT_GROUP },
+    rose: { when: 'Fri, Jan 1 · 4:00 PM', tv: ABC_ESPN },
+    cotton: { when: 'Fri, Jan 1 · 8:00 PM', tv: ['ESPN'] }
+  };
+  // First-round slots, projected by seed: 8 vs 9 Friday night, the rest Saturday.
+  var R1_SLOT = {
+    '8-9': { when: 'Fri, Dec 18 · 8:00 PM', tv: ['ESPN'] },
+    '5-12': { when: 'Sat, Dec 19 · 12:00 PM', tv: ABC_ESPN },
+    '6-11': { when: 'Sat, Dec 19 · 3:30 PM', tv: TNT_GROUP },
+    '7-10': { when: 'Sat, Dec 19 · 7:30 PM', tv: TNT_GROUP }
+  };
+  // The committee places the top four seeds into quarterfinal bowls, in seed order, with an eye to geography
+  // and tradition. This projection does the same: each seed takes the first open bowl on its conference's list.
+  var BOWL_PREF = {
+    big10: ['rose', 'fiesta', 'cotton', 'peach'], pac12: ['rose', 'fiesta', 'cotton', 'peach'],
+    sec: ['peach', 'cotton', 'fiesta', 'rose'], acc: ['peach', 'cotton', 'fiesta', 'rose'],
+    big12: ['cotton', 'fiesta', 'peach', 'rose'], ind: ['fiesta', 'cotton', 'peach', 'rose']
+  };
+  function projectBowls(top4) {
+    var open = ['rose', 'peach', 'cotton', 'fiesta'], out = [];
+    top4.forEach(function (x) {
+      var pref = BOWL_PREF[x.x.t.conf] || ['fiesta', 'cotton', 'peach', 'rose'];
+      var k = pref.filter(function (p) { return open.indexOf(p) >= 0; })[0];
+      open.splice(open.indexOf(k), 1);
+      out.push(k);
+    });
+    return out;
+  }
+  function netLogos(keys) {
+    return '<span class="net-logos">' + keys.map(function (k) { return '<img class="net-' + k.toLowerCase() + '" src="' + NET[k].logo + '" alt="' + esc(NET[k].name) + '" title="' + esc(NET[k].name) + '" loading="lazy">'; }).join('') + '</span>';
+  }
+  // The line above a bracket game: TV logos and time, then the bowl or site. "proj." marks a projected slot.
+  function gameLine(tv, when, place) {
+    // "Fri, Jan 1 · 12:00 PM" -> "Jan 1 · 12 PM ET"
+    var short = when.replace(/^\w+, /, '').replace(':00 ', ' ') + ' ET';
+    return '<span class="bk-place">' + place + '</span><span class="bk-air"><b>' + esc(short) + '</b>' + netLogos(tv) + '</span>';
+  }
+  var ROUND_INFO = {
+    'First round': 'Dec 18–19 · higher seed hosts',
+    Quarterfinals: 'Dec 30 – Jan 1 · Fiesta, Peach, Rose, Cotton',
+    Semifinals: 'Jan 14–15 · Orange, Sugar',
+    Championship: 'Jan 25 · Las Vegas'
+  };
+  // A bowl's logo, named in its tooltip and for screen readers.
+  function bowlChip(k) { var b = BOWLS[k]; return '<img class="bk-bowl bk-bowl-' + k + '" src="' + b.logo + '" alt="" loading="lazy"><span title="' + esc(b.name + ' · ' + b.site) + '">' + esc(b.short) + '</span>'; }
   // Fixed bracket, no reseeding: 1 plays the 8/9 winner, 4 plays 5/12, 2 plays 7/10, 3 plays 6/11.
   function renderBracket() {
     var field = projectedField().field, sim = !!st.bkSim;
@@ -401,14 +474,20 @@
       : 'Select a team to advance it. Each game you decide shows both teams’ chance to win, from their ratings.';
     if (field.length < 12) { $('bracket').innerHTML = ''; return; }
     var s = field.map(function (x, i) { return { seed: i + 1, x: x }; });
-    var r1 = [bracketGame('r1-0', s[7], s[8], true, 'Winner of 8 vs 9'), bracketGame('r1-1', s[4], s[11], true, 'Winner of 5 vs 12'),
-      bracketGame('r1-2', s[6], s[9], true, 'Winner of 7 vs 10'), bracketGame('r1-3', s[5], s[10], true, 'Winner of 6 vs 11')];
-    var qf = [bracketGame('qf-0', s[0], r1[0].winner, false, 'Winner of quarterfinal 1'), bracketGame('qf-1', s[3], r1[1].winner, false, 'Winner of quarterfinal 2'),
-      bracketGame('qf-2', s[1], r1[2].winner, false, 'Winner of quarterfinal 3'), bracketGame('qf-3', s[2], r1[3].winner, false, 'Winner of quarterfinal 4')];
-    var sf = [bracketGame('sf-0', qf[0].winner, qf[1].winner, false, 'Winner of semifinal 1'), bracketGame('sf-1', qf[2].winner, qf[3].winner, false, 'Winner of semifinal 2')];
-    var fin = bracketGame('f', sf[0].winner, sf[1].winner, false, 'Champion');
+    // First round at the higher seed's stadium; quarterfinal bowls projected for seeds 1-4 in seed order;
+    // the semifinal with the No. 1 seed's side projected to the Orange Bowl.
+    var r1Line = function (key, x) { var sl = R1_SLOT[key]; return gameLine(sl.tv, sl.when, '<span>At ' + esc(x.x.t.name) + '</span>'); };
+    var bySeed = projectBowls([s[0], s[1], s[2], s[3]]), bowl = [bySeed[0], bySeed[3], bySeed[1], bySeed[2]]; // seeds pick in order 1-4; the bracket lists 1, 4, 2, 3
+    var qfLine = function (k) { var sl = QF_SLOT[k]; return gameLine(sl.tv, sl.when, bowlChip(k)); };
+    var sfLine = function (k) { var b = BOWLS[k]; return gameLine(b.tv, b.when, bowlChip(k)); };
+    var r1 = [bracketGame('r1-0', s[7], s[8], true, 'Winner of 8 vs 9', r1Line('8-9', s[7])), bracketGame('r1-1', s[4], s[11], true, 'Winner of 5 vs 12', r1Line('5-12', s[4])),
+      bracketGame('r1-2', s[6], s[9], true, 'Winner of 7 vs 10', r1Line('7-10', s[6])), bracketGame('r1-3', s[5], s[10], true, 'Winner of 6 vs 11', r1Line('6-11', s[5]))];
+    var qf = [bracketGame('qf-0', s[0], r1[0].winner, false, 'Winner of quarterfinal 1', qfLine(bowl[0])), bracketGame('qf-1', s[3], r1[1].winner, false, 'Winner of quarterfinal 2', qfLine(bowl[1])),
+      bracketGame('qf-2', s[1], r1[2].winner, false, 'Winner of quarterfinal 3', qfLine(bowl[2])), bracketGame('qf-3', s[2], r1[3].winner, false, 'Winner of quarterfinal 4', qfLine(bowl[3]))];
+    var sf = [bracketGame('sf-0', qf[0].winner, qf[1].winner, false, 'Winner of semifinal 1', sfLine('orange')), bracketGame('sf-1', qf[2].winner, qf[3].winner, false, 'Winner of semifinal 2', sfLine('sugar'))];
+    var fin = bracketGame('f', sf[0].winner, sf[1].winner, false, 'Champion', gameLine(BOWLS.title.tv, BOWLS.title.when, bowlChip('title')));
     $('bk-clear').hidden = !Object.keys(st.bkPicks).length; // after the games drop stale picks
-    function round(title, games) { return '<section class="bk-round" aria-label="' + title + '"><h3>' + title + '</h3><div class="bk-games">' + games.map(function (g) { return g.html; }).join('') + '</div></section>'; }
+    function round(title, games) { return '<section class="bk-round" aria-label="' + title + '"><h3>' + title + '<small>' + esc(ROUND_INFO[title] || '') + '</small></h3><div class="bk-games">' + games.map(function (g) { return g.html; }).join('') + '</div></section>'; }
     var champ = fin.winner.tbd ? null : fin.winner;
     var titles = s.slice().sort(function (a, b) { return b.x.r.title - a.x.r.title; }).slice(0, 6);
     var champCard = '';
@@ -431,7 +510,7 @@
     if (old) old.remove();
     if (!BK_WIDE.matches || !wrap.offsetWidth) return;
     var base = wrap.getBoundingClientRect();
-    var rounds = [].map.call(wrap.querySelectorAll('.bk-round'), function (r) { return [].slice.call(r.querySelectorAll('.bk-box')); });
+    var rounds = [].map.call(wrap.querySelectorAll('.bk-round'), function (r) { return [].slice.call(r.querySelectorAll('.bk-game')); });
     var links = [[0, 0, 1, 0], [0, 1, 1, 1], [0, 2, 1, 2], [0, 3, 1, 3], [1, 0, 2, 0], [1, 1, 2, 0], [1, 2, 2, 1], [1, 3, 2, 1], [2, 0, 3, 0], [2, 1, 3, 0]];
     var d = links.map(function (l) {
       var a = rounds[l[0]][l[1]].getBoundingClientRect(), b = rounds[l[2]][l[3]].getBoundingClientRect();
@@ -506,13 +585,24 @@
     var now = dog === g.h ? lh : 1 - lh;
     return now >= 0.5 ? { dog: dog, pre: dogPre, now: now } : null;
   }
+  // A network name as a small badge in its brand color. Names come from ESPN; unknown ones get a neutral badge.
+  var TV_COLORS = {
+    ESPN: '#cc0000', ESPN2: '#cc0000', ESPNU: '#cc0000', ESPNEWS: '#cc0000', 'ESPN+': '#cc0000', SECN: '#003a70', 'SECN+': '#003a70', ACCN: '#013ca6', 'ACCNX': '#013ca6',
+    'ESPN Unlmtd': '#cc0000', 'SEC Network': '#003a70', 'ACC Network': '#013ca6', Fox: '#0b2240', 'Disney+': '#0b3d91', 'USA Net': '#1d3f8f', 'MW+': '#3d4f6b', 'UConn+': '#0e1a3d',
+    ABC: '#111111', CBS: '#0b3d91', CBSSN: '#0b3d91', FOX: '#0b2240', FS1: '#2d2d2d', FS2: '#2d2d2d', BTN: '#0088ce', NBC: '#5c2d91', Peacock: '#111111',
+    TNT: '#c8102e', truTV: '#e2231a', 'HBO Max': '#5822b4', CW: '#00843d', 'The CW': '#00843d', 'Big 12 Now': '#c8102e', 'Pac-12 Network': '#004b87'
+  };
+  function tvBadges(names) {
+    return (names || []).map(function (n) { return '<span class="tv" style="--tv:' + (TV_COLORS[n] || 'var(--muted)') + '">' + esc(n) + '</span>'; }).join('');
+  }
   function liveCard(g) {
     var isLive = g.s === 'in', isPre = g.s === 'pre';
     var u = upset(g);
-    var top = isLive ? '<span class="lg-live"><b>' + esc(clock(g)) + '</b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' :
-      isPre ? '<span class="lg-kick">Kickoff</span><b>' + (etDay(g.d) === etDay(Date.now()) ? '' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + ', ') +
+    var tv = g.tv ? '<span class="tv-list">' + tvBadges(g.tv) + '</span>' : '';
+    var top = isLive ? '<span class="lg-live"><b>' + esc(clock(g)) + '</b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' + tv :
+      isPre ? '<span class="lg-kick">Kickoff</span><span class="lg-when">' + tv + '<b>' + (etDay(g.d) === etDay(Date.now()) ? '' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + ', ') +
         // ESPN marks a kickoff time that hasn't been set as midnight Eastern.
-        (etTime(g.d) === '12:00 AM' ? 'time TBA' : etTime(g.d) + ' ET') + '</b>' : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span>' + (etDay(g.d) === etDay(Date.now()) ? 'Today' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })) + '</span>';
+        (etTime(g.d) === '12:00 AM' ? 'time TBA' : etTime(g.d) + ' ET') + '</b></span>' : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span class="lg-when">' + tv + '<span>' + (etDay(g.d) === etDay(Date.now()) ? 'Today' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })) + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
       '<div class="lg-top">' + top + '</div>' +
       (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
@@ -834,9 +924,9 @@
       clearTimeout(pickTimer);
       refresh();
     } else if (b.dataset.bk) {
-      // Picking the team already picked removes the pick.
-      var seed = +b.dataset.seed;
-      if (st.bkPicks[b.dataset.bk] === seed) delete st.bkPicks[b.dataset.bk]; else st.bkPicks[b.dataset.bk] = seed;
+      // Like the Rankings table, each press cycles this team through W, L and blank (its opponent gets the opposite).
+      var seed = +b.dataset.seed, opp = +b.dataset.opp, cur = st.bkPicks[b.dataset.bk];
+      if (cur == null) st.bkPicks[b.dataset.bk] = seed; else if (cur === seed) st.bkPicks[b.dataset.bk] = opp; else delete st.bkPicks[b.dataset.bk];
       renderBracket();
     } else if (b.id === 'expand-table') {
       // Phones: switch between the compact table and every column.
