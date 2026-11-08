@@ -140,6 +140,16 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .odds-table th.c-idx { text-align: right; }
 .odds-table th.c-rec, .odds-table td.rec { text-align: left; }
 .odds-table td.c-cn-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.cn-short { display: none; }
+@media (max-width: 599px) {
+  .odds-table:not(.expanded) .cn-long { display: none; }
+  .odds-table:not(.expanded) .cn-short { display: inline; }
+  .odds-table:not(.expanded) .c-cn { width: 46px; }
+  .odds-table:not(.expanded) td.c-cn-cell, .odds-table:not(.expanded) th.c-cn { padding-inline: 4px; }
+}
+@media (max-width: 359px) { .odds-table:not(.expanded) .c-team { width: 64px; } }
+/* Tablets: Conf. takes the spare room, so it sits right after the team names. */
+@media (min-width: 600px) and (max-width: 899px) { .odds-table:not(.expanded) .c-cn { width: auto; } }
 .c-rk { width: var(--rk-w); } .c-pick { width: 56px; } .c-cfp { width: 66px; }
 .odds-table td.pick { padding-inline: 2px; }
 /* Phones: the stacked scoreboard column. Wide screens and the full table use This week instead. */

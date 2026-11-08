@@ -9,6 +9,11 @@ var CFP = (function () {
     sec: 'SEC', big10: 'Big Ten', big12: 'Big 12', acc: 'ACC', american: 'American', usa: 'C-USA',
     midam: 'MAC', mwest: 'Mountain West', pac12: 'Pac-12', belt: 'Sun Belt', ind: 'Independent', fcs: 'FCS'
   };
+  // Short codes for narrow screens.
+  var CONF_ABBR = {
+    sec: 'SEC', big10: 'B1G', big12: 'B12', acc: 'ACC', american: 'AAC', usa: 'CUSA',
+    midam: 'MAC', mwest: 'MW', pac12: 'P12', belt: 'SBC', ind: 'IND', fcs: 'FCS'
+  };
   var TITLE_RX = [
     [/\bSEC\b/, 'sec'], [/Big Ten/, 'big10'], [/Big 12/, 'big12'], [/\bACC\b/, 'acc'], [/American/, 'american'],
     [/Conference USA|C-USA/, 'usa'], [/\bMAC\b|Mid-American/, 'midam'], [/Mountain West/, 'mwest'],
@@ -541,7 +546,7 @@ var CFP = (function () {
   }
 
   return {
-    M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
+    M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, CONF_ABBR: CONF_ABBR, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
     forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor, withCfp: withCfp
   };
 })();

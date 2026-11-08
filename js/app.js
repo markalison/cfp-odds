@@ -130,9 +130,9 @@
     }
     // Fixed column widths live on these header classes. Columns marked sec are hidden on phones.
     $('head').innerHTML =
-      th('team', '<abbr title="CFP ranking">RK</abbr>', 'first c-rk') + '</th>' +
+      th('team', '<abbr title="College Football Playoff committee ranking">RK</abbr>', 'first c-rk') + '</th>' +
       '<th class="l c-team team-col">Team</th>' +
-      th('conf', 'Conf.', 'l c-cn tc') + '</th>' +
+      th('conf', 'Conf.', 'l c-cn') + '</th>' +
       th('rec', 'Rec', 'c-rec') + '</th>' +
       th('index', '<abbr title="' + esc(modeName()) + ' rating as last published">Index</abbr>', 'c-idx tc') + '</th>' +
       '<th class="pick c-pick">Next</th>' +
@@ -245,7 +245,7 @@
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
   var WIDE = matchMedia('(min-width: 900px)');
   var TABLET = matchMedia('(min-width: 600px)');
-  function visibleColumns() { return WIDE.matches || st.expanded ? 10 : TABLET.matches ? 7 : 5; }
+  function visibleColumns() { return WIDE.matches || st.expanded ? 10 : TABLET.matches ? 7 : 6; }
   // The selected ratings' name, as the Ratings menu shows it.
   function modeName() { var o = $('mode') && $('mode').selectedOptions[0]; return o ? o.textContent : st.mode; }
   function detail(x) {
@@ -281,6 +281,11 @@
   }
   // The table heading names what's shown: a conference if one is chosen, otherwise the team group.
   var VIEW_NAME = { all: 'All teams', p4: 'Power 4', g5: 'Group of 6' };
+  // What RK is, and which week's ranking it is. Shown with the table instructions.
+  function rkNote() {
+    var week = D.rankLabel ? D.rankLabel.replace(/^.*- /, '').replace(/^CFP Rankings /i, '') : '';
+    return ' <b>RK</b> is the College Football Playoff committee ranking' + (week ? ' (' + esc(week) + ')' : '') + '.';
+  }
   function renderBoardTitle(count) {
     $('board-title').textContent = st.conf ? (CFP.CONF_NAME[st.conf] || st.conf) : VIEW_NAME[st.view];
     $('board-count').textContent = count + (count === 1 ? ' team' : ' teams') + (st.q.trim() ? ' matching “' + st.q.trim() + '”' : '');
@@ -297,7 +302,7 @@
       var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first c-rk">' + (x.t.rank || '') + '</td>' +
         '<td class="team-col"><div class="teamcell">' + logo(x.t, 30) +
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '" aria-label="' + esc(x.t.name) + '"><span class="tn-long">' + esc(x.t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(x.t.ab || x.t.name) + '</span></button></span></div></td>' +
-        '<td class="l tc c-cn-cell">' + esc(conf) + '</td>' +
+        '<td class="l c-cn-cell"><span class="cn-long">' + esc(conf) + '</span><span class="cn-short" aria-hidden="true">' + esc(CFP.CONF_ABBR[x.t.conf] || conf) + '</span></td>' +
         '<td class="num rec">' + x.rec.text + '</td>' +
         '<td class="num tc">' + x.index.toFixed(1) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
@@ -658,8 +663,8 @@
   function renderPicksBar() {
     var n = Object.keys(st.picks).length;
     $('picks-bar').innerHTML = n
-      ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '.</span><button class="btn" id="clear-picks" type="button">Clear picks</button>'
-      : '<span>Press a team\u2019s box to cycle its next game through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update.</span>';
+      ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '.' + rkNote() + '</span><button class="btn" id="clear-picks" type="button">Clear picks</button>'
+      : '<span>Press a team\u2019s box to cycle its next game through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update.' + rkNote() + '</span>';
   }
   function renderAll() { renderPicksBar(); renderStatus(); renderLive(); renderField(); renderBracket(); renderTable(); }
 
