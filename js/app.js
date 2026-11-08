@@ -129,7 +129,7 @@
       '<th class="l c-team team-col">Team</th>' +
       th('next', 'This week', 'l c-next sec nx') + '</th>' +
       '<th class="l c-sc ph">Score</th>' +
-      '<th class="pick c-pick">Pick</th>' +
+      '<th class="pick c-pick">Next</th>' +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
       th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
       th('champ', 'Win conf.', 'c-conf sec') + '</th>' +
@@ -154,51 +154,58 @@
     if (weekIndex.D !== D || now - weekIndex.at > 60000) {
       var started = D.games.filter(function (g) { return g.wk != null && Date.parse(g.d) <= now; });
       var wk = started.length ? Math.max.apply(null, started.map(function (g) { return g.wk; })) : Math.min.apply(null, D.games.map(function (g) { return g.wk || 99; }));
-      var byTeam = {};
-      D.games.forEach(function (g) { if (g.wk === wk) { byTeam[g.h] = g; byTeam[g.a] = g; } });
-      weekIndex = { D: D, at: now, wk: wk, byTeam: byTeam };
+      // Each team's games by week, and the week of its next game that hasn't kicked off.
+      var byWeek = {}, nextPre = {};
+      D.games.forEach(function (g) {
+        if (g.wk == null) return;
+        [g.h, g.a].forEach(function (i) {
+          (byWeek[i] = byWeek[i] || {})[g.wk] = g;
+          if (g.s === 'pre' && (nextPre[i] == null || g.wk < nextPre[i])) nextPre[i] = g.wk;
+        });
+      });
+      weekIndex = { D: D, at: now, wk: wk, byWeek: byWeek, nextPre: nextPre };
     }
     return weekIndex;
   }
-  function thisWeek(x) { return weekGames().byTeam[x.i] || null; }
+  // Each team moves on to a new week when its own game that week kicks off, so a Tuesday MAC game doesn't
+  // move everyone else. Until then its week is the one before its next game (no later than the current week).
+  function teamWeek(x) {
+    var W = weekGames(), n = W.nextPre[x.i];
+    return n == null ? W.wk : Math.min(W.wk, n - 1);
+  }
+  function weekGame(x, wk) { var m = weekGames().byWeek[x.i]; return (m && m[wk]) || null; }
+  function thisWeek(x) { return weekGame(x, teamWeek(x)); }
+  // ESPN writes the clock as '12:00 - 2nd'; show it without the hyphen, '12:00 2nd'. Halftime and the like pass through.
+  function clock(g) { var m = /^\s*(\d+:\d+)\s*-\s*(.+)$/.exec(g.st || ''); return m ? m[1] + ' ' + m[2] : g.st || ''; }
   function shortDay(d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }); }
   // "at ND" or "vs ND" for team i's side of a game.
   function matchup(g, i) { var opp = D.teams[g.h === i ? g.a : g.h]; return (g.n || g.h === i ? 'vs ' : 'at ') + esc(opp.ab || opp.name); }
-  function miniScore(x, g) {
-    g = g || gameById(x.next.id);
-    if (!g) return '';
+  // A stacked scoreboard: away team over home team. The team ahead (or the winner) is bold.
+  function stackRows(g) {
+    var played = g.s !== 'pre';
+    function line(t, n, other) {
+      return '<span class="ss-r' + (played && n > other ? ' lead' : '') + '"><span class="ss-t">' + esc(t.ab || t.name) + '</span><span class="ss-s">' + (played ? n : '') + '</span></span>';
+    }
+    return line(D.teams[g.a], g.as, g.hs) + line(D.teams[g.h], g.hs, g.as);
+  }
+  function scoreLabel(g) {
     var away = D.teams[g.a], home = D.teams[g.h];
-    function side(t) { return '<span class="ms-t' + (t === x.t ? ' me' : '') + '">' + esc(t.ab || t.name) + '</span>'; }
-    function score(n, other) { return '<span class="ms-s' + (n > other ? ' lead' : '') + '">' + n + '</span>'; }
-    var label = away.name + ' ' + g.as + ', ' + home.name + ' ' + g.hs;
-    return '<span class="mscore" role="img" aria-label="' + esc(label) + '">' + side(away) + score(g.as, g.hs) + score(g.hs, g.as) + side(home) + '</span>';
+    return g.s === 'pre' ? away.name + ' at ' + home.name : away.name + ' ' + g.as + ', ' + home.name + ' ' + g.hs;
   }
-  // This week's game: the final score, the live score, or the matchup to come. After a final or a bye,
-  // the next game is listed too, since that's the game the pick box applies to.
-  function nextLine(x) {
-    if (!x.next) return 'Regular season over';
-    var g = gameById(x.next.id);
-    return 'Next: ' + (g ? matchup(g, x.i) : esc(D.teams[x.next.o].ab)) + ' ' + shortDay(x.next.d);
-  }
+  // This week's game: the final score, the live score with the clock, or the matchup to come with its date.
   function nextCell(x) {
     var g = thisWeek(x);
-    if (!g) return '<span class="next">Bye week<small>' + nextLine(x) + '</small></span>';
+    if (!g) return '<span class="next">Bye week</span>';
     var isNext = x.next && x.next.id === g.id;
-    if (g.s === 'post') return '<span class="next">' + miniScore(x, g) + '<small>Final · <b>' + (g.w === x.i ? 'W' : 'L') + '</b> · ' + nextLine(x) + '</small></span>';
-    if (g.s === 'in') return '<span class="next">' + miniScore(x, g) + '<small>' + esc(g.st) + (isNext ? ' · ' + nextChance(x.next, x.t) : '') + '</small></span>';
-    return '<span class="next">' + matchup(g, x.i) + '<small>' + shortDay(g.d) + (isNext ? ' · ' + nextChance(x.next, x.t) : '') + '</small></span>';
+    var info = g.s === 'post' ? '' : (g.s === 'in' ? esc(clock(g)) : shortDay(g.d)) + (isNext ? ' · ' + nextChance(x.next, x.t) : '');
+    return '<span class="next"><span class="ss" role="img" aria-label="' + esc(scoreLabel(g)) + '">' + stackRows(g) + '</span>' + (info ? '<small>' + info + '</small>' : '') + '</span>';
   }
   // Phones hide This week, so a small scoreboard gets its own column: away team over home team, then the status.
   function stackScore(x) {
     var g = thisWeek(x);
     if (!g) return '<span class="ss"><span class="ss-st">Bye</span></span>';
-    var away = D.teams[g.a], home = D.teams[g.h], played = g.s !== 'pre';
-    function line(t, n, other) {
-      return '<span class="ss-r' + (t === x.t ? ' me' : '') + (played && n > other ? ' lead' : '') + '"><span class="ss-t">' + esc(t.ab || t.name) + '</span><span class="ss-s">' + (played ? n : '') + '</span></span>';
-    }
-    var status = g.s === 'post' ? 'Final' : g.s === 'in' ? esc(g.st) : shortDay(g.d);
-    var label = played ? away.name + ' ' + g.as + ', ' + home.name + ' ' + g.hs + ', ' + status : away.name + ' at ' + home.name + ', ' + status;
-    return '<span class="ss" role="img" aria-label="' + esc(label) + '">' + line(away, g.as, g.hs) + line(home, g.hs, g.as) + '<span class="ss-st">' + status + '</span></span>';
+    var status = g.s === 'post' ? '' : g.s === 'in' ? esc(clock(g)) : shortDay(g.d);
+    return '<span class="ss" role="img" aria-label="' + esc(scoreLabel(g) + (status ? ', ' + status : ', final')) + '">' + stackRows(g) + (status ? '<span class="ss-st">' + status + '</span>' : '') + '</span>';
   }
 
   // The headline numbers for one team. The field panel always shows them; table details show them on phones.
@@ -214,17 +221,26 @@
       stat('Rating', x.rating.toFixed(1)) +
     '</dl>';
   }
-  function pickCell(x) {
-    // A final this week is settled: show the result, with nothing to press.
-    var wg = thisWeek(x);
-    if (wg && wg.s === 'post') {
-      var w = wg.w === x.i;
-      return '<div class="mini mini-done"><span class="pick-box pick-done" role="img" aria-label="' + esc(x.t.name + (w ? ' won' : ' lost') + ' this week, final') + '" title="Final">' + (w ? 'W' : 'L') + '</span></div>';
+  // The Next column: the week after This week. It names the opponent and has a W/L box for that game.
+  // A team with no game that week shows "Bye" with nothing to press. After the regular season's last
+  // week it falls back to the team's next scheduled game (a title game), or a dash.
+  function nextWeekGame(x) {
+    var wk = teamWeek(x) + 1;
+    if (!D.games.some(function (g) { return g.wk === wk; })) {
+      var tw = thisWeek(x), g = x.next ? gameById(x.next.id) : null;
+      return g && (!tw || tw.id !== g.id) ? g : null;
     }
-    if (!x.next) return '\u2014';
-    var pk = st.picks[x.next.id], won = pk === x.t.id, lost = !!pk && !won;
-    var label = won ? x.t.name + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + '. Press to pick a win';
-    return '<div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(x.next.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(D.teams[x.next.o].id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></div>';
+    return weekGame(x, wk) || 'bye';
+  }
+  function pickCell(x) {
+    var g = nextWeekGame(x);
+    if (g === 'bye') return '<div class="nx-cell"><span class="pick-bye">Bye</span></div>';
+    if (!g || g.s === 'post') return '\u2014';
+    var opp = D.teams[g.h === x.i ? g.a : g.h], vs = matchup(g, x.i);
+    var pk = st.picks[g.id], won = pk === x.t.id, lost = !!pk && !won;
+    var label = won ? x.t.name + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + ' ' + vs + '. Press to pick a win';
+    return '<div class="nx-cell"><div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(opp.id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></div>' +
+      '<span class="nx-vs" aria-hidden="true"><span class="nx-long">' + vs + '</span><span class="nx-short">' + (g.h === x.i || g.n ? '' : '@') + esc(opp.ab || opp.name) + '</span></span></div>';
   }
   // Phones show four columns: CFP, team, pick and Make CFP (styles.css hides the rest below 900px). A full-width row must span
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
@@ -435,29 +451,18 @@
   }
   function liveRow(g, i, score, other) {
     var t = D.teams[i], isFbs = i < D.fbs, r = isFbs ? res().teams[i] : null, nx = isFbs ? schedule()[i][0] : null;
-    var done = g.s === 'post', win = '', ifW = null, ifL = null;
+    var done = g.s === 'post', win = '';
     // A shaded odds tile, or a dash when there's no number.
     function tile(v) { return v == null ? '<div class="lg-num">—</div>' : '<div class="lg-cfp" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; }
     if (!done) {
       if (st.picks[g.id]) win = st.picks[g.id] === t.id ? 'Pick' : '';
       else if (nx && nx.id === g.id) win = Math.round(nx.p * 100) + '%';
       else win = '—';
-      // Make CFP odds if this team wins or loses this game. A picked game only has one outcome left.
-      var thisGame = r && nx && nx.id === g.id;
-      if (r && st.picks[g.id]) {
-        var pickedWin = st.picks[g.id] === t.id;
-        ifW = pickedWin ? r.cfp : null;
-        ifL = pickedWin ? null : r.cfp;
-      } else if (thisGame) {
-        ifW = r.ifNext; ifL = r.ifLose;
-      }
     }
-    // Finished games use four columns; live and upcoming games add With W and With L.
     return '<div class="lg-team">' + logo(t, 22) + '<span>' + esc(t.ab || t.name) + (t.rank ? ' <small>No. ' + t.rank + '</small>' : '') + '</span></div>' +
       '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + score + '</div>' +
       '<div class="lg-num">' + win + '</div>' +
-      tile(r ? r.cfp : null) +
-      (done ? '' : tile(ifW) + tile(ifL));
+      tile(r ? r.cfp : null);
   }
   // Pre-game win chance for the home team, from the selected ratings. FCS teams use their Massey rating.
   function pregameHome(g) {
@@ -487,44 +492,45 @@
   }
   function whole(v) { return Math.round(v * 100) + '%'; }
   function liveCard(g) {
-    var isLive = g.s === 'in', isPre = g.s === 'pre', stakes = gameStakes(g), why = '';
-    if (!isPre && !isLive) why = '';
-    else if (st.picks[g.id]) why = 'Your pick is locked in, so these odds assume <b>' + esc(st.picks[g.id] === D.teams[g.h].id ? D.teams[g.h].ab : D.teams[g.a].ab) + '</b> wins.';
-    else if (stakes && stakes.swing >= 0.01) why = '<b>' + esc(D.teams[stakes.i].ab) + '</b> is the most affected: <b>' + pct(stakes.win) + '</b> with a win, <b>' + pct(stakes.lose) + '</b> with a loss.';
-    else if (stakes) why = 'Little effect on the playoff race.';
-    else why = 'One team is a heavy favorite' + (isLive ? ' right now' : '') + ', so this barely moves the odds.';
-    var u = upset(g), dogName = u ? esc(D.teams[u.dog].name) : '';
-    var top = isLive ? '<span class="lg-live"><span class="live-pill">LIVE</span>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '<b>' + esc(g.st) + '</b></span>' :
+    var isLive = g.s === 'in', isPre = g.s === 'pre';
+    var u = upset(g);
+    var top = isLive ? '<span class="lg-live"><b>' + esc(clock(g)) + '</b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' :
       isPre ? '<span>Kickoff</span><b>' + etTime(g.d) + ' ET</b>' : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span>Today</span>';
-    var alert = !u ? '' : isLive
-      ? '<p class="lg-alert"><b>' + dogName + '</b> was a ' + whole(u.pre) + ' underdog before kickoff and is now ' + whole(u.now) + ' to win.</p>'
-      : '<p class="lg-alert"><b>' + dogName + '</b> won as a ' + whole(u.pre) + ' underdog.</p>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
-      '<div class="lg-top">' + top + '</div>' + alert +
-      '<div class="lg-rows' + (isPre || isLive ? ' wide' : '') + '"><span></span><span class="h">' + (isPre ? '' : 'Score') + '</span><span class="h">' + (isPre || isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span>' +
-        (isPre || isLive ? '<span class="h">With W</span><span class="h">With L</span>' : '') +
+      '<div class="lg-top">' + top + '</div>' +
+      '<div class="lg-rows"><span></span><span class="h">' + (isPre ? '' : 'Score') + '</span><span class="h">' + (isPre || isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span>' +
         liveRow(g, g.a, isPre ? '' : g.as, isPre ? '' : g.hs) + liveRow(g, g.h, isPre ? '' : g.hs, isPre ? '' : g.as) +
-      '</div>' + (why ? '<p class="lg-why">' + why + '</p>' : '') +
+      '</div>' +
     '</article>';
   }
-  // How much each of today's finals moved playoff odds: the total change in Make CFP odds across every team,
-  // compared with the same season where that game is still to be played. Both runs use the same random
-  // numbers (each final becomes a locked game, and only the one being measured is unlocked), so the
-  // difference comes from that game alone. Runs in its own worker after the main odds are ready.
+  // Playoff impact on the Scores page, measured as total swing in Make CFP odds across every team.
+  // Every game of today goes back to unplayed, so live scores don't count (a pre-game view):
+  //  - a final: its real result against the game left open,
+  //  - a live or later game: the home team winning against the away team winning.
+  // All runs share one seed and the same game list (finals become locked games), so each difference comes
+  // from that one game (common random numbers). Runs in its own worker after the main odds are ready.
   var SWING_SIMS = 5000;
   var SWING_TAIL = 'self.onmessage=function(e){var m=e.data,out={};' +
     'function cfp(lock){var P=CFP.prep(m.D,m.mode,lock),sim=new CFP.Sim(P,m.seed),t=CFP.emptyTally(P.n),r=[];CFP.baseBatch(sim,t,m.sims);for(var i=0;i<P.fbs;i++)r.push(t.cfp[i]/m.sims);return r;}' +
-    'var base=cfp(m.lock);m.ids.forEach(function(id){var pk={};for(var k in m.lock)if(k!==id)pk[k]=m.lock[k];var r=cfp(pk),s=0;for(var i=0;i<r.length;i++)s+=Math.abs(r[i]-base[i]);out[id]=s;});postMessage(out);};';
+    'function diff(a,b){var s=0;for(var i=0;i<a.length;i++)s+=Math.abs(a[i]-b[i]);return s;}' +
+    'function with_(id,v){var pk={};for(var k in m.lock)if(k!==id)pk[k]=m.lock[k];if(v)pk[id]=v;return pk;}' +
+    'var base=m.done.length?cfp(m.lock):null;' +
+    'm.done.forEach(function(id){out[id]=diff(cfp(with_(id,null)),base);});' +
+    'm.open.forEach(function(o){out[o.id]=diff(cfp(with_(o.id,o.h)),cfp(with_(o.id,o.a)));});' +
+    'postMessage(out);};';
   var swings = { key: null, val: null, worker: null };
-  function finalSwings(finals) {
-    if (!finals.length) return null;
-    var key = st.mode + '|' + finals.map(function (g) { return g.id; }).sort().join(',');
+  function gameSwings(games) {
+    if (!games.length) return null;
+    var key = st.mode + '|' + games.map(function (g) { return g.id + g.s.charAt(0); }).sort().join(',');
     if (swings.key === key) return swings.val;
     if (swings.worker) swings.worker.terminate();
     swings = { key: key, val: null, worker: null };
-    var ids = {}, lock = {};
-    finals.forEach(function (g) { ids[g.id] = 1; lock[g.id] = D.teams[g.w].id; });
-    // Today's finals go back to unplayed games, each locked to its real winner.
+    var ids = {}, lock = {}, done = [], open = [];
+    games.forEach(function (g) {
+      ids[g.id] = 1;
+      if (g.s === 'post') { lock[g.id] = D.teams[g.w].id; done.push(g.id); }
+      else open.push({ id: g.id, h: D.teams[g.h].id, a: D.teams[g.a].id });
+    });
     var data = Object.assign({}, D, { games: D.games.map(function (g) { return ids[g.id] ? Object.assign({}, g, { s: 'pre', hs: 0, as: 0, w: null }) : g; }) });
     try {
       var w = new Worker(URL.createObjectURL(new Blob(['importScripts(' + JSON.stringify(ENGINE_URL) + ');\n' + SWING_TAIL], { type: 'text/javascript' })));
@@ -535,7 +541,7 @@
       };
       w.onerror = function () { if (swings.worker === w) swings.worker = null; };
       swings.worker = w;
-      w.postMessage({ D: data, mode: st.mode, seed: CFP.seedFor(st.mode), sims: SWING_SIMS, lock: lock, ids: Object.keys(ids) });
+      w.postMessage({ D: data, mode: st.mode, seed: CFP.seedFor(st.mode), sims: SWING_SIMS, lock: lock, done: done, open: open });
     } catch (err) {}
     return null;
   }
@@ -555,22 +561,23 @@
     var stake = function (g) { var s = gameStakes(g); return s ? s.swing : 0; };
     var byTime = st.sbSort === 'time';
     var kickoff = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
-    var impact = function (a, b) { return (st.picks[b.id] ? 1 : 0) - (st.picks[a.id] ? 1 : 0) || stake(b) - stake(a) || best(b) - best(a); };
+    // Pre-game swing for every game today, once measured; until then the live stakes stand in.
+    var sw = byTime ? null : gameSwings(D.games.filter(function (g) { return (g.h < D.fbs || g.a < D.fbs) && etDay(g.d) === today; }));
+    var swing = function (g) { return sw ? sw[g.id] || 0 : g.s === 'post' ? best(g) : stake(g); };
+    var impact = function (a, b) { return (st.picks[b.id] ? 1 : 0) - (st.picks[a.id] ? 1 : 0) || swing(b) - swing(a) || best(b) - best(a); };
     var order = byTime ? function (a, b) { return kickoff(a, b) || best(b) - best(a); } : function (a, b) { return impact(a, b) || kickoff(a, b); };
     var live = D.games.filter(function (g) { return g.s === 'in' && counts(g); }).sort(order);
-    // Finals: the biggest total swing in playoff odds first, once it's measured (by the top team's odds until then).
-    var sw = byTime ? null : finalSwings(D.games.filter(function (g) { return g.s === 'post' && (g.h < D.fbs || g.a < D.fbs) && etDay(g.d) === today; }));
-    var done = D.games.filter(function (g) { return g.s === 'post' && counts(g) && etDay(g.d) === today; }).sort(byTime ? order : sw ? function (a, b) { return (sw[b.id] || 0) - (sw[a.id] || 0) || kickoff(a, b); } : function (a, b) { return best(b) - best(a) || kickoff(a, b); });
+    var done = D.games.filter(function (g) { return g.s === 'post' && counts(g) && etDay(g.d) === today; }).sort(byTime ? order : function (a, b) { return swing(b) - swing(a) || kickoff(a, b); });
     var later = D.games.filter(function (g) { return g.s === 'pre' && counts(g) && etDay(g.d) === today; }).sort(order);
     function group(title, games, note) {
-      return games.length ? '<div class="live-group"><h3>' + title + ' (' + games.length + ')</h3>' + (note ? '<p class="live-note">' + note + '</p>' : '') + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></div>' : '';
+      return games.length ? '<div class="live-group"><h3>' + title + ' <span class="lg-count">' + games.length + '</span></h3>' + (note ? '<p class="live-note">' + note + '</p>' : '') + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></div>' : '';
     }
     var checked = st.live === 'blocked' ? '<b>Couldn’t reach ESPN.</b> Scores are from ' + etTime(D.asOf) + ' ET.' :
       'Scores from <b>' + etTime(D.asOf) + ' ET</b>' + (live.length ? ', checked every minute while this page is open.' : '.');
     var next = D.games.filter(function (g) { return g.s === 'pre' && counts(g); })[0];
     $('live-board').innerHTML = '<p class="live-note">' + checked + ' Win and Make CFP odds use the current score and clock.</p>' +
       (live.length || later.length || done.length ?
-        group('In progress', live, byTime ? 'Earliest kickoff first.' : 'Your picks first, then the biggest playoff impact.') + group('Later today', later) + group('Final today', done, byTime ? '' : 'Biggest total swing in playoff odds first.') :
+        group('In progress', live, byTime ? 'Earliest kickoff first.' : 'Your picks first, then the biggest possible swing in playoff odds, judged before kickoff.') + group('Later today', later) + group('Final today', done, byTime ? '' : 'Biggest total swing in playoff odds first.') :
         '<p class="live-empty">No ' + (sbConf ? esc(sbGroup ? GROUP_NAME[sbGroup] : CFP.CONF_NAME[sbConf] || sbConf) + ' ' : '') + 'games today.' + (next ? ' Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
