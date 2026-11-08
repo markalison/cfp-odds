@@ -125,7 +125,7 @@
     }
     // Fixed column widths live on these header classes. Columns marked sec are hidden on phones.
     $('head').innerHTML =
-      th('team', 'CFP', 'first c-rk') + '</th>' +
+      th('team', '<abbr title="CFP ranking">RK</abbr>', 'first c-rk') + '</th>' +
       '<th class="l c-team team-col">Team</th>' +
       th('next', 'This week', 'l c-next sec nx') + '</th>' +
       '<th class="l c-sc ph">Score</th>' +
@@ -219,7 +219,7 @@
     var wg = thisWeek(x);
     if (wg && wg.s === 'post') {
       var w = wg.w === x.i;
-      return '<div class="mini"><span class="pick-box pick-done" role="img" aria-label="' + esc(x.t.name + (w ? ' won' : ' lost') + ' this week, final') + '" title="Final">' + (w ? 'W' : 'L') + '</span></div>';
+      return '<div class="mini mini-done"><span class="pick-box pick-done" role="img" aria-label="' + esc(x.t.name + (w ? ' won' : ' lost') + ' this week, final') + '" title="Final">' + (w ? 'W' : 'L') + '</span></div>';
     }
     if (!x.next) return '\u2014';
     var pk = st.picks[x.next.id], won = pk === x.t.id, lost = !!pk && !won;

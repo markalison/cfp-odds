@@ -145,6 +145,7 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .ss-st { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 th { position: sticky; top: 0; z-index: 3; background: var(--panel); text-align: right; vertical-align: bottom; padding: var(--s3) var(--s2); border-bottom: 2px solid var(--ink); font: 600 var(--text-xs)/1.15 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 th button { all: unset; cursor: pointer; }
+th abbr[title] { text-decoration: none; }
 th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 th[aria-sort="descending"] button::after { content: " \25BC"; font-size: 9px; }
 th[aria-sort="ascending"] button::after { content: " \25B2"; font-size: 9px; }
@@ -194,6 +195,7 @@ th.pick, td.pick { text-align: center; }
 .mini button.pick-box:hover { background: var(--accent-soft); }
 .mini button.pick-w, .mini button.pick-w:hover { background: var(--up); color: var(--panel); }
 .mini button.pick-l, .mini button.pick-l:hover { background: var(--down); color: var(--panel); }
+.mini.mini-done { border-color: transparent; }
 .mini .pick-done { display: grid; place-items: center; width: 28px; height: 28px; color: var(--muted); font: 700 var(--text-sm) var(--body); cursor: default; }
 .empty { padding: var(--s5); text-align: center; color: var(--muted); white-space: normal; }
 /* Phones: Show all columns brings back the full table. It scrolls sideways with CFP and Team pinned. */
