@@ -10,7 +10,7 @@ const iso = (d) => d.toISOString().slice(0, 10);
 const lastSaturday = (d) => { const x = new Date(d); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 1) % 7)); return iso(x); };
 const usDate = (s) => iso(new Date(s + ' 12:00 UTC'));
 
-export const norm = (s) => decode(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[.'’`()-]/g, ' ').replace(/\bst\b/g, 'state').replace(/\s+/g, ' ').trim();
+export const norm = (s) => decode(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/&/g, 'and').replace(/[.'’`()_-]/g, ' ').replace(/\bst\b/g, 'state').replace(/\s+/g, ' ').trim();
 
 // Each site's spelling (after norm) -> ESPN's team name.
 const NAMES = {
