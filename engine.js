@@ -169,6 +169,28 @@ var CFP = (function () {
     return GN;
   }
 
+  // ---------- CFP ranking fallback ----------
+  // The site API's rankings feed only lists the newest polls. From Sunday, when the new AP and Coaches polls
+  // come out, until the committee's Tuesday release, it has no CFP ranking at all. ESPN's core API keeps every
+  // week's CFP ranking (ranking type 21), so the latest one is read from there and added to the feed.
+  function withCfp(rankings, season, get) {
+    var list = (rankings && rankings.rankings) || [];
+    if (list.some(function (r) { return r.type === 'cfp'; })) return Promise.resolve(rankings);
+    var https = function (u) { return String(u).replace(/^http:/, 'https:'); };
+    return get('https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/' + season + '/rankings/21').then(function (idx) {
+      var weeks = (idx && idx.rankings) || [];
+      if (!weeks.length) return rankings;
+      return get(https(weeks[weeks.length - 1].$ref)).then(function (wk) {
+        if (!wk || !wk.ranks || !wk.ranks.length) return rankings;
+        var cfp = { type: 'cfp', name: wk.name, headline: wk.headline, date: wk.date, ranks: wk.ranks.map(function (r) {
+          var id = ((r.team && r.team.$ref) || '').match(/teams\/(\d+)/);
+          return { current: r.current, team: { id: id ? id[1] : null } };
+        }).filter(function (r) { return r.team.id; }) };
+        return Object.assign({}, rankings, { rankings: list.concat([cfp]) });
+      });
+    }).catch(function () { return rankings; });
+  }
+
   // ---------- Prepare one rating mode ----------
   // picks: { gameId: ESPN id of the team picked to win }
   function prep(D, mode, picks) {
@@ -520,7 +542,7 @@ var CFP = (function () {
 
   return {
     M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
-    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor
+    forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor, withCfp: withCfp
   };
 })();
 if (typeof module !== 'undefined') module.exports = CFP;

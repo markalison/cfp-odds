@@ -18,7 +18,7 @@
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
   --radius-sm: 0; --radius: 0; /* square corners everywhere */
   --page-max: 1200px;
-  --rk-w: 52px; /* CFP rank column (also the Pick and Make CFP width on phones); the pinned Team column starts at this offset */
+  --rk-w: 44px; /* CFP rank column; the pinned Team column starts at this offset */
   --gutter-l: max(var(--s4), env(safe-area-inset-left, 0px));
   --gutter-r: max(var(--s4), env(safe-area-inset-right, 0px));
 }
@@ -233,7 +233,7 @@ th.pick, td.pick { text-align: center; }
   .c-cn { width: 120px; } .c-rec { width: 60px; } .c-idx { width: 68px; }
   .mini button.pick-box { width: 30px; height: 30px; }
   .odds-table th { white-space: normal; }
-  :root { --rk-w: 52px; }
+  :root { --rk-w: 48px; }
   .c-team { width: 190px; }
   /* Pick through Win title share one width; the last also holds the end padding. */
   .c-pick, .c-cfp, .c-bye, .c-conf, .c-title { width: 72px; }
@@ -257,7 +257,7 @@ th.pick, td.pick { text-align: center; }
   .c-pick { width: 50px; }
   .c-rec { width: 38px; } .c-idx { width: 42px; }
   .odds-table td.num, .odds-table th.c-rec, .odds-table th.c-idx { padding-inline: 3px; }
-  :root { --rk-w: 44px; }
+  :root { --rk-w: 38px; }
   .teamcell { grid-template-columns: 20px minmax(0, 1fr); gap: 6px; }
   .teamcell .logo { width: 20px; height: 20px; }
   .odds-table th, .odds-table td { padding-inline: 6px; }

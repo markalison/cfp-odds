@@ -14,7 +14,7 @@ const j = async (u) => { const r = await fetch(u, { headers: UA }); if (!r.ok) t
 
 const weeks = [];
 for (let w = 1; w <= 15; w++) weeks.push(await j(`${API}/scoreboard?groups=80&limit=400&week=${w}&seasontype=2&dates=${SEASON}`));
-const rankings = await j(`${API}/rankings`);
+const rankings = await CFP.withCfp(await j(`${API}/rankings`), SEASON, j);
 const standings = await j(`https://site.web.api.espn.com/apis/v2/sports/football/college-football/standings?group=80&season=${SEASON}&level=3`);
 const parsed = CFP.parseEspn({ weeks, rankings, standings });
 

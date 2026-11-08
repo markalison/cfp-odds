@@ -134,7 +134,7 @@
       '<th class="l c-team team-col">Team</th>' +
       th('conf', 'Conf.', 'l c-cn tc') + '</th>' +
       th('rec', 'Rec', 'c-rec') + '</th>' +
-      th('index', '<abbr title="' + esc(modeName()) + ' rating as last published">Index</abbr>', 'c-idx') + '</th>' +
+      th('index', '<abbr title="' + esc(modeName()) + ' rating as last published">Index</abbr>', 'c-idx tc') + '</th>' +
       '<th class="pick c-pick">Next</th>' +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
       th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
@@ -245,7 +245,7 @@
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
   var WIDE = matchMedia('(min-width: 900px)');
   var TABLET = matchMedia('(min-width: 600px)');
-  function visibleColumns() { return WIDE.matches || st.expanded ? 10 : TABLET.matches ? 7 : 6; }
+  function visibleColumns() { return WIDE.matches || st.expanded ? 10 : TABLET.matches ? 7 : 5; }
   // The selected ratings' name, as the Ratings menu shows it.
   function modeName() { var o = $('mode') && $('mode').selectedOptions[0]; return o ? o.textContent : st.mode; }
   function detail(x) {
@@ -299,7 +299,7 @@
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '" aria-label="' + esc(x.t.name) + '"><span class="tn-long">' + esc(x.t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(x.t.ab || x.t.name) + '</span></button></span></div></td>' +
         '<td class="l tc c-cn-cell">' + esc(conf) + '</td>' +
         '<td class="num">' + x.rec.text + '</td>' +
-        '<td class="num">' + x.index.toFixed(1) + '</td>' +
+        '<td class="num tc">' + x.index.toFixed(1) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
         '<td class="odds-cell" style="--p:' + x.r.cfp.toFixed(3) + '"><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span></div></td>' +
         shaded(x.r.bye) +
@@ -742,7 +742,7 @@
     var API = 'https://site.api.espn.com/apis/site/v2/sports/football/college-football';
     var get = function (u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }); };
     var kept = function (val, u) { return val ? Promise.resolve(val) : get(u); };
-    kept(auto && liveRaw.rankings, API + '/rankings').then(function (rankings) {
+    kept(auto && liveRaw.rankings, API + '/rankings').then(function (r) { return CFP.withCfp(r, D.season, get); }).then(function (rankings) {
       liveRaw.rankings = rankings;
       var wk = [];
       for (var w = 1; w <= 15; w++) (function (week) {
