@@ -298,7 +298,7 @@
         '<td class="team-col"><div class="teamcell">' + logo(x.t, 30) +
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '" aria-label="' + esc(x.t.name) + '"><span class="tn-long">' + esc(x.t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(x.t.ab || x.t.name) + '</span></button></span></div></td>' +
         '<td class="l tc c-cn-cell">' + esc(conf) + '</td>' +
-        '<td class="num">' + x.rec.text + '</td>' +
+        '<td class="num rec">' + x.rec.text + '</td>' +
         '<td class="num tc">' + x.index.toFixed(1) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
         '<td class="odds-cell" style="--p:' + x.r.cfp.toFixed(3) + '"><div class="odds"><span class="v">' + pct(x.r.cfp) + '</span></div></td>' +

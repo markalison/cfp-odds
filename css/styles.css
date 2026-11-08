@@ -130,8 +130,15 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .odds-table .sec, .odds-table .tc { display: none; }
 /* Conf. (tablets and up), Rec and Index. */
 .c-cn { width: 96px; } .c-rec { width: 44px; } .c-idx { width: 50px; }
+/* Compact phone view: Team gets a set width and Rec takes the spare room, so records sit right after the names. */
+@media (max-width: 599px) {
+  .odds-table:not(.expanded) .c-team { width: 190px; }
+  .odds-table:not(.expanded) .c-rec { width: auto; }
+}
+@media (max-width: 519px) { .odds-table:not(.expanded) .c-team { width: 92px; } }
 .odds-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.odds-table th.c-rec, .odds-table th.c-idx { text-align: right; }
+.odds-table th.c-idx { text-align: right; }
+.odds-table th.c-rec, .odds-table td.rec { text-align: left; }
 .odds-table td.c-cn-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
 .c-rk { width: var(--rk-w); } .c-pick { width: 56px; } .c-cfp { width: 66px; }
 .odds-table td.pick { padding-inline: 2px; }
@@ -169,7 +176,7 @@ th.pick, td.pick { text-align: center; }
 .tname:hover { text-decoration: underline; }
 /* Small phones show the team abbreviation so the name isn't cut off; the full table keeps full names. */
 .tn-short { display: none; }
-@media (max-width: 419px) { .odds-table:not(.expanded) .tn-long { display: none; } .odds-table:not(.expanded) .tn-short { display: inline; } }
+@media (max-width: 519px) { .odds-table:not(.expanded) .tn-long { display: none; } .odds-table:not(.expanded) .tn-short { display: inline; } }
 @media (max-width: 359px) { .odds-table:not(.expanded) .teamcell { grid-template-columns: minmax(0, 1fr); } .odds-table:not(.expanded) .teamcell .logo { display: none; } }
 .tname:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tmeta { display: block; font-size: var(--text-xs); line-height: 1.3; color: var(--muted); }
@@ -255,7 +262,7 @@ th.pick, td.pick { text-align: center; }
 @media (max-width: 400px) {
   .c-cfp { width: 58px; }
   .c-pick { width: 50px; }
-  .c-rec { width: 38px; } .c-idx { width: 42px; }
+  .c-idx { width: 42px; }
   .odds-table td.num, .odds-table th.c-rec, .odds-table th.c-idx { padding-inline: 3px; }
   :root { --rk-w: 38px; }
   .teamcell { grid-template-columns: 20px minmax(0, 1fr); gap: 6px; }
