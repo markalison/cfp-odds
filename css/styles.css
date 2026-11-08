@@ -341,7 +341,7 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
   .lg-rows.pre .lg-team { gap: 6px; }
 }
 @container (max-width: 20rem) {
-  .lg-team .lg-rec, .lg-team .lg-rank, .lg-kick { display: none; }
+  .lg-team .lg-rec, .lg-team .lg-rank { display: none; }
 }
 @container (max-width: 16rem) {
   .lg-rows.pre { grid-template-columns: minmax(0, 1fr) 40px 64px; gap: var(--s1) var(--s2); }
@@ -385,14 +385,19 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 /* TV network badges: the network's name in its brand color, with the time beside it. */
 .tv { display: inline-block; padding: 1px 5px; background: var(--tv); color: #fff; font: 700 10px/1.4 var(--display); letter-spacing: .04em; white-space: nowrap; }
 .tv + .tv { margin-left: 3px; }
+.lg-kickoff { color: var(--ink); font-weight: 600; }
+.tv-list { margin-left: auto; }
 .tv-list, .lg-when { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 /* Network logos in their own colors on the light theme; white on the dark theme so the black ones show. */
 .net-logos { display: inline-flex; align-items: center; gap: 6px; }
-.net-logos img { display: block; height: 18px; width: auto; max-width: 56px; }
-.net-logos img.net-espn { height: 13px; }
-.net-logos img.net-trutv, .net-logos img.net-hbomax { height: 16px; }
+.net-logos img { display: block; height: 14px; width: auto; max-width: 44px; }
+.net-logos img.net-espn, .net-logos img.net-espn2, .net-logos img.net-espnu, .net-logos img.net-espnews { height: 10px; }
+.net-logos img.net-trutv, .net-logos img.net-hbomax { height: 12px; }
 :root[data-theme="dark"] .net-logos img { filter: brightness(0) invert(1); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img { filter: brightness(0) invert(1); } }
+/* Logos on a solid shape of their own keep their colors on the dark theme. */
+:root[data-theme="dark"] :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-cbssn, .net-logos img.net-accnetwork, .net-logos img.net-accn, .net-logos img.net-disney) { filter: none; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-cbssn, .net-logos img.net-accnetwork, .net-logos img.net-accn, .net-logos img.net-disney) { filter: none; } }
 /* ABC is a filled circle with cut-out letters: a plain color flip keeps the letters. */
 :root[data-theme="dark"] .net-logos img[alt="ABC"] { filter: invert(1); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img[alt="ABC"] { filter: invert(1); } }

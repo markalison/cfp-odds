@@ -89,7 +89,7 @@
     var confs = {};
     for (var i = 0; i < D.fbs; i++) confs[D.teams[i].conf] = 1;
     function option(v, label) { return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + esc(label) + '</option>'; }
-    return '<optgroup label="Teams">' + option('', 'All teams') + option('group:p4', 'Power 4') + option('group:g5', 'Group of 6') + '</optgroup>' +
+    return '<optgroup label="Teams">' + option('', 'FBS') + option('group:p4', 'Power 4') + option('group:g5', 'Group of 6') + '</optgroup>' +
       '<optgroup label="Conferences">' + Object.keys(confs).sort(function (a, b) { return (CFP.CONF_NAME[a] || a) < (CFP.CONF_NAME[b] || b) ? -1 : 1; }).map(function (c) { return option(c, CFP.CONF_NAME[c] || c); }).join('') + '</optgroup>';
   }
   function renderScoreboardControls() { $('sb-conf').innerHTML = confOptions(st.sbConf || ''); }
@@ -280,7 +280,7 @@
     '</div>';
   }
   // The table heading names what's shown: a conference if one is chosen, otherwise the team group.
-  var VIEW_NAME = { all: 'All teams', p4: 'Power 4', g5: 'Group of 6' };
+  var VIEW_NAME = { all: 'FBS', p4: 'Power 4', g5: 'Group of 6' };
   // What RK is, and which week's ranking it is. Shown with the table instructions.
   function rkNote() {
     var week = D.rankLabel ? D.rankLabel.replace(/^.*- /, '').replace(/^CFP Rankings /i, '') : '';
@@ -592,17 +592,32 @@
     ABC: '#111111', CBS: '#0b3d91', CBSSN: '#0b3d91', FOX: '#0b2240', FS1: '#2d2d2d', FS2: '#2d2d2d', BTN: '#0088ce', NBC: '#5c2d91', Peacock: '#111111',
     TNT: '#c8102e', truTV: '#e2231a', 'HBO Max': '#5822b4', CW: '#00843d', 'The CW': '#00843d', 'Big 12 Now': '#c8102e', 'Pac-12 Network': '#004b87'
   };
+  // Network logos by ESPN's network name. Networks without a freely licensed logo keep a colored name badge.
+  var TV_LOGO = {
+    ESPN: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ESPN_wordmark.svg', ESPN2: 'https://upload.wikimedia.org/wikipedia/commons/b/bf/ESPN2_logo.svg', ESPNU: 'https://upload.wikimedia.org/wikipedia/commons/c/ca/ESPN_U_logo.svg', ESPNEWS: 'https://upload.wikimedia.org/wikipedia/commons/1/1b/ESPNews.svg',
+    ABC: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ABC-2021-LOGO.svg', CBS: 'https://upload.wikimedia.org/wikipedia/commons/4/4e/CBS_logo.svg', CBSSN: 'https://upload.wikimedia.org/wikipedia/commons/0/04/CBS_Sports_Network_2021.svg',
+    FOX: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg', Fox: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg', FS1: 'https://upload.wikimedia.org/wikipedia/commons/3/37/2015_Fox_Sports_1_logo.svg',
+    NBC: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/NBC_logo.svg', Peacock: 'https://upload.wikimedia.org/wikipedia/commons/f/fb/NBCUniversal_Peacock_Logo_%282020%E2%80%932026%29.svg',
+    'SEC Network': 'https://upload.wikimedia.org/wikipedia/commons/b/b9/SEC_Network_logo.svg', SECN: 'https://upload.wikimedia.org/wikipedia/commons/b/b9/SEC_Network_logo.svg', 'ACC Network': 'https://upload.wikimedia.org/wikipedia/commons/0/00/ACC_Network_logo_fc_db.svg', ACCN: 'https://upload.wikimedia.org/wikipedia/commons/0/00/ACC_Network_logo_fc_db.svg',
+    TNT: 'https://upload.wikimedia.org/wikipedia/commons/2/24/TNT_Logo_2016.svg', truTV: 'https://upload.wikimedia.org/wikipedia/commons/3/36/TruTV_logo.svg', 'HBO Max': 'https://upload.wikimedia.org/wikipedia/commons/b/b3/HBO_Max_%282025%29.svg',
+    CW: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/The_CW_2024.svg', 'The CW': 'https://upload.wikimedia.org/wikipedia/commons/b/b1/The_CW_2024.svg', 'USA Net': 'https://upload.wikimedia.org/wikipedia/commons/d/d7/USA_Network_logo_%282016%29.svg', 'Disney+': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg'
+  };
   function tvBadges(names) {
-    return (names || []).map(function (n) { return '<span class="tv" style="--tv:' + (TV_COLORS[n] || 'var(--muted)') + '">' + esc(n) + '</span>'; }).join('');
+    return (names || []).map(function (n) {
+      if (TV_LOGO[n]) return '<img class="net-' + n.toLowerCase().replace(/[^a-z0-9]/g, '') + '" src="' + TV_LOGO[n] + '" alt="' + esc(n) + '" title="' + esc(n) + '" loading="lazy">';
+      return '<span class="tv" style="--tv:' + (TV_COLORS[n] || 'var(--muted)') + '">' + esc(n) + '</span>';
+    }).join('');
   }
   function liveCard(g) {
     var isLive = g.s === 'in', isPre = g.s === 'pre';
     var u = upset(g);
-    var tv = g.tv ? '<span class="tv-list">' + tvBadges(g.tv) + '</span>' : '';
+    // The network matters for games still to come or under way, not for finals.
+    var tv = g.tv && g.s !== 'post' ? '<span class="tv-list net-logos">' + tvBadges(g.tv) + '</span>' : '';
     var top = isLive ? '<span class="lg-live"><b>' + esc(clock(g)) + '</b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' + tv :
-      isPre ? '<span class="lg-kick">Kickoff</span><span class="lg-when">' + tv + '<b>' + (etDay(g.d) === etDay(Date.now()) ? '' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + ', ') +
+      // Upcoming: the kickoff on the left, where "Kickoff" used to be; the network stays top right.
+      isPre ? '<b class="lg-kickoff">' + (etDay(g.d) === etDay(Date.now()) ? '' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + ', ') +
         // ESPN marks a kickoff time that hasn't been set as midnight Eastern.
-        (etTime(g.d) === '12:00 AM' ? 'time TBA' : etTime(g.d) + ' ET') + '</b></span>' : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span class="lg-when">' + tv + '<span>' + (etDay(g.d) === etDay(Date.now()) ? 'Today' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })) + '</span></span>';
+        (etTime(g.d) === '12:00 AM' ? 'time TBA' : etTime(g.d) + ' ET') + '</b>' + tv : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span class="lg-when">' + tv + '<span>' + (etDay(g.d) === etDay(Date.now()) ? 'Today' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })) + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
       '<div class="lg-top">' + top + '</div>' +
       (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
