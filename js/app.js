@@ -75,29 +75,24 @@
     seed: function (x) { return x.r.seed == null ? 99 : x.r.seed; }, title: function (x) { return x.r.title; }
   };
   // Notre Dame sits with the power conferences and UConn with the G5.
-  function inView(t) {
-    if (st.view === 'all') return true;
+  // Power 4 includes Notre Dame; Group of 5 is everyone else, UConn included.
+  function inGroup(t, group) {
+    if (!group || group === 'all') return true;
     var power = CFP.P4.indexOf(t.conf) >= 0 || t.ab === 'ND';
-    return st.view === 'p4' ? power : !power;
+    return group === 'p4' ? power : !power;
   }
-  function renderScoreboardControls() {
+  function inView(t) { return inGroup(t, st.view); }
+  var GROUP_NAME = { p4: 'Power 4', g5: 'Group of 5' };
+  // The Conference dropdowns: team groups first, then each conference. Groups are stored as "group:p4".
+  function confOptions(selected) {
     var confs = {};
     for (var i = 0; i < D.fbs; i++) confs[D.teams[i].conf] = 1;
-    $('sb-conf').innerHTML = '<option value="">All conferences</option>' + Object.keys(confs).sort(function (a, b) { return (CFP.CONF_NAME[a] || a) < (CFP.CONF_NAME[b] || b) ? -1 : 1; }).map(function (c) {
-      return '<option value="' + c + '"' + (st.sbConf === c ? ' selected' : '') + '>' + esc(CFP.CONF_NAME[c] || c) + '</option>';
-    }).join('');
+    function option(v, label) { return '<option value="' + v + '"' + (selected === v ? ' selected' : '') + '>' + esc(label) + '</option>'; }
+    return '<optgroup label="Teams">' + option('', 'All teams') + option('group:p4', 'Power 4') + option('group:g5', 'Group of 5') + '</optgroup>' +
+      '<optgroup label="Conferences">' + Object.keys(confs).sort(function (a, b) { return (CFP.CONF_NAME[a] || a) < (CFP.CONF_NAME[b] || b) ? -1 : 1; }).map(function (c) { return option(c, CFP.CONF_NAME[c] || c); }).join('') + '</optgroup>';
   }
-  function renderViewControls() {
-    $('view').innerHTML = [['all', 'All'], ['p4', 'Power 4'], ['g5', 'G5']].map(function (v) {
-      return '<button type="button" data-view="' + v[0] + '" aria-pressed="' + (st.view === v[0]) + '">' + v[1] + '</button>';
-    }).join('');
-    var confs = {};
-    for (var i = 0; i < D.fbs; i++) if (inView(D.teams[i])) confs[D.teams[i].conf] = 1;
-    if (st.conf && !confs[st.conf]) st.conf = '';
-    $('conf').innerHTML = '<option value="">All conferences</option>' + Object.keys(confs).sort(function (a, b) { return CFP.CONF_NAME[a] < CFP.CONF_NAME[b] ? -1 : 1; }).map(function (c) {
-      return '<option value="' + c + '"' + (st.conf === c ? ' selected' : '') + '>' + esc(CFP.CONF_NAME[c] || c) + '</option>';
-    }).join('');
-  }
+  function renderScoreboardControls() { $('sb-conf').innerHTML = confOptions(st.sbConf || ''); }
+  function renderViewControls() { $('conf').innerHTML = confOptions(st.view !== 'all' ? 'group:' + st.view : st.conf); }
   function visible(rows) {
     var q = st.q.trim().toLowerCase();
     var out = rows.filter(function (x) {
@@ -222,7 +217,7 @@
   // Phones show four columns: CFP, team, pick and Make CFP (styles.css hides the rest below 900px). A full-width row must span
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
   var WIDE = matchMedia('(min-width: 900px)');
-  function visibleColumns() { return WIDE.matches ? 8 : 4; }
+  function visibleColumns() { return WIDE.matches || st.expanded ? 8 : 4; }
   function detail(x) {
     return '<tr class="detail"><td colspan="' + visibleColumns() + '">' + statsList(x, 'narrow-only') + detailBody(x) + '</td></tr>';
   }
@@ -451,6 +446,33 @@
       tile(r ? r.cfp : null) +
       (done ? '' : tile(ifW) + tile(ifL));
   }
+  // Pre-game win chance for the home team, from the selected ratings. FCS teams use their Massey rating.
+  function pregameHome(g) {
+    var R = res(), M = CFP.M, total = Math.sqrt(M.gameSD * M.gameSD + 2 * M.teamSD * M.teamSD);
+    function rating(i) { return i < D.fbs ? R.rating[i] : (D.teams[i].r && D.teams[i].r.massey) || 0; }
+    return CFP.phi((rating(g.h) - rating(g.a) + (g.n ? 0 : (D.sources.hfa[st.mode] || 2.5))) / total);
+  }
+  // The home team's chance right now, using the current score and clock.
+  function liveHome(g) {
+    var sc = schedule(), nx;
+    if (g.h < D.fbs && (nx = sc[g.h][0]) && nx.id === g.id) return nx.p;
+    if (g.a < D.fbs && (nx = sc[g.a][0]) && nx.id === g.id) return 1 - nx.p;
+    return null;
+  }
+  // An upset: a team under 35% before kickoff that is now favored, or that won. Picked games aren't flagged.
+  var UPSET_LINE = 0.35;
+  function upset(g) {
+    if (st.picks[g.id] || g.s === 'pre') return null;
+    var pre = pregameHome(g), dog = pre < UPSET_LINE ? g.h : pre > 1 - UPSET_LINE ? g.a : -1;
+    if (dog < 0) return null;
+    var dogPre = dog === g.h ? pre : 1 - pre;
+    if (g.s === 'post') return g.w === dog ? { dog: dog, pre: dogPre } : null;
+    var lh = liveHome(g);
+    if (lh == null) return null;
+    var now = dog === g.h ? lh : 1 - lh;
+    return now >= 0.5 ? { dog: dog, pre: dogPre, now: now } : null;
+  }
+  function whole(v) { return Math.round(v * 100) + '%'; }
   function liveCard(g) {
     var isLive = g.s === 'in', isPre = g.s === 'pre', stakes = gameStakes(g), why = '';
     if (!isPre && !isLive) why = '';
@@ -458,10 +480,14 @@
     else if (stakes && stakes.swing >= 0.01) why = '<b>' + esc(D.teams[stakes.i].ab) + '</b> is the most affected: <b>' + pct(stakes.win) + '</b> with a win, <b>' + pct(stakes.lose) + '</b> with a loss.';
     else if (stakes) why = 'Little effect on the playoff race.';
     else why = 'One team is a heavy favorite' + (isLive ? ' right now' : '') + ', so this barely moves the odds.';
-    var top = isLive ? '<span class="lg-live"><span class="live-pill">LIVE</span><b>' + esc(g.st) + '</b></span>' :
-      isPre ? '<span>Kickoff</span><b>' + etTime(g.d) + ' ET</b>' : '<span class="final-pill">FINAL</span><span>Today</span>';
+    var u = upset(g), dogName = u ? esc(D.teams[u.dog].name) : '';
+    var top = isLive ? '<span class="lg-live"><span class="live-pill">LIVE</span>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '<b>' + esc(g.st) + '</b></span>' :
+      isPre ? '<span>Kickoff</span><b>' + etTime(g.d) + ' ET</b>' : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span>Today</span>';
+    var alert = !u ? '' : isLive
+      ? '<p class="lg-alert"><b>' + dogName + '</b> was a ' + whole(u.pre) + ' underdog before kickoff and is now ' + whole(u.now) + ' to win.</p>'
+      : '<p class="lg-alert"><b>' + dogName + '</b> won as a ' + whole(u.pre) + ' underdog.</p>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
-      '<div class="lg-top">' + top + '</div>' +
+      '<div class="lg-top">' + top + '</div>' + alert +
       '<div class="lg-rows' + (isPre || isLive ? ' wide' : '') + '"><span></span><span class="h">' + (isPre ? '' : 'Score') + '</span><span class="h">' + (isPre || isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span>' +
         (isPre || isLive ? '<span class="h">With W</span><span class="h">With L</span>' : '') +
         liveRow(g, g.a, isPre ? '' : g.as, isPre ? '' : g.hs) + liveRow(g, g.h, isPre ? '' : g.hs, isPre ? '' : g.as) +
@@ -472,7 +498,12 @@
   function renderLive() {
     var today = etDay(Date.now());
     var sbConf = st.sbConf || '';
-    var inConf = function (g) { return !sbConf || D.teams[g.h].conf === sbConf || D.teams[g.a].conf === sbConf; };
+    var sbGroup = sbConf.indexOf('group:') === 0 ? sbConf.slice(6) : '';
+    var inConf = function (g) {
+      if (!sbConf) return true;
+      var h = D.teams[g.h], a = D.teams[g.a];
+      return sbGroup ? (g.h < D.fbs && inGroup(h, sbGroup)) || (g.a < D.fbs && inGroup(a, sbGroup)) : h.conf === sbConf || a.conf === sbConf;
+    };
     var counts = function (g) { return (g.h < D.fbs || g.a < D.fbs) && inConf(g); };
     var R = res();
     var best = function (g) { return Math.max(g.h < D.fbs ? R.teams[g.h].cfp : 0, g.a < D.fbs ? R.teams[g.a].cfp : 0); };
@@ -493,7 +524,7 @@
     $('live-board').innerHTML = '<p class="live-note">' + checked + ' Win and Make CFP odds use the current score and clock.</p>' +
       (live.length || later.length || done.length ?
         group('In progress', live, byTime ? 'Earliest kickoff first.' : 'Your picks first, then the biggest playoff impact.') + group('Later today', later) + group('Final today', done) :
-        '<p class="live-empty">No ' + (sbConf ? esc(CFP.CONF_NAME[sbConf] || sbConf) + ' ' : '') + 'games today.' + (next ? ' Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '') + '</p>');
+        '<p class="live-empty">No ' + (sbConf ? esc(sbGroup ? GROUP_NAME[sbGroup] : CFP.CONF_NAME[sbConf] || sbConf) + ' ' : '') + 'games today.' + (next ? ' Next kickoff: ' + new Date(next.d).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET.' : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
   var PAGES = { rankings: 'CFP Odds Board', playoff: 'Playoff bracket · CFP Odds Board', scoreboard: 'Scores · CFP Odds Board' };
@@ -704,6 +735,13 @@
       var seed = +b.dataset.seed;
       if (st.bkPicks[b.dataset.bk] === seed) delete st.bkPicks[b.dataset.bk]; else st.bkPicks[b.dataset.bk] = seed;
       renderBracket();
+    } else if (b.id === 'expand-table') {
+      // Phones: switch between the compact table and every column.
+      st.expanded = !st.expanded;
+      b.setAttribute('aria-pressed', st.expanded);
+      b.textContent = st.expanded ? 'Show fewer columns' : 'Show all columns';
+      document.querySelector('.odds-table').classList.toggle('expanded', st.expanded);
+      renderTable();
     } else if (b.id === 'bk-clear') {
       st.bkPicks = {};
       renderBracket();
@@ -723,7 +761,11 @@
   });
   document.addEventListener('change', function (e) {
     var id = e.target.id;
-    if (id === 'conf') { st.conf = e.target.value; renderTable(); }
+    if (id === 'conf') {
+      var v = e.target.value;
+      if (v.indexOf('group:') === 0) { st.view = v.slice(6); st.conf = ''; } else { st.view = 'all'; st.conf = v; }
+      renderTable();
+    }
     else if (id === 'sb-conf') { st.sbConf = e.target.value; renderLive(); }
     else if (id === 'sb-sort') { st.sbSort = e.target.value; renderLive(); }
     else if (e.target.classList.contains('mode-select')) {
@@ -735,7 +777,6 @@
       refresh();
     }
   });
-  $('q').addEventListener('input', function (e) { st.q = e.target.value; renderTable(); });
 
   showPage();
   renderModes();

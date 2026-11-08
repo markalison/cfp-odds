@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=7a7bc609a4">
-  <script src="js/theme.js?v=7a7bc609a4"></script>
+  <link rel="stylesheet" href="css/styles.css?v=c7c2519d10">
+  <script src="js/theme.js?v=c7c2519d10"></script>
   <title>CFP Odds Board</title>
   <meta name="description" content="Live odds of making the 12-team College Football Playoff, from simulating the rest of the season with ESPN data and computer ratings.">
 </head>
@@ -59,12 +59,11 @@
     <section class="section board" aria-labelledby="board-title">
       <div class="section-head"><h2 id="board-title">All teams</h2><p id="board-count"></p></div>
       <div class="filters">
-        <div class="ctl"><span id="view-label">Teams</span><div class="seg" role="group" aria-labelledby="view-label" id="view"></div></div>
         <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
         <div class="ctl"><label for="mode">Ratings used</label><select id="mode" class="mode-select"></select></div>
-        <div class="ctl ctl-search"><label for="q">Find a team</label><input id="q" type="search" placeholder="Team name"></div>
         <div class="picks-bar" id="picks-bar" aria-live="polite"></div>
       </div>
+      <div class="table-bar"><button class="table-toggle" id="expand-table" type="button" aria-pressed="false">Show all columns</button></div>
       <div class="table-wrap" id="tw"><table class="odds-table">
         <thead><tr id="head"></tr></thead>
         <tbody id="body"></tbody>
@@ -85,8 +84,8 @@
     <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
   </div>
 </footer>
-<script src="engine.js?v=7a7bc609a4"></script>
-<script src="data.js?v=7a7bc609a4"></script>
-<script src="js/app.js?v=7a7bc609a4"></script>
+<script src="engine.js?v=c7c2519d10"></script>
+<script src="data.js?v=c7c2519d10"></script>
+<script src="js/app.js?v=c7c2519d10"></script>
 </body>
 </html>

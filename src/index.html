@@ -44,12 +44,11 @@
     <section class="section board" aria-labelledby="board-title">
       <div class="section-head"><h2 id="board-title">All teams</h2><p id="board-count"></p></div>
       <div class="filters">
-        <div class="ctl"><span id="view-label">Teams</span><div class="seg" role="group" aria-labelledby="view-label" id="view"></div></div>
         <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
         <div class="ctl"><label for="mode">Ratings used</label><select id="mode" class="mode-select"></select></div>
-        <div class="ctl ctl-search"><label for="q">Find a team</label><input id="q" type="search" placeholder="Team name"></div>
         <div class="picks-bar" id="picks-bar" aria-live="polite"></div>
       </div>
+      <div class="table-bar"><button class="table-toggle" id="expand-table" type="button" aria-pressed="false">Show all columns</button></div>
       <div class="table-wrap" id="tw"><table class="odds-table">
         <thead><tr id="head"></tr></thead>
         <tbody id="body"></tbody>
