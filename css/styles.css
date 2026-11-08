@@ -18,7 +18,7 @@
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
   --radius-sm: 0; --radius: 0; /* square corners everywhere */
   --page-max: 1200px;
-  --rk-w: 48px; /* CFP rank column; the pinned Team column starts at this offset */
+  --rk-w: 52px; /* CFP rank column (also the Pick and Make CFP width on phones); the pinned Team column starts at this offset */
   --gutter-l: max(var(--s4), env(safe-area-inset-left, 0px));
   --gutter-r: max(var(--s4), env(safe-area-inset-right, 0px));
 }
@@ -88,6 +88,8 @@ input[type=search] { width: 100%; min-width: 0; }
 .btn { cursor: pointer; font-weight: 600; }
 .btn:hover { background: var(--accent-soft); border-color: var(--accent); }
 .icon-btn { width: 40px; height: 40px; padding: 0; display: grid; place-items: center; flex: none; }
+.icon-btn, .icon-btn:hover { border-color: transparent; background: transparent; }
+.icon-btn:hover { color: var(--accent); }
 .icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .seg { display: flex; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); overflow: hidden; }
 .seg button { min-height: 38px; font: 500 var(--text-sm) var(--body); color: var(--ink); background: transparent; border: 0; border-right: 1px solid var(--line); padding: 0 var(--s3); cursor: pointer; white-space: nowrap; }
@@ -133,7 +135,14 @@ input[type=search] { width: 100%; min-width: 0; }
 table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .odds-table { table-layout: fixed; }
 .odds-table .sec { display: none; }
-.c-rk { width: var(--rk-w); } .c-pick { width: 56px; } .c-cfp { width: 92px; }
+.c-rk, .c-pick, .c-cfp { width: var(--rk-w); } .c-sc { width: 72px; }
+/* Phones: the stacked scoreboard column. Wide screens and the full table use This week instead. */
+.ss { display: grid; gap: 1px; font-size: var(--text-xs); line-height: 1.25; }
+.ss-r { display: grid; grid-template-columns: 3.4em auto; justify-content: start; color: var(--muted); }
+.ss-r.me .ss-t { font-weight: 700; color: var(--ink); }
+.ss-s { font: 600 var(--text-sm)/1.15 var(--display); }
+.ss-r.lead .ss-s { font-weight: 700; color: var(--ink); }
+.ss-st { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 th { position: sticky; top: 0; z-index: 3; background: var(--panel); text-align: right; vertical-align: bottom; padding: var(--s3) var(--s2); border-bottom: 2px solid var(--ink); font: 600 var(--text-xs)/1.15 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 th button { all: unset; cursor: pointer; }
 th button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -154,7 +163,7 @@ th.pick, td.pick { text-align: center; }
 .odds-table th.c-cfp, .odds-table td.odds-cell { padding-right: var(--s3); }
 .teamcell { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: var(--s2); align-items: center; }
 .teamcell .logo { width: 24px; height: 24px; }
-.tname { all: unset; cursor: pointer; display: block; font-weight: 600; line-height: 1.15; }
+.tname { all: unset; cursor: pointer; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; line-height: 1.15; }
 .tname:hover { text-decoration: underline; }
 .tname:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .tmeta { display: block; font-size: var(--text-xs); line-height: 1.3; color: var(--muted); }
@@ -181,10 +190,11 @@ th.pick, td.pick { text-align: center; }
 .odds .v { display: block; text-align: right; font: 700 var(--text-md)/1 var(--display); }
 .odds small { font-size: var(--text-xs); line-height: 1; }
 .mini { display: inline-flex; vertical-align: middle; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
-.mini button.pick-box { display: block; width: 30px; height: 30px; padding: 0; background: transparent; border: 0; color: var(--ink); font: 700 var(--text-sm) var(--body); cursor: pointer; }
+.mini button.pick-box { display: block; width: 28px; height: 28px; padding: 0; background: transparent; border: 0; color: var(--ink); font: 700 var(--text-sm) var(--body); cursor: pointer; }
 .mini button.pick-box:hover { background: var(--accent-soft); }
 .mini button.pick-w, .mini button.pick-w:hover { background: var(--up); color: var(--panel); }
 .mini button.pick-l, .mini button.pick-l:hover { background: var(--down); color: var(--panel); }
+.mini .pick-done { display: grid; place-items: center; width: 28px; height: 28px; color: var(--muted); font: 700 var(--text-sm) var(--body); cursor: default; }
 .empty { padding: var(--s5); text-align: center; color: var(--muted); white-space: normal; }
 /* Phones: Show all columns brings back the full table. It scrolls sideways with CFP and Team pinned. */
 .table-bar { display: flex; justify-content: flex-end; padding: 4px var(--s3); background: var(--panel); border: 1px solid var(--line); border-bottom: 0; }
@@ -193,8 +203,17 @@ th.pick, td.pick { text-align: center; }
 .table-toggle:hover { text-decoration: underline; }
 .table-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (max-width: 899px) {
+  /* No scrollbar cutting through the header line; the table still scrolls by touch, wheel or trackpad. */
+  .table-wrap { scrollbar-width: none; }
+  .table-wrap::-webkit-scrollbar { display: none; }
+  /* CFP, Pick and Make CFP share one narrow width; the odds sit centred with a two-line heading. */
+  .odds-table:not(.expanded) th.c-cfp, .odds-table:not(.expanded) td.odds-cell { padding-inline: 4px; text-align: center; white-space: normal; }
+  .odds-table:not(.expanded) .odds { justify-items: center; }
+  .odds-table:not(.expanded) .odds .v { text-align: center; }
   .odds-table.expanded { min-width: 760px; }
   .odds-table.expanded .sec { display: table-cell; }
+  .odds-table.expanded .ph { display: none; }
+  .odds-table.expanded .c-pick { width: 56px; } .odds-table.expanded .c-cfp { width: 80px; }
   .odds-table.expanded .tnext { display: none; }
   .odds-table.expanded th { white-space: normal; }
   .odds-table.expanded .c-team { width: 160px; }
@@ -203,11 +222,19 @@ th.pick, td.pick { text-align: center; }
   .odds-table.expanded .team-col { position: sticky; z-index: 2; left: var(--rk-w); background: var(--panel); border-right: 1px solid var(--line); }
   .odds-table.expanded th.team-col { z-index: 4; }
 }
+/* Tablets: room for the full This week column, so the team column stops at a set width. */
+@media (min-width: 600px) and (max-width: 899px) {
+  .odds-table:not(.expanded) .nx { display: table-cell; }
+  .odds-table:not(.expanded) .ph { display: none; }
+  .odds-table:not(.expanded) .c-team { width: 190px; }
+}
 @media (min-width: 900px) {
   .table-wrap { max-height: 82vh; }
   /* Each column sized to its content; headings wrap onto two lines rather than widening a column. */
   .odds-table { min-width: 834px; }
   .odds-table .sec { display: table-cell; }
+  .odds-table .ph { display: none; }
+  .mini button.pick-box, .mini .pick-done { width: 30px; height: 30px; }
   .odds-table th { white-space: normal; }
   :root { --rk-w: 52px; }
   .c-team { width: 190px; } .c-next { width: 220px; }
@@ -231,9 +258,9 @@ th.pick, td.pick { text-align: center; }
 
 /* Small phones: narrower pick and odds columns leave room for team names. */
 @media (max-width: 400px) {
-  .c-pick { width: 46px; } .c-cfp { width: 76px; }
-  .mini button.pick-box { width: 30px; height: 30px; }
-  :root { --rk-w: 40px; }
+  .c-sc { width: 64px; }
+  .odds .v { font-size: 16px; }
+  :root { --rk-w: 44px; }
   .teamcell { grid-template-columns: 20px minmax(0, 1fr); gap: 6px; }
   .teamcell .logo { width: 20px; height: 20px; }
   .odds-table th, .odds-table td { padding-inline: 6px; }
