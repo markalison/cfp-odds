@@ -307,9 +307,11 @@
   var days = {};
   D.games.forEach(function (g) { var k = etDay(g.d); var x = days[k] || (days[k] = { day: k, first: g.d }); if (g.d < x.first) x.first = g.d; g.day = k; });
   var dayList = Object.keys(days).sort().map(function (k) { return days[k]; });
+  // The day the Scores page opens on: today (Eastern) when there are games today; otherwise the most recent
+  // day with games, or the first day of the season before it starts.
   function currentDay() {
-    var now = new Date().toISOString(), cur = dayList[0].day;
-    dayList.forEach(function (x) { if (x.first <= now) cur = x.day; });
+    var today = etDay(new Date().toISOString()), cur = dayList[0].day;
+    dayList.forEach(function (x) { if (x.day <= today) cur = x.day; });
     return cur;
   }
   function dayLabel(x) { return new Date(x.day + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }); }
