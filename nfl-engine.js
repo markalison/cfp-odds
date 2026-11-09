@@ -191,6 +191,8 @@ function simulate(D, sims, seed, picks, ratingList) {
     if (nextGame[g.h] == null) nextGame[g.h] = g.id;
     if (nextGame[g.a] == null) nextGame[g.a] = g.id;
   }
+  // Games that are some team's next game. Those are played on the ratings alone (see below).
+  const isNext = new Set(nextGame.filter((id) => id != null));
   const divs = [...new Set(T.map((t) => t.div))], confs = ['AFC', 'NFC'];
   const z = () => new Float64Array(n);
   const tally = { wins: z(), div: z(), playoff: z(), bye: z(), conf: z(), sb: z(), seed: confs.map(() => null), seeds: T.map(() => new Float64Array(8)),
@@ -207,7 +209,9 @@ function simulate(D, sims, seed, picks, ratingList) {
     const res = base.map((l) => l.slice());
     const wonNext = new Int8Array(n);
     for (const g of open) {
-      const w = play(g.h, g.a, str[g.h], str[g.a], g.neutral);
+      // A team's next game uses the ratings, not this season's drifted strengths, so "If win" and "If loss"
+      // are what locking that result in gives.
+      const w = isNext.has(g.id) ? play(g.h, g.a, rating[g.h], rating[g.a], g.neutral) : play(g.h, g.a, str[g.h], str[g.a], g.neutral);
       res[g.h].push([g.a, w === g.h ? 1 : 0]); res[g.a].push([g.h, w === g.a ? 1 : 0]);
       winP[g.id] = (winP[g.id] || 0) + (w === g.h ? 1 : 0);
       if (nextGame[w] === g.id) wonNext[w] = 1;

@@ -400,7 +400,7 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 /* Win and Make CFP share one font so the projection columns read alike. */
 .lg-num, .lg-cfp { text-align: right; font: 500 var(--text-sm)/1.1 var(--body); }
 .lg-cfp { padding: 4px 6px; border-radius: 0; background: color-mix(in srgb, var(--heat) calc(var(--p) * 40%), transparent); }
-.final-pill { display: inline-block; padding: 2px 6px; border-radius: 0; background: var(--bar-track); color: var(--ink); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
+.final-pill { display: inline-block; padding: 0; border: 0; background: none; color: var(--ink); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
 
 /* ---------- 9b. Playoff bracket ----------
    Flat boxes with square corners, a header bar per round and an accent bar on each winner.
@@ -533,8 +533,6 @@ button.bk-team:focus-visible { outline-offset: -2px; }
   .nfl-odds .odds small.ifs span { display: inline; }
   .nfl-odds .odds small.ifs span + span::before { content: " · "; }
 }
-.nfl-odds .tname { cursor: default; }
-.nfl-odds .tname:hover { text-decoration: none; }
 /* Phones: short conference and division codes stay on one line in both tables. */
 @media (max-width: 599px) { .odds-table:not(.expanded) .cn-short { font-size: 11px; letter-spacing: -.01em; white-space: nowrap; } }
 .nfl-rounds .bk-team.picks { grid-template-columns: 26px 22px minmax(0, 1fr) auto 30px; }
@@ -586,7 +584,7 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 @media (prefers-reduced-motion: reduce) { .table-wrap { transition: none; } }
 
 /* Every team row is the same height in both tables, whatever the Next cell holds (a pick box, Bye or a dash). */
-.odds-table tbody tr:not(.detail):not(.nfl-group) > td { height: 58px; }
+.odds-table > tbody > tr:not(.detail):not(.nfl-group) > td { height: 58px; }
 /* Tablets: Conf./Div. at a set width so the spare room goes to Team (names and records stay whole). */
 @media (min-width: 600px) and (max-width: 899px) { .odds-table:not(.expanded) .c-cn { width: 110px; } }
 /* Wide screens: NFL names run longer ("Jacksonville Jaguars"), so Team gets more of the width. */
@@ -596,3 +594,39 @@ button.bk-team:focus-visible { outline-offset: -2px; }
   .nfl-odds .c-cn { width: 58px; } .nfl-odds .c-team { width: 220px; } .nfl-odds .c-cfp { width: 104px; }
   .nfl-odds .cn-long { display: none; } .nfl-odds .cn-short { display: inline; font-size: 11px; white-space: nowrap; }
 }
+/* NBA bracket: five rounds (play-in, first round, semifinals, conference finals, Finals) across, and a
+   Finals logo sized like the Super Bowl one. */
+@media (min-width: 1000px) { .bk-rounds.nba-rounds { grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: var(--s5); } }
+.nba-rounds img.bk-nbaf { display: block; height: 22px; width: auto; flex: none; }
+/* NBA bracket cards are narrow on wide screens: there they show the team abbreviation and no record; a
+   roomier card (phones, tablets) shows the full name and record. */
+.nba-rounds .bk-ab { display: none; }
+@container (max-width: 250px) {
+  .nba-rounds .bk-nm, .nba-rounds .bk-name small { display: none; }
+  .nba-rounds .bk-ab { display: inline; }
+}
+.nba-rounds .bk-team, .nba-rounds .bk-team.picks { column-gap: 6px; }
+/* Night mode: the Finals logo's black lettering turns white; the trophy keeps its color. */
+:root[data-theme="dark"] .nba-rounds img.bk-nbaf { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .nba-rounds img.bk-nbaf { filter: invert(1) hue-rotate(180deg); } }
+/* The narrowest NBA cards (around 1000px wide screens) drop the team logo so the abbreviation fits. */
+@container (max-width: 190px) {
+  .nba-rounds .bk-team.picks { grid-template-columns: 14px 18px minmax(0, 1fr) auto 26px; column-gap: 4px; padding-inline: 6px; }
+  .nba-rounds .bk-team:not(.picks) { grid-template-columns: 14px 18px minmax(0, 1fr) auto; column-gap: 4px; padding-inline: 6px; }
+  .nba-rounds .bk-team .logo { width: 18px; height: 18px; }
+  .nba-rounds .bk-p { font-size: 12px; }
+  .nba-rounds .bk-team .mini .pick-box { width: 24px; height: 24px; }
+}
+.sched-more { color: var(--muted); font-size: var(--text-sm); }
+/* Team detail: the odds now and after the next game, in one row of tiles like the Scores cards. */
+.odds-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s1) var(--s2); max-width: 340px; margin-bottom: var(--s3); }
+.odds-row .h { font: 600 11px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
+/* NBA projected wins: the average, with the low-high range under it. */
+.c-pw { width: 64px; }
+.odds-table td.pw small { display: block; font-size: 11px; line-height: 1.2; color: var(--muted); }
+/* NBA Standings has one more column (Proj. W), so Team gives up some width on narrow desktops. */
+/* Narrow desktops show the nickname ("Timberwolves") so names fit without trimming. */
+.tn-mid { display: none; }
+@media (min-width: 600px) and (max-width: 1239px) { .nba-odds:not(.expanded) .tn-long, .nba-odds.expanded .tn-long { display: none; } .nba-odds .tn-mid { display: inline; } }
+@media (min-width: 900px) and (max-width: 1099px) { .nba-odds .c-team { width: 150px; } }
+@media (min-width: 1100px) and (max-width: 1239px) { .nba-odds .c-team { width: 190px; } }

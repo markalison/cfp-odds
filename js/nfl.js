@@ -26,12 +26,25 @@
   };
 
   // Records from finished games, as of the last build.
-  var rec = D.teams.map(function () { return { w: 0, l: 0, t: 0 }; });
-  D.games.forEach(function (g) {
-    if (g.s !== 'post') return;
-    var d = g.hs - g.as;
-    if (d > 0) { rec[g.h].w++; rec[g.a].l++; } else if (d < 0) { rec[g.a].w++; rec[g.h].l++; } else { rec[g.h].t++; rec[g.a].t++; }
-  });
+  // Records count every final, including games that finished after the last build (live scores).
+  var rec = [];
+  function countRecords() {
+    rec = D.teams.map(function () { return { w: 0, l: 0, t: 0 }; });
+    D.games.forEach(function (g) {
+      if (g.s !== 'post') return;
+      var d = g.hs - g.as;
+      if (d > 0) { rec[g.h].w++; rec[g.a].l++; } else if (d < 0) { rec[g.a].w++; rec[g.h].l++; } else { rec[g.h].t++; rec[g.a].t++; }
+    });
+  }
+  countRecords();
+  // A team's next game not yet final (a picked game still counts as its next game, so the pick box stays).
+  function nextOpen(i) {
+    var best = null;
+    D.games.forEach(function (g) { if ((g.h === i || g.a === i) && g.s !== 'post' && (!best || g.d < best.d)) best = g; });
+    return best ? best.id : null;
+  }
+  // Games that went final after the build, locked in as results for every simulation: { gameId: winner }.
+  var auto = {};
   function recText(i) { var r = rec[i]; return r.w + '-' + r.l + (r.t ? '-' + r.t : ''); }
   var gameById = {};
   D.games.forEach(function (g) { gameById[g.id] = g; });
@@ -39,7 +52,7 @@
   // ---------- Standings ----------
   // Every view shows all 32 teams: one league list, or grouped by conference or by division.
   var VIEWS = [['all', 'NFL'], ['conf', 'Conference'], ['div', 'Division']];
-  var st = { view: 'all', week: null, picks: {}, bk: {}, bkSim: false, order: null, sort: null };
+  var st = { open: {}, view: 'all', week: null, picks: {}, bk: {}, bkSim: false, order: null, sort: null };
   var savedView = store.get('nfl-view');
   if (VIEWS.some(function (v) { return v[0] === savedView; })) st.view = savedView;
   $('nfl-view').innerHTML = VIEWS.map(function (v) { return '<option value="' + esc(v[0]) + '">' + esc(v[1]) + '</option>'; }).join('');
@@ -79,7 +92,7 @@
   function shaded(v) { return '<td class="sec pct-cell" style="--p:' + (v || 0).toFixed(3) + '">' + pct(v) + '</td>'; }
   // Next: the W / L / blank box with the opponent under it, as in the college table.
   function nextCell(i) {
-    var id = BASE.teams[i].next;
+    var id = nextOpen(i);
     if (id == null) return '<td class="pick">—</td>';
     var g = gameById[id], home = g.h === i, opp = D.teams[home ? g.a : g.h], vs = (home ? 'vs ' : '@') + opp.ab;
     var pk = st.picks[id], won = pk === i, lost = pk != null && !won;
@@ -117,14 +130,48 @@
   function row(i, k) {
     var t = D.teams[i], r = R.teams[i];
     return '<tr><td class="first c-rk">' + (k + 1) + '</td>' +
-      '<td class="team-col"><div class="teamcell">' + logo(t, 30) + '<span><span class="tname" title="' + esc(t.name) + '"><span class="tn-long">' + esc(t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(t.ab) + '</span></span></span></div></td>' +
+      '<td class="team-col"><div class="teamcell">' + logo(t, 30) + '<span><button class="tname" type="button" data-open="' + i + '" aria-expanded="' + !!st.open[i] + '" aria-label="' + esc(t.name) + '"><span class="tn-long">' + esc(t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(t.ab) + '</span></button></span></div></td>' +
       // Division, styled like the college table's Conf. column: "AFC East", or "AFC E" on phones.
       '<td class="l c-cn-cell"><span class="cn-long">' + esc(t.div) + '</span><span class="cn-short" aria-hidden="true">' + esc(t.div.replace(/ (\w)\w+$/, ' $1')) + '</span></td>' +
       '<td class="num rec">' + recText(i) + '</td>' +
       '<td class="num tc">' + (r.rating > 0 ? '+' : '') + r.rating.toFixed(1) + '</td>' +
       nextCell(i) +
-      '<td class="odds-cell" style="--p:' + r.playoff.toFixed(3) + '"><div class="odds"><span class="v">' + pct(r.playoff) + '</span></div></td>' +
-      shaded(r.div) + shaded(r.bye) + shaded(r.conf) + shaded(r.sb) + '</tr>';
+      '<td class="odds-cell" style="--p:' + playoffShown(i).toFixed(3) + '"><div class="odds"><span class="v">' + pct(playoffShown(i)) + '</span></div></td>' +
+      shaded(r.div) + shaded(r.bye) + shaded(r.conf) + shaded(r.sb) + '</tr>' + (st.open[i] ? detail(i) : '');
+  }
+  function playoffShown(i) {
+    var g = gameById[nextOpen(i)];
+    if (!g || g.s !== 'in') return R.teams[i].playoff;
+    var ph = liveHomeWin(g);
+    return playoffNow(g, i, g.h === i ? ph : 1 - ph);
+  }
+  // ---------- Team detail (click a team), laid out like the college table's ----------
+  // One row of shaded tiles, as on the Scores cards. A missing number shows a dash.
+  function oddsRow(label, now, win, loss) {
+    var tile = function (v) { return v == null ? '<div class="lg-num">—</div>' : '<div class="lg-cfp" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; };
+    return '<div class="odds-row"><span class="h">' + label + '</span><span class="h">If win</span><span class="h">If loss</span>' + tile(now) + tile(win) + tile(loss) + '</div>';
+  }
+  function detail(i) {
+    var t = D.teams[i], r = R.teams[i];
+    var stat = function (label, v) { return '<div><dt>' + label + '</dt><dd>' + v + '</dd></div>'; };
+    var stats = '<dl class="field-stats narrow-only">' + [['Playoffs', r.playoff], ['Win division', r.div], ['1 seed', r.bye], ['Win conf', r.conf], ['Win Super Bowl', r.sb]].map(function (x) { return stat(x[0], pct(x[1])); }).join('') +
+      stat('Index', (r.rating > 0 ? '+' : '') + r.rating.toFixed(1)) + '</dl>';
+    var left = D.games.filter(function (g) { return (g.h === i || g.a === i) && g.s !== 'post'; }).sort(function (a, b) { return a.d < b.d ? -1 : 1; });
+    var shown = left.slice(0, 12);
+    var lines = shown.map(function (g) {
+      var home = g.h === i, o = D.teams[home ? g.a : g.h], hw = R.homeWin[g.id], p = hw == null ? null : home ? hw : 1 - hw, pk = st.picks[g.id];
+      var live = g.s === 'in' ? ' <b class="score-now">' + ((home ? g.hs - g.as : g.as - g.hs) > 0 ? 'Up ' : (home ? g.hs - g.as : g.as - g.hs) < 0 ? 'Down ' : 'Tied ') + (home ? g.hs + '-' + g.as : g.as + '-' + g.hs) + '</b>' : '';
+      return '<span>' + etDate(g.d, { month: 'short', day: 'numeric' }) + ' · ' + (home ? 'vs ' : '@') + logo(o, 18) + esc(o.short) + live + '</span><span>' + (pk != null ? (pk === i ? 'Picked win' : 'Picked loss') : p == null ? '—' : Math.round(p * 100) + '%') + '</span>';
+    }).join('') + (left.length > shown.length ? '<span class="sched-more">and ' + (left.length - shown.length) + ' more</span><span></span>' : '');
+    var split = function (label, v) { return '<tr><th scope="row">' + label + '</th><td>' + pct(v) + '</td><td>' + pct(v == null ? null : 1 - v) + '</td></tr>'; };
+    var seeds = (r.seeds || []).slice(0, 7), maxS = Math.max.apply(null, seeds.concat(0.0001));
+    var bars = seeds.map(function (v, k) { var lab = 'Seed ' + (k + 1) + ': ' + (v * 100).toFixed(1) + '% of simulations'; return '<div title="' + lab + '" aria-label="' + lab + '"><i style="height:' + (v / maxS * 100).toFixed(1) + '%"></i></div>'; }).join('');
+    var xs = seeds.map(function (_, k) { return '<span>' + (k + 1) + '</span>'; }).join('');
+    return '<tr class="detail"><td colspan="' + visibleCols() + '">' + stats + '<div class="detail-inner">' +
+      '<div><h3>Regular season left (chance to win)</h3><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
+      '<div><h3>What moves the odds</h3>' + '<dl class="kv"><dt>Make playoffs</dt><dd>' + pct(r.playoff) + '</dd><dt>If they win next game</dt><dd>' + pct(r.ifWin) + '</dd><dt>If they lose next game</dt><dd>' + pct(r.ifLoss) + '</dd><dt>Projected wins</dt><dd>' + r.wins.toFixed(1) + '</dd></dl></div>' +
+      '<div><h3>Seed, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each seed for ' + esc(t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
+    '</div></td></tr>';
   }
   function renderPicksBar() {
     var n = Object.keys(st.picks).length;
@@ -387,20 +434,26 @@
     var sel = st.week || currentWeek(), now = Date.now();
     clearTimeout(liveTimer);
     var due = D.games.some(function (g) { return g.wk === sel && g.s !== 'post' && Date.parse(g.d) <= now + 10 * 60000; });
-    if (!due || page !== 'scoreboard') return;
+    if (!due) return;
     fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=' + sel + '&dates=' + D.season)
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(function (j) {
+        var newFinal = false;
         (j.events || []).forEach(function (e) {
           var g = gameById[e.id];
           if (!g) return;
-          var c = e.competitions[0], s = c.status || e.status;
+          var c = e.competitions[0], s = c.status || e.status, was = g.s;
           g.s = s.type.completed ? 'post' : s.type.state === 'in' ? 'in' : 'pre';
           g.clock = s.type.shortDetail;
           c.competitors.forEach(function (x) { if (x.homeAway === 'home') g.hs = +x.score || 0; else g.as = +x.score || 0; });
+          // Newly final (and not final in the build's season): lock the result in; a pick on it no longer applies.
+          if (g.s === 'post' && was !== 'post' && simById()[g.id] && simById()[g.id].s !== 'post' && auto[g.id] == null && g.hs !== g.as) {
+            auto[g.id] = g.hs > g.as ? g.h : g.a; delete st.picks[g.id]; newFinal = true;
+          }
         });
         $('nfl-live-note').hidden = true;
-        renderScores();
+        countRecords();
+        if (newFinal) resimulate(); else { renderScores(); renderRankings(); }
       })
       .catch(function () { $('nfl-live-note').hidden = false; $('nfl-live-note').innerHTML = '<b>Couldn’t reach ESPN.</b> Showing the saved scores.'; })
       .then(function () { liveTimer = setTimeout(refreshScores, 60000); });
@@ -445,8 +498,10 @@
   var PICK_SIMS = 20000, ENGINE_URL = new URL(document.querySelector('script[src*="nfl-engine.js"]').getAttribute('src'), location.href).href;
   var SIM_D = JSON.parse(JSON.stringify(D)); // the season as of the build (live score updates don't change odds)
   SIM_D.games.forEach(function (g) { if (g.s === 'in') g.s = 'pre'; });
-  var cache = {}, worker = null, busy = false;
-  function picksKey() { var p = Object.keys(st.picks).sort().map(function (k) { return k + ':' + st.picks[k]; }).join(','); return p ? mode + '|' + p : ''; }
+  var cache = {}, worker = null, busy = false, simIndex = null;
+  function simById() { if (!simIndex) { simIndex = {}; SIM_D.games.forEach(function (g) { simIndex[g.id] = g; }); } return simIndex; }
+  function allPicks() { return Object.assign({}, auto, st.picks); }
+  function picksKey() { var all = allPicks(), p = Object.keys(all).sort().map(function (k) { return k + ':' + all[k]; }).join(','); return p ? mode + '|' + p : ''; }
   // A pick shows at once; odds follow in two passes from one worker that stays open: a quick 4,000-season
   // run (about half a second), then the full 20,000. Both use the same seed, so the second only sharpens the
   // first. Rapid presses wait 150 ms so only the final pick is simulated.
@@ -480,7 +535,7 @@
     simTimer = setTimeout(function () {
       // A worker still busy with an older pick is replaced rather than waited on.
       if (worker && worker.job) { worker.terminate(); worker = null; }
-      var picks = JSON.parse(JSON.stringify(st.picks));
+      var picks = allPicks();
       var show = function (res) { res.model = BASE.model; if (job !== jobN) return; R = res; renderAll(); };
       if (worker) worker.job = job; else if (startWorker()) worker.job = job;
       runSims(job, QUICK_SIMS, picks, function (quick) {
@@ -494,6 +549,7 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
+    if (b.dataset.open != null) { st.open[b.dataset.open] = !st.open[b.dataset.open]; renderRankings(); return; }
     if (b.dataset.pick) {
       // Each press cycles this team through W, L and blank; its opponent gets the opposite result.
       var id = b.dataset.pick, me = +b.dataset.team, g = gameById[id], opp = g.h === me ? g.a : g.h;

@@ -260,6 +260,11 @@
   function splitRow(label, make) {
     return '<tr><th scope="row">' + label + '</th><td>' + pct(make) + '</td><td>' + pct(make == null ? null : 1 - make) + '</td></tr>';
   }
+  // One row of shaded tiles, as on the Scores cards. A missing number shows a dash.
+  function oddsRow(label, now, win, loss) {
+    var tile = function (v) { return v == null ? '<div class="lg-num">—</div>' : '<div class="lg-cfp" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; };
+    return '<div class="odds-row"><span class="h">' + label + '</span><span class="h">If win</span><span class="h">If loss</span>' + tile(now) + tile(win) + tile(loss) + '</div>';
+  }
   function detailBody(x) {
     var sc = schedule()[x.i], R = x.r, hist = R.hist, maxH = Math.max.apply(null, hist.concat(1)), N = res().sims;
     var lines = sc.map(function (g) {
@@ -273,11 +278,11 @@
     var xs = hist.map(function (_, i) { return '<span>' + (i + 1) + '</span>'; }).join('');
     return '<div class="detail-inner">' +
       '<div><h3>Regular season left (chance to win)</h3><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
-      '<div><h3>What moves the odds</h3><table class="split"><thead><tr><td></td><th scope="col">Make CFP</th><th scope="col">Miss CFP</th></tr></thead><tbody>' +
-        splitRow(hasPicks() ? 'With your picks' : 'Today', R.cfp) +
-        splitRow('If they win next game', R.ifNext) +
-        splitRow('If they lose next game', R.ifLose) +
-      '</tbody></table><dl class="kv">' +
+      // A plain list: Make CFP first, then what the next game does, then the other odds.
+      '<div><h3>What moves the odds</h3><dl class="kv">' +
+        '<dt>Make CFP</dt><dd>' + pct(R.cfp) + '</dd>' +
+        '<dt>If they win next game</dt><dd>' + pct(R.ifNext) + '</dd>' +
+        '<dt>If they lose next game</dt><dd>' + pct(R.ifLose) + '</dd>' +
         (x.t.conf === 'ind' ? '' : '<dt>Reach conference title game</dt><dd>' + pct(R.ccg) + '</dd>') +
         '<dt>Earn an automatic bid</dt><dd>' + pct(R.aq) + '</dd>' +
         '<dt>Host a first-round game</dt><dd>' + pct(R.host) + '</dd>' +

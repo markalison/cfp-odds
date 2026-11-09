@@ -39,13 +39,14 @@ jobs:
         run: |
           node build.mjs 40000
           node nfl-build.mjs 50000
+          node nba-build.mjs 20000
           node assemble.mjs
 
       - name: Publish if anything changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data.js nfl-data.js index.html about.html nfl.html
+          git add data.js nfl-data.js nba-data.js index.html about.html nfl.html nba.html
           if git diff --cached --quiet; then
             echo "No changes to publish."
           else
