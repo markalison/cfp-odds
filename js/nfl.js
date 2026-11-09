@@ -1,0 +1,520 @@
+// NFL pages: Standings (every team's odds), Bracket (the projected playoff field) and Scores (each week's
+// games, refreshed from ESPN while games are on). Odds come from nfl-build.mjs.
+(function () {
+  'use strict';
+  // R is the odds being shown: the build's for the chosen ratings model (BASE), or a fresh simulation with
+  // the reader's picks.
+  var data = window.NFL_DATA, D = data.D;
+  var MODES = data.models.map(function (m) { return m.k; });
+  var mode = (function () { try { var m = localStorage.getItem('nfl-mode'); return MODES.indexOf(m) >= 0 ? m : MODES[0]; } catch (e) { return MODES[0]; } })();
+  var BASE = data.results[mode], R = BASE;
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function isDark() { return /dark/.test(getComputedStyle(document.documentElement).colorScheme); }
+  function pct(v) {
+    if (v == null) return '—';
+    if (v <= 0.0005) return '<0.1%';
+    if (v >= 0.9995) return '>99.9%';
+    return (v * 100).toFixed(v >= 0.1 && v < 0.9 ? 0 : 1) + '%';
+  }
+  function logo(t, px) { return '<img class="logo" alt="" width="' + px + '" height="' + px + '" src="' + esc(isDark() && t.logoDark ? t.logoDark : t.logo) + '" loading="lazy">'; }
+  function etTime(iso) { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }); }
+  function etDate(iso, opts) { return new Date(iso).toLocaleDateString('en-US', Object.assign({ timeZone: 'America/New_York' }, opts)); }
+  var store = {
+    get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  };
+
+  // Records from finished games, as of the last build.
+  var rec = D.teams.map(function () { return { w: 0, l: 0, t: 0 }; });
+  D.games.forEach(function (g) {
+    if (g.s !== 'post') return;
+    var d = g.hs - g.as;
+    if (d > 0) { rec[g.h].w++; rec[g.a].l++; } else if (d < 0) { rec[g.a].w++; rec[g.h].l++; } else { rec[g.h].t++; rec[g.a].t++; }
+  });
+  function recText(i) { var r = rec[i]; return r.w + '-' + r.l + (r.t ? '-' + r.t : ''); }
+  var gameById = {};
+  D.games.forEach(function (g) { gameById[g.id] = g; });
+
+  // ---------- Standings ----------
+  // Every view shows all 32 teams: one league list, or grouped by conference or by division.
+  var VIEWS = [['all', 'NFL'], ['conf', 'Conference'], ['div', 'Division']];
+  var st = { view: 'all', week: null, picks: {}, bk: {}, bkSim: false, order: null, sort: null };
+  var savedView = store.get('nfl-view');
+  if (VIEWS.some(function (v) { return v[0] === savedView; })) st.view = savedView;
+  $('nfl-view').innerHTML = VIEWS.map(function (v) { return '<option value="' + esc(v[0]) + '">' + esc(v[1]) + '</option>'; }).join('');
+  $('nfl-view').previousElementSibling.textContent = 'View';
+  $('nfl-view').value = st.view;
+
+  var COLS = [
+    { k: 'team', label: 'Team' },
+    { k: 'rec', label: 'Rec' },
+    { k: 'rating', label: 'Rating', title: 'Points better than an average team on a neutral field', wide: true },
+    { k: 'next', label: 'Next', title: 'Next game and the chance to win it' },
+    { k: 'div', label: 'Win div' },
+    { k: 'playoff', label: 'Playoffs', title: 'Chance to make the playoffs, and after a win or loss in the next game' },
+    { k: 'bye', label: '1 seed', title: 'Chance to be the top seed, with the only first-round bye', wide: true },
+    { k: 'conf', label: 'Win conf', title: 'Chance to win the conference and reach the Super Bowl', wide: true },
+    { k: 'sb', label: 'Win SB', title: 'Chance to win the Super Bowl' }
+  ];
+  // Every header sorts (within each conference or division group); a second press flips the direction.
+  function renderHead() {
+    $('nfl-head').innerHTML = COLS.map(function (c) {
+      var s = st.sort && st.sort.k === c.k ? (st.sort.dir > 0 ? 'ascending' : 'descending') : 'none';
+      return '<th scope="col" class="c-' + c.k + (c.wide ? ' wide' : c.tablet ? ' tablet' : '') + '" aria-sort="' + s + '"' + (c.title ? ' title="' + esc(c.title) + '"' : '') + '><button type="button" data-nsort="' + c.k + '">' + c.label + '</button></th>';
+    }).join('');
+  }
+  // Sort values per column; text columns start A to Z, numbers start highest first.
+  function sortValue(k, i) {
+    var r = R.teams[i];
+    if (k === 'team') return D.teams[i].name;
+    if (k === 'rec') return winPct(i);
+    if (k === 'dv') return D.teams[i].div;
+    if (k === 'next') { var id = BASE.teams[i].next, hw = id == null ? null : R.homeWin[id]; return hw == null ? -1 : gameById[id].h === i ? hw : 1 - hw; }
+    return r[k === 'div' ? 'div' : k];
+  }
+
+  function heat(v, extra) { return '<td class="num heat c-' + extra + '" style="--p:' + (v || 0).toFixed(3) + '">'; }
+  // The team's next game as of the build, with a box that cycles a pick through W, L and blank.
+  function nextCell(i) {
+    var id = BASE.teams[i].next;
+    if (id == null) return '<td class="c-next muted">—</td>';
+    var g = gameById[id], home = g.h === i, opp = D.teams[home ? g.a : g.h], vs = (home ? 'vs ' : '@') + opp.ab;
+    var pk = st.picks[id], won = pk === i, lost = pk != null && !won;
+    var hw = R.homeWin[id], p = hw == null ? null : home ? hw : 1 - hw;
+    var label = won ? D.teams[i].short + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? D.teams[i].short + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + D.teams[i].short + ' ' + vs + '. Press to pick a win';
+    return '<td class="c-next"><div class="nx-pick"><span class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(id) + '" data-team="' + i + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></span>' +
+      '<span><span class="nx-opp">' + esc(vs) + '</span><small>' + (pk != null ? 'Picked' : pct(p) + '<span class="nx-when"> · ' + etDate(g.d, { weekday: 'short' }) + '</span>') + '</small></span></div></td>';
+  }
+  // Row order: NFL and Conference by playoff odds, Division by record (then division odds). The order is set
+  // when the view is chosen or picks are cleared, and held while picks change the odds, so rows don't jump.
+  function winPct(i) { var r = rec[i], g = r.w + r.l + r.t; return g ? (r.w + r.t / 2) / g : 0; }
+  function sortRows(v) {
+    var sk = st.sort;
+    var by = sk ? function (a, b) {
+      var x = sortValue(sk.k, a), y = sortValue(sk.k, b);
+      return (typeof x === 'string' ? x.localeCompare(y) : x - y) * sk.dir || R.teams[b].playoff - R.teams[a].playoff;
+    } : v === 'div'
+      ? function (a, b) { return winPct(b) - winPct(a) || R.teams[b].div - R.teams[a].div; }
+      : function (a, b) { var x = R.teams[a], y = R.teams[b]; return y.playoff - x.playoff || y.div - x.div || y.wins - x.wins; };
+    var all = D.teams.map(function (t, i) { return i; });
+    var key = v === 'conf' ? 'conf' : v === 'div' ? 'div' : null;
+    var names = key ? all.map(function (i) { return D.teams[i][key]; }).filter(function (n, k, arr) { return arr.indexOf(n) === k; }).sort() : [null];
+    return names.map(function (n) { return { name: n, rows: all.filter(function (i) { return !key || D.teams[i][key] === n; }).sort(by) }; });
+  }
+  function renderRankings() {
+    if (!st.order || st.order.view !== st.view) st.order = { view: st.view, groups: sortRows(st.view) };
+    renderHead();
+    $('nfl-body').innerHTML = st.order.groups.map(function (grp) {
+      return (grp.name ? '<tr class="nfl-group"><th colspan="9" scope="rowgroup">' + esc(grp.name) + '</th></tr>' : '') + grp.rows.map(row).join('');
+    }).join('');
+  }
+  function row(i) {
+      var t = D.teams[i], r = R.teams[i];
+      var ifs = r.ifWin != null && st.picks[BASE.teams[i].next] == null && r.next === BASE.teams[i].next ? '<small class="ifs"><span>W ' + pct(r.ifWin) + '</span><span class="ifs-dot"> · </span><span>L ' + pct(r.ifLoss) + '</span></small>' : '';
+      return '<tr>' +
+        '<td class="c-team"><span class="nfl-team">' + logo(t, 24) + '<span class="tn-long">' + esc(t.name) + '</span><span class="tn-short">' + esc(t.ab) + '</span></span></td>' +
+        '<td class="c-rec num">' + recText(i) + '</td>' +
+        '<td class="c-rating num wide">' + (r.rating > 0 ? '+' : '') + r.rating.toFixed(1) + '</td>' +
+        nextCell(i) +
+        heat(r.div, 'div') + pct(r.div) + '</td>' +
+        heat(r.playoff, 'playoff') + '<b>' + pct(r.playoff) + '</b>' + ifs + '</td>' +
+        heat(r.bye, 'bye wide') + pct(r.bye) + '</td>' +
+        heat(r.conf, 'conf wide') + pct(r.conf) + '</td>' +
+        heat(r.sb, 'sb') + pct(r.sb) + '</td></tr>';
+    }
+  function renderPicksBar() {
+    var n = Object.keys(st.picks).length;
+    $('nfl-picks-bar').innerHTML = busy ? '<span><b>Simulating…</b> Updating every team’s odds for your picks.</span>' : n
+      ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '.</span><button class="btn" id="nfl-clear" type="button">Clear picks</button>'
+      : '<span>Press a team’s box to cycle its next game through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update.</span>';
+  }
+  var played = D.games.filter(function (g) { return g.s === 'post'; }).length;
+  $('nfl-note').textContent = D.season + ' season · ' + played + ' of ' + D.games.length + ' games played · updated ' +
+    new Date(D.asOf).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
+
+  // ---------- Bracket: the likeliest field ----------
+  // Division winners are each division's likeliest champion, seeded 1-4 by their average seed; the wild
+  // cards are the three likeliest of the rest, seeded 5-7 the same way.
+  function avgSeed(i, from, to) {
+    var s = R.teams[i].seeds, w = 0, n = 0;
+    for (var k = from; k <= to; k++) { w += (k + 1) * s[k]; n += s[k]; }
+    return n ? w / n : 99;
+  }
+  function confTeams(conf) { return D.teams.map(function (t, i) { return i; }).filter(function (i) { return D.teams[i].conf === conf; }); }
+  function projectedField(conf) {
+    var idx = confTeams(conf), divs = [];
+    idx.forEach(function (i) { if (divs.indexOf(D.teams[i].div) < 0) divs.push(D.teams[i].div); });
+    var winners = divs.map(function (d) {
+      return idx.filter(function (i) { return D.teams[i].div === d; }).sort(function (a, b) { return R.teams[b].div - R.teams[a].div; })[0];
+    }).sort(function (a, b) { return avgSeed(a, 0, 3) - avgSeed(b, 0, 3); });
+    var wild = idx.filter(function (i) { return winners.indexOf(i) < 0; })
+      .sort(function (a, b) { return R.teams[b].playoff - R.teams[a].playoff; }).slice(0, 3)
+      .sort(function (a, b) { return avgSeed(a, 4, 6) - avgSeed(b, 4, 6); });
+    return winners.concat(wild);
+  }
+  // One game's win chance from the two ratings, as in the season simulation: home edge on non-neutral fields.
+  var MODEL = R.model || { hfa: 1.5, gameSD: 13, teamSD: 1.5 };
+  function phi(x) { var t = 1 / (1 + 0.2316419 * Math.abs(x)), d = 0.3989423 * Math.exp(-x * x / 2), p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - p : p; }
+  function winChance(h, a, neutral) {
+    var sd = Math.sqrt(MODEL.gameSD * MODEL.gameSD + 2 * MODEL.teamSD * MODEL.teamSD);
+    return phi((R.teams[h].rating - R.teams[a].rating + (neutral ? 0 : MODEL.hfa)) / sd);
+  }
+  function bkRow(key, i, opp, seed, p, won, pk) {
+    if (i == null) return '<div class="bk-team tbd"></div>';
+    var t = D.teams[i], mine = pk === i, theirs = pk === opp;
+    if (opp == null) return '<div class="bk-team"><span class="bk-seed">' + seed + '</span>' + logo(t, 22) + '<span class="bk-name">' + esc(t.short) + ' <small class="lg-rec">(' + recText(i) + ')</small></span><span class="bk-p"></span></div>';
+    var label = mine ? t.short + ' picked to win. Press to pick ' + D.teams[opp].short : theirs ? D.teams[opp].short + ' picked. Press to clear the pick' : 'Press to pick ' + t.short + ' to win';
+    return '<button type="button" class="bk-team picks' + (won ? ' win' : won === false ? ' lose' : '') + '" data-bk="' + key + '" data-team="' + i + '" data-opp="' + opp + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' +
+      '<span class="bk-seed">' + seed + '</span>' + logo(t, 22) +
+      '<span class="bk-name">' + esc(t.short) + ' <small class="lg-rec">(' + recText(i) + ')</small></span>' +
+      '<span class="bk-p">' + (p == null ? '' : pct(p)) + '</span>' +
+      '<span class="mini"><span class="pick-box' + (mine ? ' pick-w' : theirs ? ' pick-l' : '') + '" aria-hidden="true">' + (mine ? 'W' : theirs ? 'L' : '') + '</span></span></button>';
+  }
+  // A game card: the higher seed (home team) on top. The bracket starts blank: a game is decided only by
+  // the reader's pick, or by the favorite with Simulate games on. Win chances show once a game is picked or
+  // simulated. A pick for a team no longer in this game is ignored; teams not yet known are empty rows.
+  // Logos and the 2026 postseason schedule (NFL): Wild Card Jan 16-18, Divisional Jan 23-24, Conference
+  // Championships Jan 31 (AFC on CBS, NFC on FOX), Super Bowl LXI Feb 14 at SoFi Stadium on ABC and ESPN.
+  var BRAND = {
+    AFC: 'https://upload.wikimedia.org/wikipedia/commons/7/7a/American_Football_Conference_logo.svg',
+    NFC: 'https://upload.wikimedia.org/wikipedia/commons/6/6f/National_Football_Conference_logo.svg',
+    SB: 'https://upload.wikimedia.org/wikipedia/en/e/ed/Super_Bowl_LXI_Logo.svg'
+  };
+  function brand(k, name) { return '<img class="bk-conf bk-big bk-' + k.toLowerCase() + '" src="' + BRAND[k] + '" alt="" loading="lazy"><span class="bk-title" title="' + esc(name) + '">' + esc(name) + '</span>'; }
+  // The home team's city (the higher seed hosts), or the Super Bowl's site.
+  function city(i) { var t = D.teams[i]; return t.name.slice(0, t.name.length - t.short.length).trim(); }
+  // Wild Card and Divisional cards: the conference logo, then the seeds playing. The text always shows.
+  function tag(c, text) { return '<img class="bk-conf bk-' + c.toLowerCase() + '" src="' + BRAND[c] + '" alt="' + c + '" title="' + c + '" loading="lazy"><span>' + esc(text) + '</span>'; }
+  function air(when, nets) { return '<b>' + when + '</b>' + (nets.length ? '<span class="net-logos">' + tvBadges(nets) + '</span>' : ''); }
+  function game(key, label, h, a, seedOf, neutral, airHtml, site) {
+    var both = h != null && a != null;
+    var p = both ? winChance(h, a, neutral) : null, pk = both && (st.bk[key] === h || st.bk[key] === a) ? st.bk[key] : null;
+    var w = pk != null ? pk : both && st.bkSim ? (p >= 0.5 ? h : a) : null;
+    var show = w != null ? p : null;
+    var loc = site || (!neutral && h != null ? city(h) : '');
+    return { winner: w, html: '<div class="bk-game"><div class="bk-where"><span class="bk-place">' + (label.charAt(0) === '<' ? label : '<span>' + label + '</span>') + (loc ? '<span class="bk-loc">' + esc(loc) + '</span>' : '') + '</span>' + (airHtml ? '<span class="bk-air">' + airHtml + '</span>' : '') + '</div>' +
+      bkRow(key, h, a, h == null ? '' : seedOf(h), show, w == null ? null : w === h, pk) + bkRow(key, a, h, a == null ? '' : seedOf(a), show == null ? null : 1 - show, w == null ? null : w === a, pk) + '</div>' };
+  }
+  // Each conference's playoffs with the favorite advancing: 2v7, 3v6, 4v5; then the 1 seed hosts the
+  // lowest seed left (the NFL reseeds), the other two meet, and the winners play for the conference.
+  function confPath(c) {
+    var f = projectedField(c), seedOf = function (i) { return f.indexOf(i) + 1; };
+    var wc = [[1, 6], [2, 5], [3, 4]].map(function (m, k) { return game(c + '-wc' + k, tag(c, 'Wild Card'), f[m[0]], f[m[1]], seedOf, false, air('Jan 16–18', [])); });
+    // The NFL reseeds, so the Divisional matchups are known only once all three Wild Card games are decided.
+    var left = wc.map(function (g) { return g.winner; });
+    var dv, feeds = null;
+    if (left.every(function (x) { return x != null; })) {
+      left.sort(function (x, y) { return seedOf(x) - seedOf(y); });
+      feeds = wc.map(function (g) { return g.winner === left[2] ? 0 : 1; });
+      dv = [game(c + '-dv0', tag(c, 'Divisional'), f[0], left[2], seedOf, false, air('Jan 23–24', [])), game(c + '-dv1', tag(c, 'Divisional'), left[0], left[1], seedOf, false, air('Jan 23–24', []))];
+    } else dv = [game(c + '-dv0', tag(c, 'Divisional'), f[0], null, seedOf, false, air('Jan 23–24', [])), game(c + '-dv1', tag(c, 'Divisional'), null, null, seedOf, false, air('Jan 23–24', []))];
+    var cw = dv.map(function (g) { return g.winner; }).filter(function (x) { return x != null; }).sort(function (x, y) { return seedOf(x) - seedOf(y); });
+    var cc = game(c + '-cc', brand(c, c + ' Championship'), cw[0], cw[1], seedOf, false, air('Jan 31', [c === 'AFC' ? 'CBS' : 'FOX']));
+    return { wc: wc, dv: dv, cc: cc, champ: cc.winner, seedOf: seedOf, feeds: feeds };
+  }
+  var NFL_ROUNDS = [['Wild Card', 'Jan 16–18 · higher seed hosts · 1 seeds rest'], ['Divisional', 'Jan 23–24 · 1 seed hosts the lowest seed left'], ['Conference', 'Jan 31 · AFC on CBS, NFC on FOX'], ['Super Bowl', 'Feb 14 · SoFi Stadium, Inglewood, Calif.']];
+  // Connector lines on wide screens, as on the college bracket. Before the Wild Card games are all picked,
+  // each conference's three Wild Card games join one line that reaches both Divisional games (the NFL
+  // reseeds, so either is possible); once they're picked, each winner's line goes to its own game.
+  var feedsByConf = [null, null], NFL_WIDE = matchMedia('(min-width: 1000px)');
+  // Shows each game site only if it fits in full on its card.
+  // Logos change the room left once they load, so check again then.
+  var fitTimer = null;
+  document.addEventListener('load', function (e) {
+    if (!e.target.closest || !e.target.closest('.bk-where')) return;
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(function () { var w = document.getElementById('nfl-rounds'); if (w) fitLocs(w); }, 50);
+  }, true);
+  function fitLocs(root) {
+    [].forEach.call(root.querySelectorAll('.bk-loc'), function (l) { l.classList.remove('cut'); });
+    [].forEach.call(root.querySelectorAll('.bk-loc'), function (l) { if (l.scrollWidth > l.clientWidth + 1) l.classList.add('cut'); });
+  }
+  function drawLines() {
+    var wrap = $('nfl-rounds');
+    if (!wrap) return;
+    fitLocs(wrap);
+    var old = wrap.querySelector('.bk-lines');
+    if (old) old.remove();
+    if (!NFL_WIDE.matches || !wrap.offsetWidth) return;
+    var base = wrap.getBoundingClientRect();
+    var cols = [].map.call(wrap.querySelectorAll('.bk-round'), function (r) { return [].slice.call(r.querySelectorAll('.bk-game')); });
+    var links = [];
+    [0, 1].forEach(function (c) {
+      for (var k = 0; k < 3; k++) {
+        var f = feedsByConf[c];
+        if (f) links.push([0, c * 3 + k, 1, c * 2 + f[k]]);
+        else { links.push([0, c * 3 + k, 1, c * 2]); links.push([0, c * 3 + k, 1, c * 2 + 1]); }
+      }
+      links.push([1, c * 2, 2, c], [1, c * 2 + 1, 2, c], [2, c, 3, 0]);
+    });
+    var d = links.map(function (l) {
+      var a = cols[l[0]][l[1]].getBoundingClientRect(), b = cols[l[2]][l[3]].getBoundingClientRect();
+      var x1 = a.right - base.left, y1 = a.top + a.height / 2 - base.top, x2 = b.left - base.left, y2 = b.top + b.height / 2 - base.top, mx = (x1 + x2) / 2;
+      return 'M' + x1 + ' ' + y1 + 'H' + mx + 'V' + y2 + 'H' + x2;
+    }).join('');
+    wrap.insertAdjacentHTML('afterbegin', '<svg class="bk-lines" aria-hidden="true" width="' + base.width + '" height="' + base.height + '"><path d="' + d + '"></path></svg>');
+  }
+  try { new ResizeObserver(function () { drawLines(); }).observe($('nfl-bracket')); } catch (x) {}
+  try { NFL_WIDE.addEventListener('change', drawLines); } catch (x) {}
+  function renderBracket() {
+    var A = confPath('AFC'), N = confPath('NFC');
+    var sb = game('sb', brand('SB', 'Super Bowl LXI'), A.champ, N.champ, function (i) { return D.teams[i].conf; }, true, air('Feb 14', ['ABC', 'ESPN']), 'Inglewood, Calif.');
+    $('nfl-bk-clear').hidden = !Object.keys(st.bk).length;
+    $('nfl-bk-sim').setAttribute('aria-pressed', st.bkSim ? 'true' : 'false');
+    $('nfl-bk-sim').textContent = st.bkSim ? 'Show seeds only' : 'Simulate games';
+    // Each round holds the AFC half above the NFC half, so every game sits beside the games feeding it.
+    var cols = [[A.wc, N.wc], [A.dv, N.dv], [[A.cc], [N.cc]], [[sb]]];
+    var half = function (games) { return '<div class="nfl-half">' + games.map(function (g) { return g.html; }).join('') + '</div>'; };
+    $('nfl-bracket').innerHTML = '<div class="bk-rounds nfl-rounds" id="nfl-rounds">' + cols.map(function (games, k) {
+      return '<section class="bk-round" aria-label="' + NFL_ROUNDS[k][0] + ', ' + NFL_ROUNDS[k][1] + '">' +
+        '<div class="bk-games">' + games.map(half).join('') + '</div></section>';
+    }).join('') + '</div>';
+    feedsByConf = [A.feeds, N.feeds];
+    drawLines();
+  }
+
+  // ---------- Scores ----------
+  var weeks = {};
+  D.games.forEach(function (g) {
+    var w = weeks[g.wk] || (weeks[g.wk] = { wk: g.wk, first: g.d, last: g.d });
+    if (g.d < w.first) w.first = g.d;
+    if (g.d > w.last) w.last = g.d;
+  });
+  var weekList = Object.keys(weeks).map(function (k) { return weeks[k]; }).sort(function (a, b) { return a.wk - b.wk; });
+  // The current week is the latest one under way; it stays until next week's first kickoff.
+  function currentWeek() {
+    var now = new Date().toISOString(), cur = weekList[0].wk;
+    weekList.forEach(function (w) { if (w.first <= now) cur = w.wk; });
+    return cur;
+  }
+  function weekLabel(w) {
+    var a = etDate(w.first, { month: 'short', day: 'numeric' }), b = etDate(w.last, { month: 'short', day: 'numeric' });
+    if (a === b) return 'Week ' + w.wk + ' · ' + a;
+    if (a.split(' ')[0] === b.split(' ')[0]) b = b.split(' ')[1];
+    return 'Week ' + w.wk + ' · ' + a + '–' + b;
+  }
+  var TV_LOGO = {
+    CBS: 'https://upload.wikimedia.org/wikipedia/commons/4/4e/CBS_logo.svg',
+    FOX: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg',
+    NBC: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/NBC_logo.svg',
+    ESPN: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ESPN_wordmark.svg',
+    ABC: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ABC-2021-LOGO.svg',
+    Peacock: 'https://upload.wikimedia.org/wikipedia/commons/f/fb/NBCUniversal_Peacock_Logo_%282020%E2%80%932026%29.svg'
+  };
+  function tvBadges(names) {
+    return (names || []).map(function (n) {
+      if (TV_LOGO[n]) return '<img class="net-' + n.toLowerCase().replace(/[^a-z0-9]/g, '') + '" src="' + TV_LOGO[n] + '" alt="' + esc(n) + '" title="' + esc(n) + '" loading="lazy">';
+      return '<span class="tv-name">' + esc(n) + '</span>';
+    }).join('');
+  }
+  function tile(v, cls) {
+    cls = cls ? ' ' + cls : '';
+    return v == null ? '<div class="lg-num' + cls + '">—</div>' : '<div class="lg-cfp' + cls + '" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>';
+  }
+  // Live win chance: the pre-game rating edge shrinks with the time left, and the score margin is what's
+  // already banked. The game's remaining randomness scales with the square root of the time left.
+  function minutesLeft(g) {
+    var txt = g.clock || '', m = /(\d+):(\d+)\s*-\s*(\d)(?:st|nd|rd|th)/i.exec(txt);
+    if (m) return Math.max(0, (4 - +m[3]) * 15) + +m[1] + +m[2] / 60;
+    if (/half/i.test(txt)) return 30;
+    var e = /end of (\d)/i.exec(txt);
+    if (e) return (4 - +e[1]) * 15;
+    var ot = /(\d+):(\d+)\s*-\s*OT/i.exec(txt);
+    if (ot) return +ot[1] + +ot[2] / 60;
+    return 30; // unknown: call it halfway
+  }
+  function liveHomeWin(g) {
+    var mu = R.teams[g.h].rating - R.teams[g.a].rating + (g.neutral ? 0 : MODEL.hfa);
+    var sd = Math.sqrt(MODEL.gameSD * MODEL.gameSD + 2 * MODEL.teamSD * MODEL.teamSD);
+    var f = Math.max(minutesLeft(g), 0) / 60, margin = g.hs - g.as;
+    if (f <= 0.001) return margin > 0 ? 1 : margin < 0 ? 0 : 0.5;
+    return phi((margin + mu * f) / (sd * Math.sqrt(f)));
+  }
+  // Playoff odds that follow the game: during it, weighted by the live win chance; once it's final, the
+  // odds for the actual result (when the odds were built before this game ended).
+  function playoffNow(g, i, pw) {
+    var r = R.teams[i];
+    if (r.next !== g.id || r.ifWin == null) return r.playoff;
+    if (g.s === 'post') return g.hs === g.as ? r.playoff : (g.h === i) === (g.hs > g.as) ? r.ifWin : r.ifLoss;
+    if (g.s === 'in') return pw * r.ifWin + (1 - pw) * r.ifLoss;
+    return r.playoff;
+  }
+  function cardRow(g, i, score, other) {
+    var t = D.teams[i], r = R.teams[i];
+    var name = '<div class="lg-team">' + logo(t, 22) + '<span>' + esc(t.ab) + ' <small class="lg-rec">(' + recText(i) + ')</small></span></div>';
+    if (g.s === 'pre') {
+      var hw = R.homeWin[g.id], win = hw == null ? '—' : Math.round((g.h === i ? hw : 1 - hw) * 100) + '%';
+      var isNext = r.next === g.id;
+      return name + '<div class="lg-num">' + win + '</div>' + tile(r.playoff) + tile(isNext ? r.ifWin : null, 'lg-if') + tile(isNext ? r.ifLoss : null, 'lg-if');
+    }
+    var lead = '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + score + '</div>';
+    if (g.s === 'in') {
+      var ph = liveHomeWin(g), pw = g.h === i ? ph : 1 - ph, nx = r.next === g.id;
+      return name + lead + '<div class="lg-num">' + Math.round(pw * 100) + '%</div>' + tile(playoffNow(g, i, pw)) + tile(nx ? r.ifWin : null, 'lg-if') + tile(nx ? r.ifLoss : null, 'lg-if');
+    }
+    return name + lead + '<div class="lg-num"></div>' + tile(playoffNow(g, i));
+  }
+  function card(g) {
+    var isLive = g.s === 'in', isPre = g.s === 'pre';
+    var tv = g.tv && g.tv.length && g.s !== 'post' ? '<span class="tv-list net-logos">' + tvBadges(g.tv) + '</span>' : '';
+    var top = isLive ? '<span class="lg-live"><b>' + esc(g.clock || 'In progress') + '</b></span>' + tv :
+      isPre ? '<b class="lg-kickoff">' + etDate(g.d, { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + etTime(g.d) + ' ET</b>' + tv :
+      '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + etDate(g.d, { weekday: 'short' }) + '</span></span>';
+    return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
+      (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
+        isLive ? '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
+        '<div class="lg-rows"><span></span><span class="h">Score</span><span class="h"></span><span class="h">Playoffs</span>') +
+      cardRow(g, g.a, g.as, g.hs) + cardRow(g, g.h, g.hs, g.as) + '</div></article>';
+  }
+  function renderScores() {
+    var cur = currentWeek(), sel = st.week || cur;
+    $('nfl-week').innerHTML = weekList.map(function (w) {
+      return '<option value="' + w.wk + '"' + (w.wk === sel ? ' selected' : '') + '>' + esc(weekLabel(w)) + (w.wk === cur ? ' (current)' : '') + '</option>';
+    }).join('');
+    var games = D.games.filter(function (g) { return g.wk === sel; });
+    var byTime = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
+    var group = function (list) { return list.length ? '<div class="live-group"><div class="live-grid">' + list.sort(byTime).map(card).join('') + '</div></div>' : ''; };
+    var html = group(games.filter(function (g) { return g.s === 'in'; })) + group(games.filter(function (g) { return g.s === 'pre'; })) + group(games.filter(function (g) { return g.s === 'post'; }));
+    $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this week.</p>';
+  }
+  // Live scores for the chosen week straight from ESPN; odds stay as of the last build.
+  var liveTimer = null, page = 'rankings';
+  function refreshScores() {
+    var sel = st.week || currentWeek(), now = Date.now();
+    clearTimeout(liveTimer);
+    var due = D.games.some(function (g) { return g.wk === sel && g.s !== 'post' && Date.parse(g.d) <= now + 10 * 60000; });
+    if (!due || page !== 'scoreboard') return;
+    fetch('https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?seasontype=2&week=' + sel + '&dates=' + D.season)
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) {
+        (j.events || []).forEach(function (e) {
+          var g = gameById[e.id];
+          if (!g) return;
+          var c = e.competitions[0], s = c.status || e.status;
+          g.s = s.type.completed ? 'post' : s.type.state === 'in' ? 'in' : 'pre';
+          g.clock = s.type.shortDetail;
+          c.competitors.forEach(function (x) { if (x.homeAway === 'home') g.hs = +x.score || 0; else g.as = +x.score || 0; });
+        });
+        $('nfl-live-note').hidden = true;
+        renderScores();
+      })
+      .catch(function () { $('nfl-live-note').hidden = false; $('nfl-live-note').innerHTML = '<b>Couldn’t reach ESPN.</b> Showing the saved scores.'; })
+      .then(function () { liveTimer = setTimeout(refreshScores, 60000); });
+  }
+
+  // ---------- Views: Rankings, Bracket and Scores, chosen by the address's # ----------
+  var PAGES = { rankings: 'NFL standings and playoff odds · CFP Odds Board', playoff: 'NFL playoff bracket · CFP Odds Board', scoreboard: 'NFL scores · CFP Odds Board' };
+  function showPage() {
+    var h = location.hash.replace('#', '');
+    page = h === 'scores' || h === 'scoreboard' ? 'scoreboard' : PAGES[h] ? h : 'rankings';
+    Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== page; });
+    [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
+      if (a.dataset.page === page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    });
+    document.title = PAGES[page];
+    refreshScores();
+  }
+  function renderAll() { renderPicksBar(); renderRankings(); renderBracket(); renderScores(); }
+  // Ratings model menus (Standings and Bracket), open-source models first.
+  function renderModes() {
+    var groups = [];
+    data.models.forEach(function (m) { if (groups.indexOf(m.group) < 0) groups.push(m.group); });
+    var html = groups.map(function (g) {
+      return '<optgroup label="' + esc(g) + '">' + data.models.filter(function (m) { return m.group === g; }).map(function (m) {
+        return '<option value="' + m.k + '"' + (m.k === mode ? ' selected' : '') + '>' + esc(m.label) + '</option>';
+      }).join('') + '</optgroup>';
+    }).join('');
+    [].forEach.call(document.querySelectorAll('.nfl-mode'), function (s) { s.innerHTML = html; });
+  }
+  renderModes();
+  document.addEventListener('change', function (e) {
+    if (!e.target.classList.contains('nfl-mode')) return;
+    mode = e.target.value;
+    try { localStorage.setItem('nfl-mode', mode); } catch (err) {}
+    BASE = data.results[mode];
+    renderModes();
+    st.order = null;
+    resimulate();
+  });
+
+  // ---------- Picks: re-simulate the season with the picked results locked in ----------
+  var PICK_SIMS = 20000, ENGINE_URL = new URL(document.querySelector('script[src*="nfl-engine.js"]').getAttribute('src'), location.href).href;
+  var SIM_D = JSON.parse(JSON.stringify(D)); // the season as of the build (live score updates don't change odds)
+  SIM_D.games.forEach(function (g) { if (g.s === 'in') g.s = 'pre'; });
+  var cache = {}, worker = null, busy = false;
+  function picksKey() { var p = Object.keys(st.picks).sort().map(function (k) { return k + ':' + st.picks[k]; }).join(','); return p ? mode + '|' + p : ''; }
+  // A pick shows at once; odds follow in two passes from one worker that stays open: a quick 4,000-season
+  // run (about half a second), then the full 20,000. Both use the same seed, so the second only sharpens the
+  // first. Rapid presses wait 150 ms so only the final pick is simulated.
+  var QUICK_SIMS = 4000, simTimer = null, jobN = 0;
+  function startWorker() {
+    try {
+      worker = new Worker(URL.createObjectURL(new Blob(['importScripts(' + JSON.stringify(ENGINE_URL) + ');\nself.onmessage=function(e){var m=e.data;postMessage({job:m.job,sims:m.sims,res:NFLSIM.simulate(m.D,m.sims,m.seed,m.picks,m.rating)});};'], { type: 'text/javascript' })));
+    } catch (err) { worker = null; }
+    return worker;
+  }
+  function runSims(job, sims, picks, done) {
+    var rating = data.ratings[mode];
+    if (!worker && !startWorker()) { setTimeout(function () { done(NFLSIM.simulate(SIM_D, sims, 20261108, picks, rating)); }, 20); return; }
+    worker.onmessage = function (e) { if (e.data.job === job) done(e.data.res); };
+    worker.onerror = function () { worker = null; setTimeout(function () { done(NFLSIM.simulate(SIM_D, sims, 20261108, picks, rating)); }, 20); };
+    worker.postMessage({ job: job, D: SIM_D, sims: sims, seed: 20261108, picks: picks, rating: rating });
+  }
+  function resimulate() {
+    var key = picksKey();
+    clearTimeout(simTimer);
+    var job = ++jobN;
+    if (!key || cache[key]) {
+      R = key ? cache[key] : BASE; busy = false;
+      $('nfl-tw').classList.remove('busy');
+      renderAll();
+      return;
+    }
+    busy = true;
+    renderPicksBar(); renderRankings(); // the box changes straight away
+    $('nfl-tw').classList.add('busy');
+    simTimer = setTimeout(function () {
+      // A worker still busy with an older pick is replaced rather than waited on.
+      if (worker && worker.job) { worker.terminate(); worker = null; }
+      var picks = JSON.parse(JSON.stringify(st.picks));
+      var show = function (res) { res.model = BASE.model; if (job !== jobN) return; R = res; renderAll(); };
+      if (worker) worker.job = job; else if (startWorker()) worker.job = job;
+      runSims(job, QUICK_SIMS, picks, function (quick) {
+        busy = false; $('nfl-tw').classList.remove('busy');
+        show(quick);
+        if (job !== jobN) return;
+        runSims(job, PICK_SIMS, picks, function (full) { if (worker) worker.job = 0; full.model = BASE.model; cache[key] = full; show(full); });
+      });
+    }, 150);
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    if (b.dataset.pick) {
+      // Each press cycles this team through W, L and blank; its opponent gets the opposite result.
+      var id = b.dataset.pick, me = +b.dataset.team, g = gameById[id], opp = g.h === me ? g.a : g.h;
+      if (st.picks[id] == null) st.picks[id] = me; else if (st.picks[id] === me) st.picks[id] = opp; else delete st.picks[id];
+      resimulate();
+    } else if (b.dataset.bk) {
+      var k = b.dataset.bk, t = +b.dataset.team, o = +b.dataset.opp;
+      if (st.bk[k] !== t && st.bk[k] !== o) st.bk[k] = t; else if (st.bk[k] === t) st.bk[k] = o; else delete st.bk[k];
+      renderBracket();
+    } else if (b.dataset.nsort) {
+      var sk = b.dataset.nsort;
+      st.sort = st.sort && st.sort.k === sk ? { k: sk, dir: -st.sort.dir } : { k: sk, dir: sk === 'team' || sk === 'dv' ? 1 : -1 };
+      st.order = null; renderRankings();
+    } else if (b.id === 'nfl-clear') { st.picks = {}; st.order = null; resimulate(); }
+    else if (b.id === 'nfl-bk-clear') { st.bk = {}; renderBracket(); }
+    else if (b.id === 'nfl-bk-sim') { st.bkSim = !st.bkSim; renderBracket(); }
+  });
+
+  $('nfl-view').addEventListener('change', function (e) { st.view = e.target.value; st.sort = null; store.set('nfl-view', st.view); renderRankings(); });
+  $('nfl-week').addEventListener('change', function (e) { st.week = +e.target.value === currentWeek() ? null : +e.target.value; renderScores(); refreshScores(); });
+  window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });
+  // Dark and light logos differ, so redraw when the theme changes.
+  new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (e) {}
+  renderAll();
+  showPage();
+})();

@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+{{HEAD}}
+  <title>NFL playoff odds · CFP Odds Board</title>
+  <meta name="description" content="Each NFL team's chance to win its division, make the playoffs, earn the top seed and win the Super Bowl, from simulating the rest of the season.">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+{{HEADER}}
+
+<main class="container main" id="main">
+  <h1 class="sr-only" id="page-title">NFL playoff odds</h1>
+
+  <div class="stack" id="page-rankings">
+    <section class="section" aria-labelledby="nfl-title">
+      <div class="section-head"><h2 id="nfl-title">NFL standings</h2><p id="nfl-note"></p></div>
+      <div class="filters">
+        <div class="ctl"><label for="nfl-view">Teams</label><select id="nfl-view"></select></div>
+        <div class="ctl"><label for="nfl-mode">Ratings used</label><select id="nfl-mode" class="nfl-mode"></select></div>
+        <div class="picks-bar" id="nfl-picks-bar" aria-live="polite"></div>
+      </div>
+      <div class="table-wrap nfl-wrap" id="nfl-tw"><table class="nfl-table">
+        <thead><tr id="nfl-head"></tr></thead>
+        <tbody id="nfl-body"></tbody>
+      </table></div>
+    </section>
+
+    <section class="section nfl-how" aria-labelledby="nfl-how">
+      <h2 id="nfl-how">How these odds work</h2>
+      <ul>
+{{NFL_METHOD}}
+      </ul>
+    </section>
+  </div>
+
+  <div class="stack" id="page-playoff" hidden>
+    <section class="section" aria-labelledby="nfl-bk-title">
+      <div class="bk-head">
+        <div class="section-head"><h2 id="nfl-bk-title">Projected playoffs</h2><p>The likeliest seven teams in each conference, seeded. Select a team to advance it and see that game’s win chances, or simulate the games to advance every favorite. Picks on the Standings tab change the seeding.</p></div>
+        <div class="bk-actions">
+          <button class="btn" id="nfl-bk-clear" type="button" hidden>Clear picks</button>
+          <div class="ctl"><label for="nfl-mode-bk">Ratings used</label><select id="nfl-mode-bk" class="nfl-mode"></select></div>
+          <button class="btn bk-toggle" id="nfl-bk-sim" type="button" aria-pressed="false">Simulate games</button>
+        </div>
+      </div>
+      <div class="nfl-bracket" id="nfl-bracket"></div>
+    </section>
+  </div>
+
+  <div class="stack" id="page-scoreboard" hidden>
+    <div class="filters">
+      <div class="ctl"><label for="nfl-week">Week</label><select id="nfl-week"></select></div>
+    </div>
+    <p class="live-note" id="nfl-live-note" hidden></p>
+    <section class="live-board" id="nfl-scores" aria-label="Scores"></section>
+  </div>
+</main>
+
+{{FOOTER}}
+<script src="nfl-engine.js?v={{V}}"></script>
+<script src="nfl-data.js?v={{V}}"></script>
+<script src="js/nfl.js?v={{V}}"></script>
+</body>
+</html>

@@ -66,7 +66,52 @@ a { color: var(--accent); text-underline-offset: 3px; }
 .site-header { background: var(--panel); border-bottom: 1px solid var(--line); }
 /* Tabs on the left, theme switch on the right, on every screen size. Small phones get tighter tabs so all three fit. */
 @media (max-width: 400px) { .header-bar .tabs a { padding: 0 var(--s1); font-size: var(--text-sm); letter-spacing: .03em; } }
-.header-bar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--s3); }
+.header-bar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--s2); }
+/* Night mode: its own switch at the right of the header. */
+.theme-switch { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 var(--s1); margin: 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; }
+.theme-switch svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.theme-switch .switch { position: relative; width: 34px; height: 20px; background: var(--bar-track); border: 1px solid var(--line); border-radius: 10px; transition: background .15s; }
+.theme-switch .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.theme-switch[aria-checked="true"] .switch { background: var(--accent); border-color: var(--accent); }
+.theme-switch[aria-checked="true"] .switch::after { transform: translateX(14px); background: var(--panel); }
+.theme-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Phones: a tighter sport button and the switch without its icon, so all three tabs fit. */
+@media (max-width: 599px) {
+  .menu { padding-right: var(--s2); margin-right: 0; }
+  .menu-btn { gap: 4px; padding: 0 6px; }
+  .menu-btn .menu-caret { display: none; }
+  .theme-switch svg { display: none; }
+  .theme-switch { padding: 0; }
+}
+/* Menu at the top left: every page, then the night-mode switch last. */
+.menu { position: relative; margin-left: calc(-1 * var(--s2)); }
+/* The menu button: three lines and the sport being shown. */
+.menu-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 var(--s2); border: 1px solid var(--line); background: var(--bg); font: 700 var(--text-sm)/1 var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.menu-btn:hover { border-color: var(--accent); background: var(--accent-soft); }
+.menu-btn img.menu-sport { display: block; height: 24px; width: auto; }
+.menu-btn .menu-name { font: 700 var(--text-sm)/1 var(--display); letter-spacing: .06em; }
+.menu-panel a span { font: 700 var(--text-md)/1 var(--display); letter-spacing: .05em; }
+.menu-btn svg.menu-caret { width: 14px; height: 14px; }
+/* The sport switch stands apart from the page tabs. */
+.menu { padding-right: var(--s3); margin-right: var(--s1); border-right: 1px solid var(--line); }
+.menu-panel a img.menu-logo { display: block; height: 24px; width: 28px; object-fit: contain; }
+.menu-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.menu-btn[aria-expanded="true"] { background: var(--accent-soft); }
+.menu-panel { position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; display: grid; min-width: 200px; padding: var(--s2) 0; background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow); }
+.menu-panel[hidden] { display: none; }
+.menu-panel a, .menu-theme { display: flex; align-items: center; gap: var(--s3); min-height: 44px; padding: 0 var(--s4); color: var(--ink); text-decoration: none; font: 600 var(--text-sm)/1 var(--body); }
+.menu-panel a { font: 700 var(--text-md)/1 var(--display); letter-spacing: .05em; }
+.menu-panel a:hover, .menu-theme:hover { background: var(--accent-soft); }
+.menu-panel a[aria-current] { box-shadow: inset 3px 0 0 var(--accent); }
+.menu-label { padding: var(--s3) var(--s4) var(--s1); font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.menu-panel hr { margin: var(--s2) 0; border: 0; border-top: 1px solid var(--line); }
+.menu-theme { width: 100%; margin: 0; border: 0; background: transparent; cursor: pointer; text-align: left; }
+.menu-theme svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.menu-theme span:first-of-type { flex: 1; }
+.menu-theme .switch { position: relative; width: 34px; height: 20px; flex: none; background: var(--bar-track); border: 1px solid var(--line); border-radius: 10px; transition: background .15s; }
+.menu-theme .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--muted); transition: transform .15s, background .15s; }
+.menu-theme[aria-checked="true"] .switch { background: var(--accent); border-color: var(--accent); }
+.menu-theme[aria-checked="true"] .switch::after { transform: translateX(14px); background: var(--panel); }
 .tabs { display: flex; gap: var(--s1); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
 .tabs a { display: inline-flex; flex: 1 1 auto; justify-content: center; align-items: center; min-height: 44px; padding: 0 var(--s2); color: var(--muted); text-decoration: none; font: 600 var(--text-base)/1 var(--display); letter-spacing: .05em; text-transform: uppercase; border-bottom: 3px solid transparent; white-space: nowrap; }
 .tabs a:hover { color: var(--ink); }
@@ -234,7 +279,7 @@ th.pick, td.pick { text-align: center; }
   .odds-table.expanded th { white-space: normal; }
   .odds-table.expanded .c-team { width: 160px; }
   .odds-table.expanded .c-bye, .odds-table.expanded .c-conf, .odds-table.expanded .c-title { width: 72px; }
-  .odds-table.expanded .team-col { position: sticky; z-index: 2; left: var(--rk-w); background: var(--panel); border-right: 1px solid var(--line); }
+  .odds-table.expanded .team-col { position: sticky; z-index: 2; left: var(--rk-w); background: var(--panel); }
   .odds-table.expanded th.team-col { z-index: 4; }
 }
 /* Tablets: room for the Conf. column, so the team column stops at a set width. */
@@ -259,7 +304,7 @@ th.pick, td.pick { text-align: center; }
   .odds-table th.c-cfp, .odds-table td.odds-cell { padding-right: var(--s2); }
   .odds-table th:last-child, .odds-table tr:not(.detail) > td:last-child { padding-right: var(--s4); }
   /* CFP, Model rank and Team stay pinned on the left: offsets are the widths of the columns before them. */
-  .odds-table .team-col { position: sticky; z-index: 2; left: var(--rk-w); background: var(--panel); border-right: 1px solid var(--line); }
+  .odds-table .team-col { position: sticky; z-index: 2; left: var(--rk-w); background: var(--panel); }
   .odds-table th.team-col { z-index: 4; }
   th { padding-inline: var(--s2); }
   td { padding: 5px var(--s2); }
@@ -332,9 +377,11 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .lg-live { display: inline-flex; align-items: center; gap: var(--s2); }
 .upset-pill { display: inline-block; padding: 2px 6px; background: var(--warn); color: var(--panel); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
 /* Score cards: team, score, win chance and Make CFP. */
-.lg-rows { display: grid; grid-template-columns: minmax(0, 1fr) 40px 46px 80px; align-items: center; gap: var(--s1) var(--s2); }
+.lg-rows { display: grid; grid-template-columns: minmax(0, max-content) minmax(40px, 1fr) 46px 80px; align-items: center; gap: var(--s1) var(--s2); }
 /* Upcoming games: win chance, Make CFP, and Make CFP if they win or lose. */
 .lg-rows.pre { grid-template-columns: minmax(0, 1fr) 40px 64px 64px 64px; gap: var(--s1) 6px; }
+/* Games under way (NFL): score, live win chance, playoffs now, and if they win or lose. */
+.lg-rows.inplay { grid-template-columns: minmax(0, max-content) minmax(32px, 1fr) 38px 58px 58px 58px; gap: var(--s1) 5px; }
 /* Cards size themselves by their own width, giving things up in this order so nothing overlaps:
    narrower number columns, then the rank, record and the word Kickoff, and only on the tightest
    cards If win and If loss. */
@@ -342,6 +389,8 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 @container (max-width: 22rem) {
   .lg-rows.pre { grid-template-columns: minmax(0, 1fr) 30px 50px 50px 50px; gap: var(--s1) 3px; }
   .lg-rows.pre .lg-cfp { padding-inline: 4px; }
+  .lg-rows.inplay { grid-template-columns: minmax(0, max-content) minmax(28px, 1fr) 32px 48px 48px 48px; gap: var(--s1) 3px; }
+  .lg-rows.inplay .lg-cfp { padding-inline: 4px; }
   .lg-rows.pre .lg-team { gap: 6px; }
 }
 @container (max-width: 20rem) {
@@ -349,6 +398,7 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 }
 @container (max-width: 16rem) {
   .lg-rows.pre { grid-template-columns: minmax(0, 1fr) 40px 64px; gap: var(--s1) var(--s2); }
+  .lg-rows.inplay { grid-template-columns: minmax(0, max-content) minmax(32px, 1fr) 40px 64px; gap: var(--s1) var(--s2); }
   .lg-if { display: none; }
 }
 .lg-rows .h { align-self: end; font: 600 11px/1.1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); text-align: right; }
@@ -359,6 +409,8 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .lg-team small.lg-rank { margin-right: 4px; font: 500 var(--text-xs) var(--body); color: var(--muted); }
 .lg-score { text-align: right; font: 600 21px/1 var(--display); color: var(--muted); }
 .lg-score.lead { color: var(--ink); font-weight: 700; }
+/* Scores sit right beside the team names; the spare room goes after them. */
+.lg-rows:not(.pre) .lg-score, .lg-rows:not(.pre) > .h:nth-child(2) { text-align: left; padding-left: var(--s3); }
 /* Win and Make CFP share one font so the projection columns read alike. */
 .lg-num, .lg-cfp { text-align: right; font: 500 var(--text-sm)/1.1 var(--body); }
 .lg-cfp { padding: 4px 6px; border-radius: 0; background: color-mix(in srgb, var(--heat) calc(var(--p) * 40%), transparent); }
@@ -373,7 +425,7 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .bk-toggle[aria-pressed="true"], .bk-toggle[aria-pressed="true"]:hover { background: var(--accent); border-color: var(--accent); color: var(--panel); }
 .bracket { display: grid; gap: var(--s5); }
 .bk-rounds { position: relative; display: grid; gap: var(--s5); }
-.bk-round { display: grid; grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); gap: var(--s3); min-width: 0; }
+.bk-round { display: grid; grid-template-rows: 1fr; grid-template-columns: minmax(0, 1fr); gap: var(--s3); min-width: 0; }
 .bk-round h3 { padding: var(--s2) var(--s3); background: var(--bar-track); border-radius: 0; font-size: var(--text-xs); letter-spacing: .08em; color: var(--ink); }
 /* Bowl branding: dates and sites on rounds and games. */
 .bk-round h3 small { display: block; margin-top: 2px; font: 500 11px/1.3 var(--body); letter-spacing: 0; text-transform: none; color: var(--muted); }
@@ -388,6 +440,13 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .bk-where { overflow: hidden; }
 /* Narrow cards keep one line by trimming: first the bowl name (its logo stays, name on hover), then "ET", then smaller network logos. */
 @container (max-width: 330px) { .bk-bowl + span { display: none; } }
+/* The site after a game's name, where the card has room. */
+.bk-place .bk-loc { flex: 0 1 auto; color: var(--muted); font-weight: 500; }
+.bk-place .bk-loc::before { content: "· "; }
+.bk-place .bk-title, .bk-place img + span:not(.bk-loc) { flex: none; }
+/* A site that would be cut off is hidden by the page (fitLocs); with the bowl name hidden it needs no dot. */
+.bk-place .bk-loc.cut { display: none; }
+@container (max-width: 330px) { .bk-bowl ~ .bk-loc::before { content: none; } }
 @container (max-width: 270px) { .bk-et { display: none; } .bk-air, .bk-air .net-logos { gap: 4px; } }
 @container (max-width: 240px) {
   .bk-where { gap: 6px; padding-inline: var(--s2); font-size: 11px; }
@@ -412,6 +471,9 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img { filter: brightness(0) invert(1); } }
 /* Logos on a solid shape of their own keep their colors on the dark theme. */
 :root[data-theme="dark"] :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-cbssn, .net-logos img.net-accnetwork, .net-logos img.net-accn, .net-logos img.net-disney) { filter: none; }
+/* NBC: black lettering turns white while the peacock keeps its colors. */
+:root[data-theme="dark"] .net-logos img.net-nbc { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img.net-nbc { filter: invert(1) hue-rotate(180deg); } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-cbssn, .net-logos img.net-accnetwork, .net-logos img.net-accn, .net-logos img.net-disney) { filter: none; } }
 /* ABC is a filled circle with cut-out letters: a plain color flip keeps the letters. */
 :root[data-theme="dark"] .net-logos img[alt="ABC"] { filter: invert(1); }
@@ -420,6 +482,9 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 /* The championship logo has black laces and lettering: on the dark theme flip them to white and turn the hue back so the gold stays gold. */
 :root[data-theme="dark"] .bk-bowl-title { filter: invert(1) hue-rotate(180deg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bk-bowl-title { filter: invert(1) hue-rotate(180deg); } }
+/* Rose Bowl: its dark lettering turns white in dark mode; the rose keeps its color. */
+:root[data-theme="dark"] .bk-bowl-rose { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bk-bowl-rose { filter: invert(1) hue-rotate(180deg); } }
 .bk-games { display: grid; gap: var(--s3); }
 .bk-box { position: relative; background: var(--panel); overflow: hidden; }
 .bk-team { display: grid; grid-template-columns: 18px 22px minmax(0, 1fr) auto; align-items: center; gap: var(--s2); min-height: 46px; padding: 0 var(--s3); border-bottom: 1px solid var(--line); color: var(--ink); }
@@ -469,6 +534,71 @@ button.bk-team:focus-visible { outline-offset: -2px; }
   .bk-round:first-child .bk-games, .bk-round:nth-child(2) .bk-games { grid-template-columns: none; }
   .bk-games { display: flex; flex-direction: column; justify-content: space-around; gap: var(--s4); }
 }
+
+/* ---------- NFL page ---------- */
+.nfl-wrap { max-height: none; }
+.nfl-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+/* Fixed widths for the numbers; the team column takes the rest. */
+.nfl-table { table-layout: fixed; }
+.nfl-table th.c-team { width: 220px; } .nfl-table th.c-rec { width: 60px; } .nfl-table th.c-rating { width: 70px; } .nfl-table th.c-next { width: 132px; }
+.nfl-table th.c-playoff { width: 120px; }
+.nfl-table th.c-div, .nfl-table th.c-bye, .nfl-table th.c-conf, .nfl-table th.c-sb { width: 84px; }
+.nfl-table th.c-rec { text-align: left; }
+@media (max-width: 599px) {
+  .nfl-table th.c-rec { width: 42px; } .nfl-table th.c-next { width: 92px; } .nfl-table th.c-playoff { width: 74px; } .nfl-table th.c-sb { width: 54px; }
+  .nfl-table small.ifs span { display: block; } .nfl-table small.ifs .ifs-dot { display: none; }
+  .nfl-table th:first-child, .nfl-table td:first-child { padding-left: var(--s2); } .nfl-table th:last-child, .nfl-table td:last-child { padding-right: var(--s2); } .nfl-team { gap: 6px; overflow: hidden; }
+  .nfl-table { table-layout: fixed; } /* the columns keep their set widths and the team column takes what is left */
+  .nx-pick { gap: 4px; } .nfl-table .mini button.pick-box { width: 26px; height: 26px; }
+  .nfl-table td { padding-inline: 4px; } .nfl-table .nx-when { display: none; }
+}
+.nfl-table th { position: sticky; top: 0; z-index: 1; padding: var(--s2); background: var(--panel); border-bottom: 2px solid var(--line); text-align: right; font: 600 var(--text-xs)/1.1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.nfl-table th.c-team, .nfl-table th.c-next { text-align: left; }
+.nfl-table td { padding: 6px var(--s2); border-bottom: 1px solid var(--line); vertical-align: middle; }
+.nfl-table tr:last-child td { border-bottom: 0; }
+/* Conference or division name above its teams. */
+.nfl-table tr.nfl-group th { position: static; padding: 4px var(--s3); background: var(--bar-track); border-bottom: 1px solid var(--line); text-align: left; font: 600 11px/1.2 var(--display); letter-spacing: .08em; color: var(--muted); }
+.nfl-table th:first-child, .nfl-table td:first-child { padding-left: var(--s3); }
+.nfl-table th:last-child, .nfl-table td:last-child { padding-right: var(--s3); }
+.nfl-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.nfl-table td.c-rec { text-align: left; color: var(--muted); }
+.nfl-table td.heat { background: color-mix(in srgb, var(--heat) calc(var(--p) * 40%), transparent); }
+.nfl-table td.c-playoff b { display: block; font-weight: 600; }
+.nfl-table small { display: block; margin-top: 2px; font-size: var(--text-xs); color: var(--muted); white-space: nowrap; }
+.nfl-table .c-next { white-space: nowrap; text-align: left; }
+.nx-pick { display: flex; align-items: center; gap: var(--s2); }
+.nfl-rounds .bk-team.picks { grid-template-columns: 26px 22px minmax(0, 1fr) auto 30px; }
+.nfl-table .nx-opp { font-weight: 600; }
+.nfl-team { display: flex; align-items: center; gap: var(--s2); font-weight: 600; white-space: nowrap; }
+.nfl-team .logo { width: 24px; height: 24px; flex: none; }
+.nfl-team .tn-short { display: none; }
+/* Phones: team, record, next game, playoffs and Super Bowl; the rest appear on wider screens. */
+.nfl-table .wide { display: none; }
+@media (min-width: 600px) and (max-width: 899px) { .nfl-table th.c-team { width: 170px; } .nfl-table th.c-next { width: 112px; } .nfl-table th.c-playoff { width: 108px; } }
+@media (max-width: 599px) { .nfl-table th.c-team { width: auto; } }
+@media (max-width: 599px) { .nfl-table .tablet { display: none; } }
+@media (max-width: 599px) { .nfl-team .tn-long { display: none; } .nfl-team .tn-short { display: inline; } .nfl-table .c-div { display: none; } }
+@media (min-width: 900px) { .nfl-table .wide { display: table-cell; } }
+/* NFL bracket: the CFB bracket's round columns. AFC games sit above NFC games in each round. */
+.nfl-bracket .bk-name small { margin-left: 4px; font: 500 var(--text-xs) var(--body); letter-spacing: 0; text-transform: none; }
+.nfl-rounds .bk-team { grid-template-columns: 26px 22px minmax(0, 1fr) auto; }
+/* Conference and Super Bowl logos sit where the bowl logos do on the college bracket. */
+.nfl-rounds .bk-afc, .nfl-rounds .bk-nfc { height: 18px; }
+.nfl-rounds .bk-big.bk-afc, .nfl-rounds .bk-big.bk-nfc { height: 24px; }
+.nfl-rounds img.bk-conf { display: block; width: auto; flex: none; }
+.nfl-rounds .bk-sb { height: 30px; }
+.nfl-half { display: grid; gap: var(--s3); }
+.nfl-rounds .bk-round { grid-template-rows: 1fr; }
+.nfl-rounds .bk-round:first-child .bk-games, .nfl-rounds .bk-round:nth-child(2) .bk-games { grid-template-columns: none; }
+.nfl-rounds .bk-games { display: grid; gap: var(--s5); }
+@media (min-width: 1000px) {
+  .nfl-rounds .bk-games { display: flex; flex-direction: column; justify-content: space-around; gap: var(--s7); }
+  .nfl-half { flex: 1; display: flex; flex-direction: column; justify-content: space-around; gap: var(--s4); }
+  .nfl-rounds .bk-round:last-child .nfl-half { justify-content: center; }
+}
+.tv-name { font: 700 10px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; color: var(--ink); white-space: nowrap; }
+.nfl-how ul { margin: 0; padding-left: 20px; display: grid; gap: var(--s2); max-width: 75ch; font-size: var(--text-sm); color: var(--muted); }
+.nfl-how h2 { font-size: var(--text-md); }
 
 /* ---------- 10. About page: one readable column ---------- */
 .about { display: grid; gap: var(--s6); max-width: 70ch; }

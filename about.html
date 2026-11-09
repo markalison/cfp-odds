@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=4031e686fb">
-  <script src="js/theme.js?v=4031e686fb"></script>
+  <link rel="stylesheet" href="css/styles.css?v=3237af9604">
+  <script src="js/theme.js?v=3237af9604"></script>
   <title>About · CFP Odds Board</title>
   <meta name="description" content="How the CFP Odds Board simulates the season: the playoff rules it applies, the ratings it uses and its limits.">
 </head>
@@ -15,12 +15,19 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="container header-bar">
-    <nav class="tabs" aria-label="Views">
+    <div class="menu">
+      <button class="btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Sport: NCAAF. Choose a sport"><img class="menu-sport" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span class="menu-name">NCAAF</span><svg class="menu-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+      <div class="menu-panel" id="menu-panel" hidden>
+        <a href="nfl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
+        <a href="./#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="College football views">
       <a href="./#rankings" data-page="rankings">Rankings</a>
-      <a href="./#playoff" data-page="playoff">Playoff</a>
+      <a href="./#playoff" data-page="playoff">Bracket</a>
       <a href="./#scores" data-page="scoreboard">Scores</a>
     </nav>
-    <button class="btn icon-btn" id="theme" type="button"></button>
+    <button class="theme-switch" id="theme" type="button" role="switch" aria-checked="false" aria-label="Night mode" title="Night mode"></button>
   </div>
 </header>
 

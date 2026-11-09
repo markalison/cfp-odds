@@ -298,11 +298,10 @@
     renderBoardTitle(rows.length);
     if (!rows.length) { $('body').innerHTML = '<tr><td class="empty" colspan="' + visibleColumns() + '">No teams match. Clear the search or pick another conference.</td></tr>'; return; }
     $('body').innerHTML = rows.map(function (x) {
-      var conf = CFP.CONF_NAME[x.t.conf] || x.t.conf;
       var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first c-rk">' + (x.t.rank || '') + '</td>' +
         '<td class="team-col"><div class="teamcell">' + logo(x.t, 30) +
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '" aria-label="' + esc(x.t.name) + '"><span class="tn-long">' + esc(x.t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(x.t.ab || x.t.name) + '</span></button></span></div></td>' +
-        '<td class="l c-cn-cell"><span class="cn-long">' + esc(conf) + '</span><span class="cn-short" aria-hidden="true">' + esc(CFP.CONF_ABBR[x.t.conf] || conf) + '</span></td>' +
+        '<td class="l c-cn-cell"><span class="cn-long">' + esc(CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span><span class="cn-short" aria-hidden="true">' + esc(CFP.CONF_ABBR[x.t.conf] || CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span></td>' +
         '<td class="num rec">' + x.rec.text + '</td>' +
         '<td class="num tc">' + x.index.toFixed(1) + '</td>' +
         '<td class="pick">' + pickCell(x) + '</td>' +
@@ -463,7 +462,11 @@
     Championship: 'Jan 25 · Las Vegas'
   };
   // A bowl's logo, named in its tooltip and for screen readers.
-  function bowlChip(k) { var b = BOWLS[k]; return '<img class="bk-bowl bk-bowl-' + k + '" src="' + b.logo + '" alt="" loading="lazy"><span title="' + esc(b.name + ' · ' + b.site) + '">' + esc(b.short) + '</span>'; }
+  // Bowl logo, name and site; the site shows only where the card has room (styles.css).
+  function bowlChip(k) {
+    var b = BOWLS[k], loc = k === 'title' ? 'Allegiant Stadium' : b.site;
+    return '<img class="bk-bowl bk-bowl-' + k + '" src="' + b.logo + '" alt="" loading="lazy"><span title="' + esc(b.name + ' · ' + b.site) + '">' + esc(b.short) + '</span><span class="bk-loc">' + esc(loc) + '</span>';
+  }
   // Fixed bracket, no reseeding: 1 plays the 8/9 winner, 4 plays 5/12, 2 plays 7/10, 3 plays 6/11.
   function renderBracket() {
     var field = projectedField().field, sim = !!st.bkSim;
@@ -487,7 +490,7 @@
     var sf = [bracketGame('sf-0', qf[0].winner, qf[1].winner, false, 'Winner of semifinal 1', sfLine('orange')), bracketGame('sf-1', qf[2].winner, qf[3].winner, false, 'Winner of semifinal 2', sfLine('sugar'))];
     var fin = bracketGame('f', sf[0].winner, sf[1].winner, false, 'Champion', gameLine(BOWLS.title.tv, BOWLS.title.when, bowlChip('title')));
     $('bk-clear').hidden = !Object.keys(st.bkPicks).length; // after the games drop stale picks
-    function round(title, games) { return '<section class="bk-round" aria-label="' + title + '"><h3>' + title + '<small>' + esc(ROUND_INFO[title] || '') + '</small></h3><div class="bk-games">' + games.map(function (g) { return g.html; }).join('') + '</div></section>'; }
+    function round(title, games) { return '<section class="bk-round" aria-label="' + esc(title + ', ' + (ROUND_INFO[title] || '')) + '"><div class="bk-games">' + games.map(function (g) { return g.html; }).join('') + '</div></section>'; }
     var champ = fin.winner.tbd ? null : fin.winner;
     var titles = s.slice().sort(function (a, b) { return b.x.r.title - a.x.r.title; }).slice(0, 6);
     var champCard = '';
@@ -503,9 +506,22 @@
   }
   // Lines from each game to the one its winner plays next. Only drawn when the rounds sit side by side.
   var BK_WIDE = matchMedia('(min-width: 1000px)');
+  // Shows each game site only if it fits in full on its card.
+  // Logos change the room left once they load, so check again then.
+  var fitTimer = null;
+  document.addEventListener('load', function (e) {
+    if (!e.target.closest || !e.target.closest('.bk-where')) return;
+    clearTimeout(fitTimer);
+    fitTimer = setTimeout(function () { var w = document.getElementById('bk-rounds'); if (w) fitLocs(w); }, 50);
+  }, true);
+  function fitLocs(root) {
+    [].forEach.call(root.querySelectorAll('.bk-loc'), function (l) { l.classList.remove('cut'); });
+    [].forEach.call(root.querySelectorAll('.bk-loc'), function (l) { if (l.scrollWidth > l.clientWidth + 1) l.classList.add('cut'); });
+  }
   function drawConnectors() {
     var wrap = document.getElementById('bk-rounds');
     if (!wrap) return;
+    fitLocs(wrap);
     var old = wrap.querySelector('.bk-lines');
     if (old) old.remove();
     if (!BK_WIDE.matches || !wrap.offsetWidth) return;

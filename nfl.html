@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/styles.css?v=3237af9604">
+  <script src="js/theme.js?v=3237af9604"></script>
+  <title>NFL playoff odds · CFP Odds Board</title>
+  <meta name="description" content="Each NFL team's chance to win its division, make the playoffs, earn the top seed and win the Super Bowl, from simulating the rest of the season.">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="container header-bar">
+    <div class="menu">
+      <button class="btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Sport: NFL. Choose a sport"><img class="menu-sport" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span class="menu-name">NFL</span><svg class="menu-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+      <div class="menu-panel" id="menu-panel" hidden>
+        <a href="nfl.html#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
+        <a href="./#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="NFL views">
+      <a href="nfl.html#rankings" data-page="rankings">Standings</a>
+      <a href="nfl.html#playoff" data-page="playoff">Bracket</a>
+      <a href="nfl.html#scores" data-page="scoreboard">Scores</a>
+    </nav>
+    <button class="theme-switch" id="theme" type="button" role="switch" aria-checked="false" aria-label="Night mode" title="Night mode"></button>
+  </div>
+</header>
+
+<main class="container main" id="main">
+  <h1 class="sr-only" id="page-title">NFL playoff odds</h1>
+
+  <div class="stack" id="page-rankings">
+    <section class="section" aria-labelledby="nfl-title">
+      <div class="section-head"><h2 id="nfl-title">NFL standings</h2><p id="nfl-note"></p></div>
+      <div class="filters">
+        <div class="ctl"><label for="nfl-view">Teams</label><select id="nfl-view"></select></div>
+        <div class="ctl"><label for="nfl-mode">Ratings used</label><select id="nfl-mode" class="nfl-mode"></select></div>
+        <div class="picks-bar" id="nfl-picks-bar" aria-live="polite"></div>
+      </div>
+      <div class="table-wrap nfl-wrap" id="nfl-tw"><table class="nfl-table">
+        <thead><tr id="nfl-head"></tr></thead>
+        <tbody id="nfl-body"></tbody>
+      </table></div>
+    </section>
+
+    <section class="section nfl-how" aria-labelledby="nfl-how">
+      <h2 id="nfl-how">How these odds work</h2>
+      <ul>
+      <li>Every remaining regular-season game is played out 50,000 times. Each game is decided by the rating gap plus 1.5 points for the home team, with 13 points of game randomness, and each team’s strength also drifts by 1.5 points per simulated season.</li>
+      <li>Ratings are grouped by how they calculate. Point-based: ESPN’s FPI, Sagarin, TeamRankings and this site’s points rating (this season’s scores, margins capped at 24, adjusted for opponent and home field). Elo: <a href="https://github.com/greerreNFL/nfelo" target="_blank" rel="noopener">nfelo</a> and a classic Elo run over every game since 1999 (25 Elo points to a point). Betting market: ratings fitted to this season’s point spreads from <a href="https://github.com/nflverse/nfldata" target="_blank" rel="noopener">nflverse</a>, recent weeks counting most. Recent form: TeamRankings’ last five games and Sagarin’s recent rating. The default averages one rating from each source: ESPN FPI, Sagarin Rating, TeamRankings Predictive, nfelo, Classic Elo, Point spreads, Points rating (this site).</li>
+      <li>Division titles and wild cards follow the NFL’s tiebreakers: head-to-head, division record, common games, conference record, strength of victory and strength of schedule, then a coin toss.</li>
+      <li>Seven teams per conference make the playoffs. The four division winners are seeded 1-4 and the three wild cards 5-7. Only the 1 seed gets a bye, and the top remaining seed hosts each game. The Super Bowl is on a neutral field.</li>
+      <li>Playoffs after a win or loss show the chance to make the playoffs if the team wins or loses its next game.</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="stack" id="page-playoff" hidden>
+    <section class="section" aria-labelledby="nfl-bk-title">
+      <div class="bk-head">
+        <div class="section-head"><h2 id="nfl-bk-title">Projected playoffs</h2><p>The likeliest seven teams in each conference, seeded. Select a team to advance it and see that game’s win chances, or simulate the games to advance every favorite. Picks on the Standings tab change the seeding.</p></div>
+        <div class="bk-actions">
+          <button class="btn" id="nfl-bk-clear" type="button" hidden>Clear picks</button>
+          <div class="ctl"><label for="nfl-mode-bk">Ratings used</label><select id="nfl-mode-bk" class="nfl-mode"></select></div>
+          <button class="btn bk-toggle" id="nfl-bk-sim" type="button" aria-pressed="false">Simulate games</button>
+        </div>
+      </div>
+      <div class="nfl-bracket" id="nfl-bracket"></div>
+    </section>
+  </div>
+
+  <div class="stack" id="page-scoreboard" hidden>
+    <div class="filters">
+      <div class="ctl"><label for="nfl-week">Week</label><select id="nfl-week"></select></div>
+    </div>
+    <p class="live-note" id="nfl-live-note" hidden></p>
+    <section class="live-board" id="nfl-scores" aria-label="Scores"></section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <p>Playoff odds for the 2026 season, from simulating every remaining game and committee ranking.</p>
+    </div>
+    <nav aria-label="Footer">
+      <a class="footer-link" href="about.html">About</a>
+    </nav>
+    <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
+  </div>
+</footer>
+<script src="nfl-engine.js?v=3237af9604"></script>
+<script src="nfl-data.js?v=3237af9604"></script>
+<script src="js/nfl.js?v=3237af9604"></script>
+</body>
+</html>

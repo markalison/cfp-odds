@@ -12,18 +12,32 @@
 
   function isDark() { return /dark/.test(getComputedStyle(root).colorScheme); }
 
-  // The button shows the theme it switches to.
+  // The last menu item: "Night mode" with a switch showing whether it's on.
   function drawButton() {
     var b = document.getElementById('theme');
     if (!b) return;
-    var dark = isDark(), label = dark ? 'Switch to light theme' : 'Switch to dark theme';
-    b.innerHTML = dark ? SUN : MOON;
-    b.setAttribute('aria-label', label);
-    b.title = label;
+    var dark = isDark();
+    b.innerHTML = (dark ? MOON : SUN) + '<span class="switch" aria-hidden="true"></span>';
+    b.setAttribute('aria-checked', dark ? 'true' : 'false');
+  }
+
+  // The menu at the top left: opens from its button, closes on a choice, a click elsewhere or Escape.
+  function setupMenu() {
+    var btn = document.getElementById('menu-btn'), panel = document.getElementById('menu-panel');
+    if (!btn || !panel) return;
+    function open(on) {
+      panel.hidden = !on;
+      btn.setAttribute('aria-expanded', on ? 'true' : 'false');
+    }
+    btn.addEventListener('click', function (e) { e.stopPropagation(); open(panel.hidden); });
+    panel.addEventListener('click', function (e) { if (e.target.closest('a')) open(false); });
+    document.addEventListener('click', function (e) { if (!panel.hidden && !e.target.closest('.menu')) open(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !panel.hidden) { open(false); btn.focus(); } });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     drawButton();
+    setupMenu();
     var b = document.getElementById('theme');
     if (b) b.addEventListener('click', function () {
       var next = isDark() ? 'light' : 'dark';
