@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=9adbcdb273">
-  <script src="js/theme.js?v=9adbcdb273"></script>
+  <link rel="stylesheet" href="css/styles.css?v=5be67b36dd">
+  <script src="js/theme.js?v=5be67b36dd"></script>
   <title>CFP Odds Board</title>
   <meta name="description" content="Live odds of making the 12-team College Football Playoff, from simulating the rest of the season with ESPN data and computer ratings.">
 </head>
@@ -16,18 +16,19 @@
 <header class="site-header">
   <div class="container header-bar">
     <div class="menu">
-      <button class="btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Sport: NCAAF. Choose a sport"><img class="menu-sport" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span class="menu-name">NCAAF</span><svg class="menu-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+      <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu: choose a sport" title="Choose a sport"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
       <div class="menu-panel" id="menu-panel" hidden>
         <a href="nfl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
         <a href="./#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
       </div>
     </div>
+    <div class="sport-now"><img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></div>
     <nav class="tabs" aria-label="College football views">
       <a href="./#rankings" data-page="rankings">Rankings</a>
       <a href="./#playoff" data-page="playoff">Bracket</a>
       <a href="./#scores" data-page="scoreboard">Scores</a>
     </nav>
-    <button class="theme-switch" id="theme" type="button" role="switch" aria-checked="false" aria-label="Night mode" title="Night mode"></button>
+    <button class="btn icon-btn" id="theme" type="button"></button>
   </div>
 </header>
 
@@ -95,8 +96,8 @@
     <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
   </div>
 </footer>
-<script src="engine.js?v=9adbcdb273"></script>
-<script src="data.js?v=9adbcdb273"></script>
-<script src="js/app.js?v=9adbcdb273"></script>
+<script src="engine.js?v=5be67b36dd"></script>
+<script src="data.js?v=5be67b36dd"></script>
+<script src="js/app.js?v=5be67b36dd"></script>
 </body>
 </html>

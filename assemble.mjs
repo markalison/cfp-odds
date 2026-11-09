@@ -60,18 +60,19 @@ const header = (page) => {
   return `<header class="site-header">
   <div class="container header-bar">
     <div class="menu">
-      <button class="btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Sport: ${cur.name}. Choose a sport"><img class="menu-sport" src="${cur.logo}" alt=""><span class="menu-name">${cur.name}</span><svg class="menu-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg></button>
+      <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu: choose a sport" title="Choose a sport"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
       <div class="menu-panel" id="menu-panel" hidden>
         ${option('nfl')}
         ${option('ncaaf')}
       </div>
     </div>
+    <div class="sport-now"><img src="${cur.logo}" alt=""><span>${cur.name}</span></div>
     <nav class="tabs" aria-label="${nfl ? 'NFL' : 'College football'} views">
       <a href="${base}#rankings" data-page="rankings">${nfl ? 'Standings' : 'Rankings'}</a>
       <a href="${base}#playoff" data-page="playoff">Bracket</a>
       <a href="${base}#scores" data-page="scoreboard">Scores</a>
     </nav>
-    <button class="theme-switch" id="theme" type="button" role="switch" aria-checked="false" aria-label="Night mode" title="Night mode"></button>
+    <button class="btn icon-btn" id="theme" type="button"></button>
   </div>
 </header>`;
 };

@@ -16,9 +16,10 @@
   function drawButton() {
     var b = document.getElementById('theme');
     if (!b) return;
-    var dark = isDark();
-    b.innerHTML = (dark ? MOON : SUN) + '<span class="switch" aria-hidden="true"></span>';
-    b.setAttribute('aria-checked', dark ? 'true' : 'false');
+    var dark = isDark(), label = dark ? 'Switch to light theme' : 'Switch to dark theme';
+    b.innerHTML = dark ? SUN : MOON;
+    b.setAttribute('aria-label', label);
+    b.title = label;
   }
 
   // The menu at the top left: opens from its button, closes on a choice, a click elsewhere or Escape.
