@@ -46,45 +46,46 @@
   $('nfl-view').previousElementSibling.textContent = 'View';
   $('nfl-view').value = st.view;
 
-  var COLS = [
-    { k: 'team', label: 'Team' },
-    { k: 'rec', label: 'Rec' },
-    { k: 'rating', label: 'Rating', title: 'Points better than an average team on a neutral field', wide: true },
-    { k: 'next', label: 'Next', title: 'Next game and the chance to win it' },
-    { k: 'div', label: 'Win div' },
-    { k: 'playoff', label: 'Playoffs', title: 'Chance to make the playoffs, and after a win or loss in the next game' },
-    { k: 'bye', label: '1 seed', title: 'Chance to be the top seed, with the only first-round bye', wide: true },
-    { k: 'conf', label: 'Win conf', title: 'Chance to win the conference and reach the Super Bowl', wide: true },
-    { k: 'sb', label: 'Win SB', title: 'Chance to win the Super Bowl' }
-  ];
-  // Every header sorts (within each conference or division group); a second press flips the direction.
+  // The Standings table uses the college Rankings table's layout and styles (styles.css section 7): RK and
+  // Team pinned at the left, Rec, Index, the Next pick box, Playoffs shaded, and the other odds columns
+  // (class sec) shown on wide screens or with Show all columns.
   function renderHead() {
-    $('nfl-head').innerHTML = COLS.map(function (c) {
-      var s = st.sort && st.sort.k === c.k ? (st.sort.dir > 0 ? 'ascending' : 'descending') : 'none';
-      return '<th scope="col" class="c-' + c.k + (c.wide ? ' wide' : c.tablet ? ' tablet' : '') + '" aria-sort="' + s + '"' + (c.title ? ' title="' + esc(c.title) + '"' : '') + '><button type="button" data-nsort="' + c.k + '">' + c.label + '</button></th>';
-    }).join('');
+    function th(key, label, cls, title) {
+      var s = st.sort && st.sort.k === key ? (st.sort.dir > 0 ? 'ascending' : 'descending') : 'none';
+      return '<th class="' + cls + '" aria-sort="' + s + '"' + (title ? ' title="' + esc(title) + '"' : '') + '><button type="button" data-nsort="' + key + '">' + label + '</button></th>';
+    }
+    $('nfl-head').innerHTML =
+      '<th class="first c-rk" title="Place in this list">RK</th>' +
+      th('team', 'Team', 'l c-team team-col') +
+      th('dv', 'Div.', 'l c-cn') +
+      th('rec', 'Rec', 'c-rec') +
+      th('rating', '<abbr title="' + esc(modelLabel()) + ' rating: points better than an average team on a neutral field">Index</abbr>', 'c-idx tc') +
+      '<th class="pick c-pick">Next</th>' +
+      th('playoff', 'Playoffs', 'c-cfp', 'Chance to make the playoffs, and after a win or loss in the next game') +
+      th('div', 'Win div', 'c-div sec') +
+      th('bye', '1 seed', 'c-bye sec', 'Chance to be the top seed, with the only first-round bye') +
+      th('conf', 'Win conf', 'c-conf sec', 'Chance to win the conference and reach the Super Bowl') +
+      th('sb', 'Win SB', 'c-title sec');
   }
+  function modelLabel() { var m = data.models.filter(function (x) { return x.k === mode; })[0]; return m ? m.label : ''; }
   // Sort values per column; text columns start A to Z, numbers start highest first.
   function sortValue(k, i) {
     var r = R.teams[i];
     if (k === 'team') return D.teams[i].name;
     if (k === 'rec') return winPct(i);
     if (k === 'dv') return D.teams[i].div;
-    if (k === 'next') { var id = BASE.teams[i].next, hw = id == null ? null : R.homeWin[id]; return hw == null ? -1 : gameById[id].h === i ? hw : 1 - hw; }
-    return r[k === 'div' ? 'div' : k];
+    return r[k];
   }
-
-  function heat(v, extra) { return '<td class="num heat c-' + extra + '" style="--p:' + (v || 0).toFixed(3) + '">'; }
-  // The team's next game as of the build, with a box that cycles a pick through W, L and blank.
+  function shaded(v) { return '<td class="sec pct-cell" style="--p:' + (v || 0).toFixed(3) + '">' + pct(v) + '</td>'; }
+  // Next: the W / L / blank box with the opponent under it, as in the college table.
   function nextCell(i) {
     var id = BASE.teams[i].next;
-    if (id == null) return '<td class="c-next muted">—</td>';
+    if (id == null) return '<td class="pick">—</td>';
     var g = gameById[id], home = g.h === i, opp = D.teams[home ? g.a : g.h], vs = (home ? 'vs ' : '@') + opp.ab;
     var pk = st.picks[id], won = pk === i, lost = pk != null && !won;
-    var hw = R.homeWin[id], p = hw == null ? null : home ? hw : 1 - hw;
     var label = won ? D.teams[i].short + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? D.teams[i].short + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + D.teams[i].short + ' ' + vs + '. Press to pick a win';
-    return '<td class="c-next"><div class="nx-pick"><span class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(id) + '" data-team="' + i + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></span>' +
-      '<span><span class="nx-opp">' + esc(vs) + '</span><small>' + (pk != null ? 'Picked' : pct(p) + '<span class="nx-when"> · ' + etDate(g.d, { weekday: 'short' }) + '</span>') + '</small></span></div></td>';
+    return '<td class="pick"><div class="nx-cell"><div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(id) + '" data-team="' + i + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></div>' +
+      '<span class="nx-vs" aria-hidden="true">' + esc(vs) + '</span></div></td>';
   }
   // Row order: NFL and Conference by playoff odds, Division by record (then division odds). The order is set
   // when the view is chosen or picks are cleared, and held while picks change the odds, so rows don't jump.
@@ -102,27 +103,29 @@
     var names = key ? all.map(function (i) { return D.teams[i][key]; }).filter(function (n, k, arr) { return arr.indexOf(n) === k; }).sort() : [null];
     return names.map(function (n) { return { name: n, rows: all.filter(function (i) { return !key || D.teams[i][key] === n; }).sort(by) }; });
   }
+  // A label row must span exactly the columns showing, or the fixed table layout adds empty columns.
+  var WIDE_Q = matchMedia('(min-width: 900px)'), TABLET_Q = matchMedia('(min-width: 600px)');
+  function visibleCols() { var ex = document.querySelector('#nfl-tw table.expanded'); return WIDE_Q.matches || ex ? 11 : TABLET_Q.matches ? 7 : 6; }
+  [WIDE_Q, TABLET_Q].forEach(function (q) { try { q.addEventListener('change', function () { renderRankings(); }); } catch (e) {} });
   function renderRankings() {
     if (!st.order || st.order.view !== st.view) st.order = { view: st.view, groups: sortRows(st.view) };
     renderHead();
     $('nfl-body').innerHTML = st.order.groups.map(function (grp) {
-      return (grp.name ? '<tr class="nfl-group"><th colspan="9" scope="rowgroup">' + esc(grp.name) + '</th></tr>' : '') + grp.rows.map(row).join('');
+      return (grp.name ? '<tr class="nfl-group"><th colspan="' + visibleCols() + '" scope="rowgroup">' + esc(grp.name) + '</th></tr>' : '') + grp.rows.map(row).join('');
     }).join('');
   }
-  function row(i) {
-      var t = D.teams[i], r = R.teams[i];
-      var ifs = r.ifWin != null && st.picks[BASE.teams[i].next] == null && r.next === BASE.teams[i].next ? '<small class="ifs"><span>W ' + pct(r.ifWin) + '</span><span class="ifs-dot"> · </span><span>L ' + pct(r.ifLoss) + '</span></small>' : '';
-      return '<tr>' +
-        '<td class="c-team"><span class="nfl-team">' + logo(t, 24) + '<span class="tn-long">' + esc(t.name) + '</span><span class="tn-short">' + esc(t.ab) + '</span></span></td>' +
-        '<td class="c-rec num">' + recText(i) + '</td>' +
-        '<td class="c-rating num wide">' + (r.rating > 0 ? '+' : '') + r.rating.toFixed(1) + '</td>' +
-        nextCell(i) +
-        heat(r.div, 'div') + pct(r.div) + '</td>' +
-        heat(r.playoff, 'playoff') + '<b>' + pct(r.playoff) + '</b>' + ifs + '</td>' +
-        heat(r.bye, 'bye wide') + pct(r.bye) + '</td>' +
-        heat(r.conf, 'conf wide') + pct(r.conf) + '</td>' +
-        heat(r.sb, 'sb') + pct(r.sb) + '</td></tr>';
-    }
+  function row(i, k) {
+    var t = D.teams[i], r = R.teams[i];
+    return '<tr><td class="first c-rk">' + (k + 1) + '</td>' +
+      '<td class="team-col"><div class="teamcell">' + logo(t, 30) + '<span><span class="tname" title="' + esc(t.name) + '"><span class="tn-long">' + esc(t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(t.ab) + '</span></span></span></div></td>' +
+      // Division, styled like the college table's Conf. column: "AFC East", or "AFC E" on phones.
+      '<td class="l c-cn-cell"><span class="cn-long">' + esc(t.div) + '</span><span class="cn-short" aria-hidden="true">' + esc(t.div.replace(/ (\w)\w+$/, ' $1')) + '</span></td>' +
+      '<td class="num rec">' + recText(i) + '</td>' +
+      '<td class="num tc">' + (r.rating > 0 ? '+' : '') + r.rating.toFixed(1) + '</td>' +
+      nextCell(i) +
+      '<td class="odds-cell" style="--p:' + r.playoff.toFixed(3) + '"><div class="odds"><span class="v">' + pct(r.playoff) + '</span></div></td>' +
+      shaded(r.div) + shaded(r.bye) + shaded(r.conf) + shaded(r.sb) + '</tr>';
+  }
   function renderPicksBar() {
     var n = Object.keys(st.picks).length;
     $('nfl-picks-bar').innerHTML = busy ? '<span><b>Simulating…</b> Updating every team’s odds for your picks.</span>' : n
@@ -509,6 +512,13 @@
     else if (b.id === 'nfl-bk-sim') { st.bkSim = !st.bkSim; renderBracket(); }
   });
 
+  $('nfl-expand').addEventListener('click', function (e) {
+    var on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+    e.currentTarget.setAttribute('aria-pressed', on);
+    e.currentTarget.textContent = on ? 'Show fewer columns' : 'Show all columns';
+    document.querySelector('#nfl-tw table').classList.toggle('expanded', on);
+    renderRankings();
+  });
   $('nfl-view').addEventListener('change', function (e) { st.view = e.target.value; st.sort = null; store.set('nfl-view', st.view); renderRankings(); });
   $('nfl-week').addEventListener('change', function (e) { st.week = +e.target.value === currentWeek() ? null : +e.target.value; renderScores(); refreshScores(); });
   window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });

@@ -231,6 +231,11 @@
     }
     return weekGame(x, wk) || 'bye';
   }
+  function nextWinChance(x, g) {
+    if (x.next && x.next.id === g.id && x.next.p != null) return x.next.p;
+    var h = pregameHome(g);
+    return g.h === x.i ? h : 1 - h;
+  }
   function pickCell(x) {
     var g = nextWeekGame(x);
     if (g === 'bye') return '<div class="nx-cell"><span class="pick-bye">Bye</span></div>';
@@ -239,7 +244,8 @@
     var pk = st.picks[g.id], won = pk === x.t.id, lost = !!pk && !won;
     var label = won ? x.t.name + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + ' ' + vs + '. Press to pick a win';
     return '<div class="nx-cell"><div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(opp.id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></div>' +
-      '<span class="nx-vs" aria-hidden="true"><span class="nx-long">' + vs + '</span><span class="nx-short">' + (g.h === x.i || g.n ? '' : '@') + esc(opp.ab || opp.name) + '</span></span></div>';
+      // Same form as the NFL table: "vs DUKE" at home or neutral, "@ARIZ" away.
+      '<span class="nx-vs" aria-hidden="true">' + (g.h === x.i || g.n ? 'vs ' : '@') + esc(opp.ab || opp.name) + '</span>' + '</div>';
   }
   // Phones show four columns: CFP, team, pick and Make CFP (styles.css hides the rest below 900px). A full-width row must span
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.

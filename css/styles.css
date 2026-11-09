@@ -522,49 +522,22 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 }
 
 /* ---------- NFL page ---------- */
-.nfl-wrap { max-height: none; }
-.nfl-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
-/* Fixed widths for the numbers; the team column takes the rest. */
-.nfl-table { table-layout: fixed; }
-.nfl-table th.c-team { width: 220px; } .nfl-table th.c-rec { width: 60px; } .nfl-table th.c-rating { width: 70px; } .nfl-table th.c-next { width: 132px; }
-.nfl-table th.c-playoff { width: 120px; }
-.nfl-table th.c-div, .nfl-table th.c-bye, .nfl-table th.c-conf, .nfl-table th.c-sb { width: 84px; }
-.nfl-table th.c-rec { text-align: left; }
-@media (max-width: 599px) {
-  .nfl-table th.c-rec { width: 42px; } .nfl-table th.c-next { width: 92px; } .nfl-table th.c-playoff { width: 74px; } .nfl-table th.c-sb { width: 54px; }
-  .nfl-table small.ifs span { display: block; } .nfl-table small.ifs .ifs-dot { display: none; }
-  .nfl-table th:first-child, .nfl-table td:first-child { padding-left: var(--s2); } .nfl-table th:last-child, .nfl-table td:last-child { padding-right: var(--s2); } .nfl-team { gap: 6px; overflow: hidden; }
-  .nfl-table { table-layout: fixed; } /* the columns keep their set widths and the team column takes what is left */
-  .nx-pick { gap: 4px; } .nfl-table .mini button.pick-box { width: 26px; height: 26px; }
-  .nfl-table td { padding-inline: 4px; } .nfl-table .nx-when { display: none; }
+/* Standings use the college table's styles; these add the conference or division rows and the Win div column. */
+.odds-table tr.nfl-group th { position: static; padding: 4px var(--s3); background: var(--bar-track); border-bottom: 1px solid var(--line); text-align: left; font: 600 11px/1.2 var(--display); letter-spacing: .08em; color: var(--muted); }
+.c-div { width: 72px; }
+.nfl-odds .odds small.ifs { display: block; margin-top: 2px; font-size: 11px; line-height: 1.25; color: var(--muted); white-space: nowrap; }
+.nfl-odds .odds small.ifs span { display: block; }
+/* Wide screens: the after-win and after-loss odds share one line, so rows stay as short as the college table's. */
+@media (min-width: 900px) {
+  .nfl-odds .c-cfp { width: 118px; }
+  .nfl-odds .odds small.ifs span { display: inline; }
+  .nfl-odds .odds small.ifs span + span::before { content: " · "; }
 }
-.nfl-table th { position: sticky; top: 0; z-index: 1; padding: var(--s2); background: var(--panel); border-bottom: 2px solid var(--line); text-align: right; font: 600 var(--text-xs)/1.1 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
-.nfl-table th.c-team, .nfl-table th.c-next { text-align: left; }
-.nfl-table td { padding: 6px var(--s2); border-bottom: 1px solid var(--line); vertical-align: middle; }
-.nfl-table tr:last-child td { border-bottom: 0; }
-/* Conference or division name above its teams. */
-.nfl-table tr.nfl-group th { position: static; padding: 4px var(--s3); background: var(--bar-track); border-bottom: 1px solid var(--line); text-align: left; font: 600 11px/1.2 var(--display); letter-spacing: .08em; color: var(--muted); }
-.nfl-table th:first-child, .nfl-table td:first-child { padding-left: var(--s3); }
-.nfl-table th:last-child, .nfl-table td:last-child { padding-right: var(--s3); }
-.nfl-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.nfl-table td.c-rec { text-align: left; color: var(--muted); }
-.nfl-table td.heat { background: color-mix(in srgb, var(--heat) calc(var(--p) * 40%), transparent); }
-.nfl-table td.c-playoff b { display: block; font-weight: 600; }
-.nfl-table small { display: block; margin-top: 2px; font-size: var(--text-xs); color: var(--muted); white-space: nowrap; }
-.nfl-table .c-next { white-space: nowrap; text-align: left; }
-.nx-pick { display: flex; align-items: center; gap: var(--s2); }
+.nfl-odds .tname { cursor: default; }
+.nfl-odds .tname:hover { text-decoration: none; }
+/* Phones: short conference and division codes stay on one line in both tables. */
+@media (max-width: 599px) { .odds-table:not(.expanded) .cn-short { font-size: 11px; letter-spacing: -.01em; white-space: nowrap; } }
 .nfl-rounds .bk-team.picks { grid-template-columns: 26px 22px minmax(0, 1fr) auto 30px; }
-.nfl-table .nx-opp { font-weight: 600; }
-.nfl-team { display: flex; align-items: center; gap: var(--s2); font-weight: 600; white-space: nowrap; }
-.nfl-team .logo { width: 24px; height: 24px; flex: none; }
-.nfl-team .tn-short { display: none; }
-/* Phones: team, record, next game, playoffs and Super Bowl; the rest appear on wider screens. */
-.nfl-table .wide { display: none; }
-@media (min-width: 600px) and (max-width: 899px) { .nfl-table th.c-team { width: 170px; } .nfl-table th.c-next { width: 112px; } .nfl-table th.c-playoff { width: 108px; } }
-@media (max-width: 599px) { .nfl-table th.c-team { width: auto; } }
-@media (max-width: 599px) { .nfl-table .tablet { display: none; } }
-@media (max-width: 599px) { .nfl-team .tn-long { display: none; } .nfl-team .tn-short { display: inline; } .nfl-table .c-div { display: none; } }
-@media (min-width: 900px) { .nfl-table .wide { display: table-cell; } }
 /* NFL bracket: the CFB bracket's round columns. AFC games sit above NFC games in each round. */
 .nfl-bracket .bk-name small { margin-left: 4px; font: 500 var(--text-xs) var(--body); letter-spacing: 0; text-transform: none; }
 .nfl-rounds .bk-team { grid-template-columns: 26px 22px minmax(0, 1fr) auto; }
@@ -611,3 +584,15 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 }
 
 @media (prefers-reduced-motion: reduce) { .table-wrap { transition: none; } }
+
+/* Every team row is the same height in both tables, whatever the Next cell holds (a pick box, Bye or a dash). */
+.odds-table tbody tr:not(.detail):not(.nfl-group) > td { height: 58px; }
+/* Tablets: Conf./Div. at a set width so the spare room goes to Team (names and records stay whole). */
+@media (min-width: 600px) and (max-width: 899px) { .odds-table:not(.expanded) .c-cn { width: 110px; } }
+/* Wide screens: NFL names run longer ("Jacksonville Jaguars"), so Team gets more of the width. */
+@media (min-width: 900px) { .nfl-odds .c-team { width: 230px; } .nfl-odds .c-cn { width: 90px; } .nfl-odds .c-cfp { width: 110px; } }
+/* Narrow desktops: NFL divisions as short codes, so the table still fits without scrolling sideways. */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .nfl-odds .c-cn { width: 58px; } .nfl-odds .c-team { width: 220px; } .nfl-odds .c-cfp { width: 104px; }
+  .nfl-odds .cn-long { display: none; } .nfl-odds .cn-short { display: inline; font-size: 11px; white-space: nowrap; }
+}
