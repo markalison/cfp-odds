@@ -229,7 +229,7 @@
     '</dl>';
   }
   // The Next column: the week after This week. It names the opponent and has a W/L box for that game.
-  // A team with no game that week shows "Bye" with nothing to press. After the regular season's last
+  // A team with no game that week (a bye) gets a blank cell. After the regular season's last
   // week it falls back to the team's next scheduled game (a title game), or a dash.
   function nextWeekGame(x) {
     var wk = teamWeek(x) + 1;
@@ -246,7 +246,7 @@
   }
   function pickCell(x) {
     var g = nextWeekGame(x);
-    if (g === 'bye') return '<div class="nx-cell"><span class="pick-bye">Bye</span></div>';
+    if (g === 'bye') return ''; // a bye week leaves Next blank
     if (!g || g.s === 'post') return '\u2014';
     var opp = D.teams[g.h === x.i ? g.a : g.h], vs = matchup(g, x.i);
     var pk = st.picks[g.id], won = pk === x.t.id, lost = !!pk && !won;
@@ -263,7 +263,7 @@
   // The selected ratings' name, as the Ratings menu shows it.
   function modeName() { var o = $('mode') && $('mode').selectedOptions[0]; return o ? o.textContent : st.mode; }
   function detail(x) {
-    return '<tr class="detail"><td colspan="' + visibleColumns() + '">' + statsList(x, 'narrow-only') + detailBody(x) + '</td></tr>';
+    return '<tr class="detail"><td colspan="' + visibleColumns() + '">' + detailBody(x) + '</td></tr>';
   }
   function splitRow(label, make) {
     return '<tr><th scope="row">' + label + '</th><td>' + pct(make) + '</td><td>' + pct(make == null ? null : 1 - make) + '</td></tr>';
@@ -273,30 +273,149 @@
     var tile = function (v) { return v == null ? '<div class="lg-num">—</div>' : '<div class="lg-cfp" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; };
     return '<div class="odds-row"><span class="h">' + label + '</span><span class="h">If win</span><span class="h">If loss</span>' + tile(now) + tile(win) + tile(loss) + '</div>';
   }
+  // ---------- Résumé (team panel) ----------
+  // For every FBS team under the selected ratings, from finals so far and the games left:
+  //  - SOS played / left: average opponent rating (P.R, which moves with results), ranked 1 = toughest.
+  //  - Strength of record (ESPN's idea): the chance a top-25 team (the 25th-best rating) would have this
+  //    record or better against this schedule; the smaller, the better the résumé. Ranked 1 = best.
+  //  - Win out: the chance to win every regular-season game left (picks count as decided), game by game.
+  //  - Record against the current CFP top 25, best win and worst loss (by opponent rating).
+  var resumeCache = { D: null, by: {} }, CLOSE = 4; // rating points within which wins or losses count as equally good / bad
+  function resumes() {
+    if (resumeCache.D !== D) resumeCache = { D: D, by: {} };
+    if (resumeCache.by[st.mode]) return resumeCache.by[st.mode];
+    var P = CFP.prep(D, st.mode), Rt = P.R, fbs = D.fbs, M = CFP.M, hfa = D.sources.hfa[st.mode] || 2.5;
+    var total = Math.sqrt(M.gameSD * M.gameSD + 2 * M.teamSD * M.teamSD);
+    var sorted = Array.prototype.slice.call(Rt.subarray(0, fbs)).sort(function (a, b) { return b - a; }), bench = sorted[24];
+    var played = []; for (var i = 0; i < fbs; i++) played.push([]);
+    D.games.forEach(function (g) {
+      if (g.s !== 'post' || g.h < 0 || g.a < 0) return;
+      [[g.h, g.a, g.n ? 0 : 1], [g.a, g.h, g.n ? 0 : -1]].forEach(function (s) { if (s[0] < fbs) played[s[0]].push({ o: s[1], site: s[2], won: g.w === s[0], g: g }); });
+    });
+    var sc = schedule(), out = [];
+    for (i = 0; i < fbs; i++) {
+      var pl = played[i], left = sc[i].filter(function (g) { return g.s !== 'post'; });
+      var avg = function (list) { return list.length ? list.reduce(function (s, x) { return s + Rt[x.o]; }, 0) / list.length : null; };
+      // Wins a top-25 team would get against these games: the chance of at least this many.
+      var dist = [1];
+      pl.forEach(function (x) {
+        var p = CFP.phi((bench - Rt[x.o] + x.site * hfa) / total), next = new Array(dist.length + 1).fill(0);
+        dist.forEach(function (v, k) { next[k] += v * (1 - p); next[k + 1] += v * p; });
+        dist = next;
+      });
+      var wins = pl.filter(function (x) { return x.won; }).length, sor = 0;
+      for (var k = wins; k < dist.length; k++) sor += dist[k];
+      var winOut = left.reduce(function (s, g) { var pk = st.picks[g.id]; return s * (pk ? (pk === D.teams[i].id ? 1 : 0) : g.p); }, 1);
+      var ranked = pl.filter(function (x) { return D.teams[x.o].rank; });
+      var wl = pl.filter(function (x) { return x.won; }).sort(function (a, b) { return Rt[b.o] - Rt[a.o]; });
+      var ll = pl.filter(function (x) { return !x.won; }).sort(function (a, b) { return Rt[a.o] - Rt[b.o]; });
+      out.push({ sos: avg(pl), sosLeft: avg(left), sor: pl.length ? sor : null, winOut: left.length ? winOut : null, nLeft: left.length,
+        top25: ranked.filter(function (x) { return x.won; }).length + '-' + ranked.filter(function (x) { return !x.won; }).length,
+        best: wl.filter(function (e) { return Rt[wl[0].o] - Rt[e.o] <= CLOSE; }).slice(0, 3),
+        worst: ll.filter(function (e) { return Rt[e.o] - Rt[ll[0].o] <= CLOSE; }).slice(0, 3) });
+    }
+    // Ranks among FBS teams: toughest schedule first, best (smallest) strength of record first.
+    function rankBy(key, asc) {
+      var idx = out.map(function (_, i) { return i; }).filter(function (i) { return out[i][key] != null; });
+      idx.sort(function (a, b) { return asc ? out[a][key] - out[b][key] : out[b][key] - out[a][key]; });
+      idx.forEach(function (t, k) { out[t][key + 'Rank'] = k + 1; });
+      return idx.length;
+    }
+    var n = { sos: rankBy('sos'), sosLeft: rankBy('sosLeft'), sor: rankBy('sor', true) };
+    return (resumeCache.by[st.mode] = { teams: out, n: n });
+  }
+  function ordinal(n) { var v = n % 100, s = v >= 11 && v <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; return n + s; }
+  // The team's AP poll rank through the season: a line over the weeks it was ranked, a hollow dot at the
+  // bottom (NR) for weeks it wasn't. Rank 1 is at the top.
+  function apChart(x) {
+    var ap = D.ap, ranks = ap && ap.rank[x.t.id];
+    if (!ap || !ap.polls.length) return '';
+    if (!ranks || !ranks.some(function (r) { return r != null; })) return '<p class="ap-none">Not ranked this season.</p>';
+    var W = 260, H = 110, L = 22, R = 8, T = 8, B = 18, n = ap.polls.length, nr = 31;
+    var px = function (k) { return L + (n === 1 ? (W - L - R) / 2 : k * (W - L - R) / (n - 1)); };
+    var py = function (r) { return T + ((r == null ? nr : r) - 1) * (H - T - B) / (nr - 1); };
+    var grid = [1, 10, 25].map(function (r) {
+      return '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + py(r) + '" y2="' + py(r) + '" class="ap-grid"/><text x="' + (L - 5) + '" y="' + (py(r) + 3) + '" class="ap-y">' + r + '</text>';
+    }).join('') + '<text x="' + (L - 5) + '" y="' + (py(null) + 3) + '" class="ap-y">NR</text>';
+    var paths = [], cur = [];
+    ranks.forEach(function (r, k) {
+      if (r == null) { if (cur.length) paths.push(cur); cur = []; } else cur.push(px(k).toFixed(1) + ',' + py(r).toFixed(1));
+    });
+    if (cur.length) paths.push(cur);
+    var lines = paths.map(function (p) { return p.length > 1 ? '<polyline points="' + p.join(' ') + '" class="ap-line"/>' : ''; }).join('');
+    var dots = ranks.map(function (r, k) {
+      var t = (ap.polls[k] === 'Pre' ? 'Preseason' : 'Week ' + ap.polls[k]) + ': ' + (r == null ? 'not ranked' : 'No. ' + r);
+      return '<circle cx="' + px(k).toFixed(1) + '" cy="' + py(r).toFixed(1) + '" r="' + (r == null ? 2.5 : 3) + '" class="' + (r == null ? 'ap-nr' : 'ap-dot') + '"><title>' + t + '</title></circle>';
+    }).join('');
+    var xs = ap.polls.map(function (p, k) { return '<text x="' + px(k).toFixed(1) + '" y="' + (H - 4) + '" class="ap-x">' + (p === 'Pre' ? 'P' : p) + '</text>'; }).join('');
+    var last = ranks[ranks.length - 1];
+    var label = esc(x.t.name) + ' in the AP poll: ' + ranks.map(function (r, k) { return (ap.polls[k] === 'Pre' ? 'preseason' : 'week ' + ap.polls[k]) + ' ' + (r == null ? 'unranked' : r); }).join(', ');
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + label + '">' + grid + lines + dots + xs + '</svg>';
+  }
+  // The résumé, short: four tiles (record, strength of record, schedule strength, win out), one line of
+  // top-25 record, best win and worst loss, then the AP poll chart.
+  function resumeBlock(x) {
+    var all = resumes(), r = all.teams[x.i], rec = x.rec;
+    // Opponents as logos side by side; each matchup is in its hover text.
+    function opp(list) {
+      if (!list.length) return '—';
+      return '<span class="rs-teams">' + list.map(function (e) {
+        var o = D.teams[e.o], what = (e.site === -1 ? 'at ' : 'vs ') + o.name + (o.rank ? ' (No. ' + o.rank + ')' : '');
+        return '<span class="rs-team" title="' + esc(what) + '" aria-label="' + esc(what) + '">' + logo(o, 26) + '</span>';
+      }).join('') + '</span>';
+    }
+    function tile(label, title, value) {
+      return '<div><dt><abbr title="' + title + '">' + label + '</abbr></dt><dd>' + value + '</dd></div>';
+    }
+    return '<div class="resume">' +
+      '<dl class="rs-tiles">' +
+        tile('Record', 'Overall record' + (x.t.conf === 'ind' ? '' : '; ' + rec.cw + '-' + rec.cl + ' in conference'), rec.text) +
+        tile('Avg seed', 'Average playoff seed in the simulations where they make the CFP', x.r.seed ? x.r.seed.toFixed(1) : '—') +
+        tile('SOR', 'Strength of record: how hard this record would be for a top-25 team to match against this schedule, ranked among ' + all.n.sor + ' FBS teams (1st = hardest)', r.sorRank ? ordinal(r.sorRank) : '—') +
+        tile('SOS', 'Strength of schedule: average rating of opponents played, ranked among ' + all.n.sos + ' FBS teams (1st = toughest)' + (r.nLeft ? '; schedule left ranks ' + ordinal(r.sosLeftRank) : ''), r.sosRank ? ordinal(r.sosRank) : '—') +
+        tile('Win out', 'Chance to win every regular-season game left (' + r.nLeft + ')', r.winOut == null ? '—' : pct(r.winOut)) +
+        tile('vs top 25', 'Record against teams in the current CFP top 25', r.top25) +
+        tile('Best win', 'Highest-rated team beaten (by the selected ratings); wins within ' + CLOSE + ' points of it show too', opp(r.best)) +
+        (r.worst.length ? tile('Worst loss', 'Lowest-rated team lost to (by the selected ratings); losses within ' + CLOSE + ' points of it show too', opp(r.worst)) : '') +
+      '</dl>' +
+    '</div>';
+  }
+  // Win out: on when every game left is picked as a win for this team. Pressing it picks them all, or, when
+  // it's on, clears those picks.
+  function winOutButton(x, sc) {
+    var left = sc.filter(function (g) { return g.s !== 'post'; });
+    if (!left.length) return '';
+    var on = left.every(function (g) { return st.picks[g.id] === x.t.id; });
+    var ids = esc(left.map(function (g) { return g.id; }).join(',')), any = left.some(function (g) { return st.picks[g.id]; });
+    return '<span class="sched-btns"><button type="button" class="winout-btn" data-clearteam="' + x.t.id + '" data-games="' + ids + '"' + (any ? '' : ' disabled') + '>Clear</button>' +
+      '<button type="button" class="winout-btn" data-winout="' + x.t.id + '" data-games="' + ids + '" aria-pressed="' + on + '">Win out</button></span>';
+  }
+  // Make CFP in the scenario the picks set (any picks, in this panel or elsewhere). With no picks it's the
+  // plain Make CFP.
+  function scenarioLine(x) {
+    return '<div class="scenario"><span>Make CFP' + (hasPicks() ? ' with your picks' : '') + '</span><b>' + pct(x.r.cfp) + '</b></div>';
+  }
   function detailBody(x) {
     var sc = schedule()[x.i], R = x.r, hist = R.hist, maxH = Math.max.apply(null, hist.concat(1)), N = res().sims;
+    // Each game left has the same W / L / blank pick box as the table's Next column, so any game can be
+    // decided here; the odds, and the seed chart below, re-run with the picks.
     var lines = sc.map(function (g) {
-      var o = D.teams[g.o];
-      return '<span>' + (g.home === 1 ? 'vs ' : g.home === -1 ? 'at ' : 'vs ') + logo(o, 18) + esc(o.name) + (g.s === 'in' ? ' <b class="score-now">' + (g.us > g.them ? 'Up ' : g.us < g.them ? 'Down ' : 'Tied ') + g.us + '-' + g.them + '</b>' : '') + '</span><span>' + (st.picks[g.id] ? (st.picks[g.id] === x.t.id ? 'Picked win' : 'Picked loss') : Math.round(g.p * 100) + '%') + '</span>';
+      var o = D.teams[g.o], pk = st.picks[g.id], won = pk === x.t.id, lost = !!pk && !won;
+      var vs = (g.home === -1 ? 'at ' : 'vs ') + (o.ab || o.name);
+      var label = won ? x.t.name + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + ' ' + vs + '. Press to pick a win';
+      var box = '<span class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(o.id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></span>';
+      return '<span class="sched-g">' + box + '<span>' + (g.home === 1 ? 'vs ' : g.home === -1 ? 'at ' : 'vs ') + logo(o, 18) + esc(o.name) + (g.s === 'in' ? ' <b class="score-now">' + (g.us > g.them ? 'Up ' : g.us < g.them ? 'Down ' : 'Tied ') + g.us + '-' + g.them + '</b>' : '') + '</span></span><span>' + Math.round(g.p * 100) + '%</span>';
     }).join('');
     var bars = hist.map(function (h, i) {
       var label = 'Seed ' + (i + 1) + ': ' + (h / N * 100).toFixed(1) + '% of simulations';
       return '<div title="' + label + '" aria-label="' + label + '"><i style="height:' + (h / maxH * 100).toFixed(1) + '%"></i></div>';
     }).join('');
     var xs = hist.map(function (_, i) { return '<span>' + (i + 1) + '</span>'; }).join('');
-    return '<div class="detail-inner">' +
-      '<div><h3>Regular season left (chance to win)</h3><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
-      // A plain list: Make CFP first, then what the next game does, then the other odds.
-      '<div><h3>What moves the odds</h3><dl class="kv">' +
-        '<dt>Make CFP</dt><dd>' + pct(R.cfp) + '</dd>' +
-        '<dt>If they win next game</dt><dd>' + pct(R.ifNext) + '</dd>' +
-        '<dt>If they lose next game</dt><dd>' + pct(R.ifLose) + '</dd>' +
-        (x.t.conf === 'ind' ? '' : '<dt>Reach conference title game</dt><dd>' + pct(R.ccg) + '</dd>') +
-        '<dt>Earn an automatic bid</dt><dd>' + pct(R.aq) + '</dd>' +
-        '<dt>Host a first-round game</dt><dd>' + pct(R.host) + '</dd>' +
-        '<dt>Projected next CFP rank</dt><dd>' + (x.proj && x.proj <= 25 ? x.proj : 'Unranked') + '</dd>' +
-      '</dl></div>' +
-      '<div><h3>Seed distribution, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
+    var apNow = D.ap && D.ap.rank[x.t.id] ? D.ap.rank[x.t.id][D.ap.rank[x.t.id].length - 1] : null;
+    return '<div class="detail-inner">' + resumeBlock(x) +
+      '<div class="ap-chart"><h3>AP poll' + (apNow ? ', now No. ' + apNow : '') + '</h3>' + apChart(x) + '</div>' +
+      '<div><div class="sched-head"><h3 title="Chance to win each game">Regular season left</h3>' + winOutButton(x, sc) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
+      '<div>' + scenarioLine(x) + '<h3>Seed distribution, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
     '</div>';
   }
   // The table heading names what's shown: a conference if one is chosen, otherwise the team group.
@@ -603,10 +722,10 @@
       '<div class="lg-num">' + win + '</div>' +
       tile(r ? r.cfp : null);
   }
-  // Pre-game win chance for the home team, from the selected ratings. FCS teams use their Sagarin Predictor rating.
+  // Pre-game win chance for the home team, from the selected ratings. FCS teams use their Massey rating.
   function pregameHome(g) {
     var R = res(), M = CFP.M, total = Math.sqrt(M.gameSD * M.gameSD + 2 * M.teamSD * M.teamSD);
-    function rating(i) { return i < D.fbs ? R.rating[i] : (D.teams[i].r && D.teams[i].r.predictor) || 0; }
+    function rating(i) { return i < D.fbs ? R.rating[i] : (D.teams[i].r && D.teams[i].r.massey) || 0; }
     return CFP.phi((rating(g.h) - rating(g.a) + (g.n ? 0 : (D.sources.hfa[st.mode] || 2.5))) / total);
   }
   // The home team's chance right now, using the current score and clock.
@@ -827,7 +946,7 @@
 
   function renderModes() {
     function option(k, label) { return '<option value="' + k + '"' + (st.mode === k ? ' selected' : '') + '>' + esc(label) + '</option>'; }
-    var groups = '<optgroup label="Averages">' + option('blend', 'FPI + Sagarin') + option('all', 'All models average') + '</optgroup>';
+    var groups = '<optgroup label="Averages">' + option('blend', 'Massey + Sagarin') + option('all', 'All models average') + '</optgroup>';
     ['Point-based', 'Recent form', 'Results only'].forEach(function (g) {
       groups += '<optgroup label="' + g + '">' + D.sources.models.filter(function (m) { return m.group === g; }).map(function (m) { return option(m.k, m.label); }).join('') + '</optgroup>';
     });
@@ -921,9 +1040,10 @@
         var byId = {}; D.teams.forEach(function (t) { byId[t.id] = t; });
         fresh.teams.forEach(function (t) {
           var old = byId[t.id];
-          t.r = old ? old.r : { sagarin: 45, predictor: 45 };
+          t.r = old ? old.r : { massey: 28, sagarin: 45, predictor: 45 };
         });
         fresh.sources = D.sources;
+        fresh.ap = D.ap;
         fresh.swMode = D.swMode;
         var oldGame = {}; D.games.forEach(function (g) { oldGame[g.id] = g; });
         fresh.games.forEach(function (g) { var o = oldGame[g.id]; if (o && o.sw != null) { g.sw = o.sw; g.swS = o.swS; } });
@@ -972,6 +1092,19 @@
       st.view = b.dataset.view;
       renderViewControls();
       renderTable();
+    } else if (b.dataset.winout || b.dataset.clearteam) {
+      lockOrder();
+      // Win out picks a win in every game left (or clears them when it's on); Clear drops this team's picks.
+      var ids = b.dataset.games.split(','), team = b.dataset.winout, clear = !!b.dataset.clearteam || b.getAttribute('aria-pressed') === 'true';
+      ids.forEach(function (id) { if (clear) delete st.picks[id]; else st.picks[id] = team; });
+      st.quiet = false;
+      renderPicksBar();
+      renderLive();
+      renderField();
+      renderTable();
+      setProgress(0, 'Simulating\u2026');
+      clearTimeout(pickTimer);
+      pickTimer = setTimeout(refresh, 250);
     } else if (b.dataset.pick) {
       lockOrder();
       // Each press moves this team through blank, win, loss and back to blank.

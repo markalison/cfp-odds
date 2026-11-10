@@ -1,7 +1,10 @@
 // Reports how current each ratings source is, without building anything.
 // Run: node freshness.mjs
+import { readFileSync } from 'node:fs';
 import { SOURCES } from './ratings.mjs';
 
+const masThru = (readFileSync(new URL('./massey.tsv', import.meta.url), 'utf8').match(/thru (\S+)/) || [])[1];
+console.log('Massey (massey.tsv)'.padEnd(28), masThru);
 try {
   const r = await fetch('http://sagarin.com/sports/cfsend.htm', { headers: { 'User-Agent': 'Mozilla/5.0' } });
   const m = (await r.text()).match(/through results of (\w+) (\d+)/i);

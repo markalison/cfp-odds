@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=89025887ed">
-  <script src="js/theme.js?v=89025887ed"></script>
+  <link rel="stylesheet" href="css/styles.css?v=343733cd07">
+  <script src="js/theme.js?v=343733cd07"></script>
   <title>About · CFP Odds Board</title>
   <meta name="description" content="How the CFP Odds Board simulates the season: the playoff rules it applies, the ratings it uses and its limits.">
 </head>
@@ -71,6 +71,7 @@
       <p>Schedules, scores, standings and CFP rankings come from <a href="https://www.espn.com/college-football/" target="_blank" rel="noopener">ESPN</a> each time the Odds page loads. Each ratings model covers results through the date shown, and later results adjust its ratings automatically. Ratings last refreshed November 10, 2026.</p>
       <h3>Point-based</h3>
       <ul>
+        <li><a href="https://masseyratings.com/cf/fbs/ratings" target="_blank" rel="noopener">Massey Power</a>, through Nov 7</li>
         <li><a href="https://www.espn.com/college-football/fpi" target="_blank" rel="noopener">ESPN FPI</a>, updated each time the Odds page loads</li>
         <li><a href="https://www.bcftoys.com/2026-fei/" target="_blank" rel="noopener">FEI</a>, through Nov 7</li>
         <li><a href="https://www.teamrankings.com/college-football/ranking/predictive-by-other" target="_blank" rel="noopener">TeamRankings Predictive</a>, through Nov 9</li>
@@ -92,7 +93,7 @@
         <li><a href="https://wolferatings.com/ratings.htm" target="_blank" rel="noopener">Wolfe</a>, through Nov 7</li>
         <li><a href="https://wolferatings.com/rothman.txt" target="_blank" rel="noopener">Rothman</a>, through Nov 7</li>
       </ul>
-      <p><b>All models average</b> uses one rating from each of these: Sagarin Predictor, ESPN FPI, FEI, TeamRankings Predictive, Talisman Red, Laz Index.</p>
+      <p><b>All models average</b> uses one rating from each of these: Massey Power, Sagarin Predictor, ESPN FPI, FEI, TeamRankings Predictive, Talisman Red, Laz Index.</p>
     </section>
 
     <section aria-labelledby="limits">
@@ -103,7 +104,7 @@
         <li>Games in progress use the current score and time left, without possession or field position. While games are on and the Odds page is open, it checks ESPN every minute and re-simulates, so odds can shift between checks.</li>
         <li>In the Conference menu, Group of 6 means the six non-power conferences named in the playoff rules, including the Pac-12. Notre Dame is grouped with Power 4 and UConn with the Group of 6.</li>
         <li>FCS opponents without a rating use a low default, so those games are close to certain wins.</li>
-        <li>Every model is shifted onto a common scale. FEI, Jeff Howell, Laz Index, Wolfe and Rothman don't publish point margins here, so their gaps are also stretched to match Sagarin Predictor's spread, which is an estimate. Teams a model doesn't rate use Sagarin Predictor.</li>
+        <li>Every model is shifted onto a common scale. FEI, Jeff Howell, Laz Index, Wolfe and Rothman don't publish point margins here, so their gaps are also stretched to match Massey's spread, which is an estimate. Sagarin's options keep Sagarin's scale. Teams a model doesn't rate use Massey.</li>
         <li>Wolfe and Rothman use wins and losses only, so they're the weakest guide to margins. All models average leaves them out, along with Jeff Howell, whose conversion to points is the roughest, plus recent-form models and extra Sagarin variants. Each remaining source counts once.</li>
         <li>Team logos come from ESPN and belong to their schools.</li>
       </ul>

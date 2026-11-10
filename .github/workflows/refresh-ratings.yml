@@ -1,5 +1,6 @@
 # Rebuilds the odds with the latest ratings and publishes them.
-# Every source is fetched fresh on each run; none needs a manual update.
+# Every source except Massey is fetched fresh. Massey blocks scripted requests, so massey.tsv
+# keeps its last manual update until someone refreshes it from a browser.
 name: Refresh ratings
 
 on:

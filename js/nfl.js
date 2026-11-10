@@ -91,9 +91,13 @@
   }
   function shaded(v) { return '<td class="sec pct-cell" style="--p:' + (v || 0).toFixed(3) + '">' + pct(v) + '</td>'; }
   // Next: the W / L / blank box with the opponent under it, as in the college table.
+  // Next shows only the coming week's game (the Scores page's week): a team on a bye that week gets a blank cell
+  // rather than its game after the bye. A team whose game this week is already over shows next week's game.
   function nextCell(i) {
     var id = nextOpen(i);
     if (id == null) return '<td class="pick">—</td>';
+    var cw = currentWeek();
+    if (gameById[id].wk > cw && !D.games.some(function (g) { return g.wk === cw && (g.h === i || g.a === i); })) return '<td class="pick"></td>';
     var g = gameById[id], home = g.h === i, opp = D.teams[home ? g.a : g.h], vs = (home ? 'vs ' : '@') + opp.ab;
     var pk = st.picks[id], tie = pk === 'T', won = pk === i, lost = pk != null && !won && !tie;
     var label = won ? D.teams[i].short + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? D.teams[i].short + ' ' + vs + ' picked to lose. Press to pick a tie' : tie ? D.teams[i].short + ' ' + vs + ' picked to tie. Press to clear the pick' : 'No pick for ' + D.teams[i].short + ' ' + vs + '. Press to pick a win';

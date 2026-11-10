@@ -341,6 +341,10 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .hist-x { display: flex; gap: 2px; margin-top: 3px; font-size: 11px; color: var(--muted); }
 .hist-x span { flex: 1; text-align: center; }
 @media (min-width: 700px) { .detail-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s6); padding: var(--s4) var(--s5) var(--s5); } }
+/* College panels: the résumé strip spans the top; below it the schedule and odds lists, then the AP poll and
+   seed charts. Two across on tablets (lists in one row, charts in the next), four across on wide screens. */
+@media (min-width: 700px) { .detail-inner:has(> .resume) { row-gap: var(--s5); } }
+.detail-inner > .resume { grid-column: 1 / -1; padding-bottom: var(--s4); border-bottom: 1px solid var(--line); }
 @media (min-width: 900px) { .narrow-only { display: none; } }
 
 /* ---------- 9. Scoreboard ---------- */
@@ -662,3 +666,58 @@ button.bk-team:focus-visible { outline-offset: -2px; }
   :root:not([data-theme="light"]) .net-logos img.net-espnu { filter: drop-shadow(0 0 1px #fff); }
   :root:not([data-theme="light"]) .net-logos img.net-btn { filter: invert(1) hue-rotate(180deg); }
 }
+/* Team panel résumé: four small tiles, one summary line, then the AP poll chart. */
+.resume { display: grid; gap: var(--s3); align-content: start; }
+.rs-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); margin: 0; }
+.rs-tiles dt { font-size: var(--text-xs); color: var(--muted); }
+.rs-tiles dt abbr[title] { text-decoration: none; cursor: help; }
+.rs-tiles dd { margin: 2px 0 0; font: 700 var(--text-lg)/1.1 var(--display); }
+.rs-tiles dd small { display: block; margin-top: 2px; font: 400 var(--text-xs)/1.2 var(--body); color: var(--muted); }
+.rs-line { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+.rs-line b { color: var(--ink); font-weight: 600; white-space: nowrap; }
+.ap-head { font-size: var(--text-xs); color: var(--muted); letter-spacing: .07em; text-transform: uppercase; font-weight: 600; }
+.ap-head b { color: var(--ink); margin-left: 4px; }
+.ap-chart svg { display: block; width: 100%; max-width: 360px; height: auto; margin-top: var(--s1); }
+.ap-grid { stroke: var(--line); stroke-width: 1; }
+.ap-y { fill: var(--muted); font: 600 9px var(--display); text-anchor: end; }
+.ap-x { fill: var(--muted); font: 600 9px var(--display); text-anchor: middle; }
+.ap-line { fill: none; stroke: var(--bar); stroke-width: 2; stroke-linejoin: round; }
+.ap-dot { fill: var(--bar); stroke: var(--bg); stroke-width: 1.5; }
+.ap-nr { fill: var(--bg); stroke: var(--muted); stroke-width: 1.2; }
+.ap-none { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+/* Wider panels: the tiles sit at their own width in a row, with the summary line beside them. */
+@media (min-width: 700px) {
+  .resume { grid-template-columns: auto minmax(0, 1fr); align-items: end; column-gap: var(--s6); }
+  .rs-tiles { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: auto; column-gap: var(--s6); justify-content: start; }
+  .rs-line { padding-bottom: 2px; }
+}
+.ap-chart svg { max-width: none; }
+/* Team panels fit the visible part of the table, not the full scrolling width (the wrap is the size container). */
+.table-wrap { container-type: inline-size; }
+.detail-inner { width: min(100cqw, 1100px); }
+.ap-chart svg { max-width: 300px; }
+/* Team panel games left: a pick box before each opponent. */
+.sched { align-items: center; }
+.sched-g { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.sched .mini button.pick-box { width: 24px; height: 24px; font-size: 12px; }
+.sched-g span { font-weight: inherit; text-align: left; }
+/* Team panel: the Win out toggle beside the games-left heading; filled green when every game is picked as a win. */
+.sched-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); margin-bottom: var(--s2); }
+.sched-head h3 { margin-bottom: 0; }
+.winout-btn { flex: none; padding: 3px 8px; border: 1px solid var(--line); background: transparent; color: var(--ink); font: 600 11px/1.2 var(--display); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.winout-btn:hover { border-color: var(--muted); }
+.winout-btn[aria-pressed="true"] { background: var(--up); border-color: var(--up); color: var(--panel); }
+/* Team panel: Make CFP for the picks' scenario, above the seed chart. */
+.scenario { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px var(--s2); margin-bottom: var(--s3); }
+.scenario span { font-size: var(--text-xs); letter-spacing: .07em; text-transform: uppercase; font-weight: 600; color: var(--muted); }
+.scenario b { font: 700 var(--text-lg)/1 var(--display); color: var(--ink); }
+/* Best win / worst loss tiles: the opponent's current CFP rank, then its logo, at the tile number's height. */
+.rs-team { display: inline-flex; align-items: center; gap: 4px; }
+.rs-team .logo { width: 26px; height: 26px; }
+.rs-tiles dd { min-height: 26px; display: flex; align-items: center; }
+/* Phones: seven tiles wrap four, then three. */
+@media (max-width: 699px) { .rs-tiles { row-gap: var(--s3); } }
+.sched-btns { display: inline-flex; gap: 6px; flex: none; }
+.winout-btn:disabled { opacity: .4; cursor: default; }
+.winout-btn:disabled:hover { border-color: var(--line); }
+.rs-teams { display: inline-flex; align-items: center; gap: 6px; }

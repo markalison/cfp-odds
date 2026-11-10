@@ -18,7 +18,7 @@ function corr(mode) {
 const res = [];
 for (const wRating of [0.5, 0.65, 0.8, 1]) for (const wLoss of [3.5, 4.5, 5.5, 7]) for (const wSos of [0.15, 0.3, 0.5]) for (const wTop10 of [2.5, 4]) {
   Object.assign(M, { wRating, wLoss, wSos, wTop10, wTop25: wTop10 / 2 });
-  const rs = ['sagarin', 'predictor', 'blend'].map(corr);
+  const rs = ['massey', 'sagarin', 'predictor', 'blend'].map(corr);
   res.push({ wRating, wLoss, wSos, wTop10, mean: rs.reduce((s, x) => s + x.r, 0) / 4, top12: rs.reduce((s, x) => s + x.inTop12, 0) / 4, top: rs[0].top });
 }
 res.sort((a, b) => b.mean - a.mean);
