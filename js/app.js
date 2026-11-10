@@ -138,7 +138,7 @@
     // Fixed column widths live on these header classes. Columns marked sec are hidden on phones.
     $('head').innerHTML =
       th('team', '<abbr title="College Football Playoff committee ranking">RK</abbr>', 'first c-rk') + '</th>' +
-      th('proj', '<abbr title="Projected CFP ranking for the next release, from every result so far">Proj.</abbr>', 'c-prk tc') + '</th>' +
+      th('proj', '<abbr title="Projected CFP ranking for the next release, from every result so far">Proj.</abbr>', 'c-prk') + '</th>' +
       '<th class="l c-team team-col">Team</th>' +
       th('conf', 'Conf.', 'l c-cn') + '</th>' +
       th('rec', 'Rec', 'c-rec') + '</th>' +
@@ -259,7 +259,8 @@
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
   var WIDE = matchMedia('(min-width: 900px)');
   var TABLET = matchMedia('(min-width: 600px)');
-  function visibleColumns() { return WIDE.matches || st.expanded ? 11 : TABLET.matches ? 8 : 6; }
+  var PROJ_Q = matchMedia('(min-width: 400px)'); // Proj. shows on phones from 400px (styles.css)
+  function visibleColumns() { return WIDE.matches || st.expanded ? 11 : TABLET.matches ? 8 : PROJ_Q.matches ? 7 : 6; }
   // The selected ratings' name, as the Ratings menu shows it.
   function modeName() { var o = $('mode') && $('mode').selectedOptions[0]; return o ? o.textContent : st.mode; }
   function detail(x) {
@@ -315,10 +316,10 @@
   function shaded(v) { return '<td class="sec pct-cell" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</td>'; }
   // Projected next CFP rank, top 25 only, with the move from the current ranking.
   function projCell(x) {
-    if (!x.proj || x.proj > 25) return '<td class="tc c-prk-cell"></td>';
+    if (!x.proj || x.proj > 25) return '<td class="c-prk-cell"></td>';
     var cur = x.t.rank, mv = cur ? cur - x.proj : null;
     var arrow = mv == null ? '<small class="mv up" title="New in the top 25">new</small>' : mv > 0 ? '<small class="mv up">▲' + mv + '</small>' : mv < 0 ? '<small class="mv down">▼' + (-mv) + '</small>' : '';
-    return '<td class="tc c-prk-cell">' + x.proj + arrow + '</td>';
+    return '<td class="c-prk-cell">' + x.proj + arrow + '</td>';
   }
   function renderTable() {
     head();

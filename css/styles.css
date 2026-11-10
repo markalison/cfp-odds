@@ -523,7 +523,12 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 
 /* ---------- NFL page ---------- */
 /* Standings use the college table's styles; these add the conference or division rows and the Win div column. */
-.odds-table tr.nfl-group th { position: static; padding: 4px var(--s3); background: var(--bar-track); border-bottom: 1px solid var(--line); text-align: left; font: 600 11px/1.2 var(--display); letter-spacing: .08em; color: var(--muted); }
+/* Grouped views (Conference, Division): the table's header row gives way to one per group, each a full set of
+   column headings with the group's name under Team; they stick to the top in turn as the groups scroll by. */
+.odds-table.grouped > thead { display: none; }
+.odds-table tr.nfl-group th { background: var(--panel); }
+.odds-table tr.nfl-group:not(:first-child) th { padding-top: var(--s5); border-top: 1px solid var(--line); }
+.odds-table tr.nfl-group .grp-name { color: var(--ink); font-size: 13px; letter-spacing: .05em; }
 .c-div { width: 72px; }
 .nfl-odds .odds small.ifs { display: block; margin-top: 2px; font-size: 11px; line-height: 1.25; color: var(--muted); white-space: nowrap; }
 .nfl-odds .odds small.ifs span { display: block; }
@@ -638,3 +643,11 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .c-prk-cell .mv.up { color: var(--up); } .c-prk-cell .mv.down { color: var(--down); }
 /* NFL picked tie: a neutral fill, between the win green and the loss red. */
 .mini button.pick-t, .mini button.pick-t:hover { background: var(--muted); color: var(--panel); }
+/* Phones 400px and up (a OnePlus 13 is 412px): Proj. fits as a narrow column, its move from the current
+   ranking on a second line. Narrower phones leave it out so Rec keeps room for the record. */
+@media (max-width: 399px) { .odds-table:not(.expanded) .c-prk, .odds-table:not(.expanded) .c-prk-cell { display: none; } }
+@media (max-width: 599px) {
+  .odds-table:not(.expanded) .c-prk { width: 40px; }
+  .odds-table:not(.expanded) th.c-prk, .odds-table:not(.expanded) td.c-prk-cell { padding-inline: 2px; }
+  .odds-table:not(.expanded) .c-prk-cell .mv { display: block; margin: 1px 0 0; line-height: 1; }
+}

@@ -131,11 +131,20 @@
   var WIDE_Q = matchMedia('(min-width: 900px)'), TABLET_Q = matchMedia('(min-width: 600px)');
   function visibleCols() { var ex = document.querySelector('#nfl-tw table.expanded'); return WIDE_Q.matches || ex ? 12 : TABLET_Q.matches ? 8 : 6; }
   [WIDE_Q, TABLET_Q].forEach(function (q) { try { q.addEventListener('change', function () { renderRankings(); }); } catch (e) {} });
+  // Conference and Division views: each group opens with its own copy of the column headings (sort buttons
+  // included), with the group's name in the Team column. The table's own header row is hidden then, and each
+  // group's headings stick to the top while its teams scroll by.
+  function groupHead(name) {
+    return '<tr class="nfl-group">' + [].map.call($('nfl-head').children, function (h) {
+      return h.classList.contains('c-team') ? '<th scope="rowgroup" class="' + h.className + '"><span class="grp-name">' + esc(name) + '</span></th>' : h.outerHTML.replace('<th ', '<th scope="col" ');
+    }).join('') + '</tr>';
+  }
   function renderRankings() {
     if (!st.order || st.order.view !== st.view) st.order = { view: st.view, groups: sortRows(st.view) };
     renderHead();
+    document.querySelector('#nfl-tw table').classList.toggle('grouped', st.view !== 'all');
     $('nfl-body').innerHTML = st.order.groups.map(function (grp) {
-      return (grp.name ? '<tr class="nfl-group"><th colspan="' + visibleCols() + '" scope="rowgroup">' + esc(grp.name) + '</th></tr>' : '') + grp.rows.map(row).join('');
+      return (grp.name ? groupHead(grp.name) : '') + grp.rows.map(row).join('');
     }).join('');
   }
   function row(i, k) {
