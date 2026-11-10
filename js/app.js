@@ -58,19 +58,26 @@
     });
     return { w: w, l: l, cw: cw, cl: cl, text: w + '-' + l };
   }
+  var projCache = { D: null, by: {} };
+  function projected() {
+    if (projCache.D !== D) projCache = { D: D, by: {} };
+    if (!projCache.by[st.mode]) projCache.by[st.mode] = CFP.projectRanking(CFP.prep(D, st.mode)) || { rank: [], since: 0 };
+    return projCache.by[st.mode];
+  }
   function buildRows() {
+    var proj = projected();
     var R = res(), sc = schedule(), rows = [];
     // Each team's place among all FBS teams in the selected model's ratings, 1 = highest.
     var order = R.rating.map(function (v, i) { return i; }).sort(function (a, b) { return R.rating[b] - R.rating[a]; });
     var modelRank = []; order.forEach(function (i, n) { modelRank[i] = n + 1; });
     for (var i = 0; i < D.fbs; i++) {
       var t = D.teams[i], r = R.teams[i], next = sc[i][0] || null;
-      rows.push({ i: i, t: t, r: r, rec: record(i), index: CFP.ratingFor(t, st.mode, D.sources), next: next, rating: R.rating[i], modelRank: modelRank[i], base: results[st.mode] && results[st.mode].teams[i] });
+      rows.push({ i: i, t: t, r: r, proj: proj.rank[i] || null, rec: record(i), index: CFP.ratingFor(t, st.mode, D.sources), next: next, rating: R.rating[i], modelRank: modelRank[i], base: results[st.mode] && results[st.mode].teams[i] });
     }
     return rows;
   }
   var COLS = {
-    team: function (x) { return x.t.rank || 200 - x.r.cfp; }, rating: function (x) { return x.modelRank; }, next: function (x) { return x.r.pNext == null ? -1 : x.r.pNext; },
+    team: function (x) { return x.t.rank || 200 - x.r.cfp; }, proj: function (x) { return x.proj && x.proj <= 25 ? x.proj : 200 - x.r.cfp; }, rating: function (x) { return x.modelRank; }, next: function (x) { return x.r.pNext == null ? -1 : x.r.pNext; },
     cfp: function (x) { return x.r.cfp; }, bye: function (x) { return x.r.bye; }, champ: function (x) { return x.r.champ; },
     seed: function (x) { return x.r.seed == null ? 99 : x.r.seed; }, title: function (x) { return x.r.title; },
     rec: function (x) { var n = x.rec.w + x.rec.l; return (n ? x.rec.w / n : 0) + x.rec.w / 1000; }, index: function (x) { return x.index; }
@@ -131,6 +138,7 @@
     // Fixed column widths live on these header classes. Columns marked sec are hidden on phones.
     $('head').innerHTML =
       th('team', '<abbr title="College Football Playoff committee ranking">RK</abbr>', 'first c-rk') + '</th>' +
+      th('proj', '<abbr title="Projected CFP ranking for the next release, from every result so far">Proj.</abbr>', 'c-prk tc') + '</th>' +
       '<th class="l c-team team-col">Team</th>' +
       th('conf', 'Conf.', 'l c-cn') + '</th>' +
       th('rec', 'Rec', 'c-rec') + '</th>' +
@@ -251,7 +259,7 @@
   // exactly the visible columns, or the fixed table layout adds empty columns and squeezes the team name.
   var WIDE = matchMedia('(min-width: 900px)');
   var TABLET = matchMedia('(min-width: 600px)');
-  function visibleColumns() { return WIDE.matches || st.expanded ? 10 : TABLET.matches ? 7 : 6; }
+  function visibleColumns() { return WIDE.matches || st.expanded ? 11 : TABLET.matches ? 8 : 6; }
   // The selected ratings' name, as the Ratings menu shows it.
   function modeName() { var o = $('mode') && $('mode').selectedOptions[0]; return o ? o.textContent : st.mode; }
   function detail(x) {
@@ -286,6 +294,7 @@
         (x.t.conf === 'ind' ? '' : '<dt>Reach conference title game</dt><dd>' + pct(R.ccg) + '</dd>') +
         '<dt>Earn an automatic bid</dt><dd>' + pct(R.aq) + '</dd>' +
         '<dt>Host a first-round game</dt><dd>' + pct(R.host) + '</dd>' +
+        '<dt>Projected next CFP rank</dt><dd>' + (x.proj && x.proj <= 25 ? x.proj : 'Unranked') + '</dd>' +
       '</dl></div>' +
       '<div><h3>Seed distribution, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
     '</div>';
@@ -295,7 +304,8 @@
   // What RK is, and which week's ranking it is. Shown with the table instructions.
   function rkNote() {
     var week = D.rankLabel ? D.rankLabel.replace(/^.*- /, '').replace(/^CFP Rankings /i, '') : '';
-    return ' <b>RK</b> is the College Football Playoff committee ranking' + (week ? ' (' + esc(week) + ')' : '') + '.';
+    var since = projected().since;
+    return ' <b>RK</b> is the College Football Playoff committee ranking' + (week ? ' (' + esc(week) + ')' : '') + '. <b>Proj.</b> is our projection of the next ranking' + (since ? ', with the ' + since + ' games played since' : '') + '.';
   }
   function renderBoardTitle(count) {
     $('board-title').textContent = st.conf ? (CFP.CONF_NAME[st.conf] || st.conf) : VIEW_NAME[st.view];
@@ -303,13 +313,20 @@
   }
   // A percentage column cell, shaded by its value like Make CFP.
   function shaded(v) { return '<td class="sec pct-cell" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</td>'; }
+  // Projected next CFP rank, top 25 only, with the move from the current ranking.
+  function projCell(x) {
+    if (!x.proj || x.proj > 25) return '<td class="tc c-prk-cell"></td>';
+    var cur = x.t.rank, mv = cur ? cur - x.proj : null;
+    var arrow = mv == null ? '<small class="mv up" title="New in the top 25">new</small>' : mv > 0 ? '<small class="mv up">▲' + mv + '</small>' : mv < 0 ? '<small class="mv down">▼' + (-mv) + '</small>' : '';
+    return '<td class="tc c-prk-cell">' + x.proj + arrow + '</td>';
+  }
   function renderTable() {
     head();
     var rows = visible(buildRows());
     renderBoardTitle(rows.length);
     if (!rows.length) { $('body').innerHTML = '<tr><td class="empty" colspan="' + visibleColumns() + '">No teams match. Clear the search or pick another conference.</td></tr>'; return; }
     $('body').innerHTML = rows.map(function (x) {
-      var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first c-rk">' + (x.t.rank || '') + '</td>' +
+      var r = '<tr' + (x.next && x.next.s === 'in' ? ' class="live-row"' : '') + '><td class="first c-rk">' + (x.t.rank || '') + '</td>' + projCell(x) +
         '<td class="team-col"><div class="teamcell">' + logo(x.t, 30) +
         '<span><button class="tname" type="button" data-open="' + x.t.id + '" aria-expanded="' + !!st.open[x.t.id] + '" aria-label="' + esc(x.t.name) + '"><span class="tn-long">' + esc(x.t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(x.t.ab || x.t.name) + '</span></button></span></div></td>' +
         '<td class="l c-cn-cell"><span class="cn-long">' + esc(CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span><span class="cn-short" aria-hidden="true">' + esc(CFP.CONF_ABBR[x.t.conf] || CFP.CONF_NAME[x.t.conf] || x.t.conf) + '</span></td>' +

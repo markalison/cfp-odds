@@ -630,3 +630,9 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 @media (min-width: 600px) and (max-width: 1239px) { .nba-odds:not(.expanded) .tn-long, .nba-odds.expanded .tn-long { display: none; } .nba-odds .tn-mid { display: inline; } }
 @media (min-width: 900px) and (max-width: 1099px) { .nba-odds .c-team { width: 150px; } }
 @media (min-width: 1100px) and (max-width: 1239px) { .nba-odds .c-team { width: 190px; } }
+/* Projected next CFP ranking: the rank, with its move from the current ranking. */
+.c-prk { width: 56px; }
+.odds-table td.c-prk-cell { text-align: center; font: 600 var(--text-md) var(--display); color: var(--ink); white-space: nowrap; }
+.odds-table th.c-prk { text-align: center; }
+.c-prk-cell .mv { margin-left: 3px; font: 600 10px var(--body); }
+.c-prk-cell .mv.up { color: var(--up); } .c-prk-cell .mv.down { color: var(--down); }

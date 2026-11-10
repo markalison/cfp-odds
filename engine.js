@@ -323,6 +323,30 @@ var CFP = (function () {
     }
   }
 
+  // The next CFP ranking as we expect it: every final so far (including games since the last ranking),
+  // scored like the committee, plus each team's full committee bias from computeAnchor. With no games since
+  // the last ranking this gives back that ranking exactly. Returns ranks (1 = first) for FBS teams, the
+  // number of finals since the last ranking, or null without a ranking.
+  function projectRanking(P) {
+    var D = P.D, n = P.n, fbs = P.fbs, i;
+    if (!D.rankDate) return null;
+    var L = new Int16Array(n), tL = new Int16Array(n), champ = new Uint8Array(n), pw = new Int16Array(D.games.length), pl = new Int16Array(D.games.length), np = 0, since = 0;
+    D.games.forEach(function (g) {
+      if (g.s !== 'post') return;
+      var w = g.w, l = w === g.h ? g.a : g.h;
+      L[l]++; pw[np] = w; pl[np] = l; np++;
+      if (g.d >= D.rankDate && (g.h < fbs || g.a < fbs)) since++;
+    });
+    var S = new Float64Array(n);
+    scoreInto(P, S, P.R, L, tL, pw, pl, np, champ);
+    var order = [];
+    for (i = 0; i < fbs; i++) order.push(i);
+    order.sort(function (a, b) { return (S[b] + P.anchor[b]) - (S[a] + P.anchor[a]); });
+    var rank = new Int16Array(n);
+    order.forEach(function (t, k) { rank[t] = k + 1; });
+    return { rank: rank, since: since };
+  }
+
   // Compare the model with the committee's latest ranking and carry part of the difference forward.
   function computeAnchor(P) {
     var D = P.D, T = D.teams, n = P.n, fbs = P.fbs, i;
@@ -579,7 +603,7 @@ var CFP = (function () {
   }
 
   return {
-    M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, CONF_ABBR: CONF_ABBR, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
+    M: M, P4: P4, G6: G6, CONF_NAME: CONF_NAME, CONF_ABBR: CONF_ABBR, parseEspn: parseEspn, applyFpi: applyFpi, seedFor: seedFor, prep: prep, projectRanking: projectRanking, Sim: Sim, emptyTally: emptyTally, baseBatch: baseBatch,
     forcedJobs: forcedJobs, forcedRun: forcedRun, summarize: summarize, nextGames: nextGames, runAll: runAll, phi: phi, ratingFor: ratingFor, withCfp: withCfp, measureSwings: measureSwings
   };
 })();
