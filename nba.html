@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=e0f8c37d7f">
-  <script src="js/theme.js?v=e0f8c37d7f"></script>
+  <link rel="stylesheet" href="css/styles.css?v=c7ad2faafd">
+  <script src="js/theme.js?v=c7ad2faafd"></script>
   <title>NBA playoff odds · CFP Odds Board</title>
   <meta name="description" content="Each NBA team's chance to make the playoffs or the play-in, win its conference and win the title, from simulating the rest of the season.">
 </head>
@@ -78,8 +78,9 @@
   </div>
 
   <div class="stack" id="page-scoreboard" hidden>
-    <div class="filters">
+    <div class="filters sb-bar">
       <div class="ctl"><label for="nfl-week">Day</label><select id="nfl-week"></select></div>
+      <div class="ctl sb-sort"><label for="nfl-sb-sort">Sort by</label><select id="nfl-sb-sort"><option value="time">Start time</option><option value="impact">Playoff impact</option></select></div>
     </div>
     <p class="live-note" id="nfl-live-note" hidden></p>
     <section class="live-board" id="nfl-scores" aria-label="Scores"></section>
@@ -97,8 +98,8 @@
     <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
   </div>
 </footer>
-<script src="nba-engine.js?v=e0f8c37d7f"></script>
-<script src="nba-data.js?v=e0f8c37d7f"></script>
-<script src="js/nba.js?v=e0f8c37d7f"></script>
+<script src="nba-engine.js?v=c7ad2faafd"></script>
+<script src="nba-data.js?v=c7ad2faafd"></script>
+<script src="js/nba.js?v=c7ad2faafd"></script>
 </body>
 </html>

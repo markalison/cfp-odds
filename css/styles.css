@@ -456,11 +456,11 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 :root[data-theme="dark"] .net-logos img { filter: brightness(0) invert(1); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img { filter: brightness(0) invert(1); } }
 /* Logos on a solid shape of their own keep their colors on the dark theme. */
-:root[data-theme="dark"] :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-cbssn, .net-logos img.net-accnetwork, .net-logos img.net-accn, .net-logos img.net-disney) { filter: none; }
+:root[data-theme="dark"] :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-accnetwork, .net-logos img.net-accn) { filter: none; }
 /* NBC: black lettering turns white while the peacock keeps its colors. */
 :root[data-theme="dark"] .net-logos img.net-nbc { filter: invert(1) hue-rotate(180deg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img.net-nbc { filter: invert(1) hue-rotate(180deg); } }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-cbssn, .net-logos img.net-accnetwork, .net-logos img.net-accn, .net-logos img.net-disney) { filter: none; } }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-accnetwork, .net-logos img.net-accn) { filter: none; } }
 /* ABC is a filled circle with cut-out letters: a plain color flip keeps the letters. */
 :root[data-theme="dark"] .net-logos img[alt="ABC"] { filter: invert(1); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img[alt="ABC"] { filter: invert(1); } }
@@ -643,3 +643,22 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .c-prk-cell .mv.up { color: var(--up); } .c-prk-cell .mv.down { color: var(--down); }
 /* NFL picked tie: a neutral fill, between the win green and the loss red. */
 .mini button.pick-t, .mini button.pick-t:hover { background: var(--muted); color: var(--panel); }
+/* NBC: the peacock over the wordmark is tall, so it draws larger, with negative margins so it takes the same
+   room as the other logos and nothing around it moves. */
+.net-logos img.net-nbc { height: 20px; max-width: none; margin-block: -3px; }
+@container (max-width: 240px) { .bk-air .net-logos img.net-nbc { height: 15px; margin-block: -2px; } }
+/* Score cards: each network logo drawn to a similar visual weight by its shape, with negative margins so the
+   card's top row stays 14px tall and nothing around it moves. Square marks are largest, wide wordmarks
+   smallest; object-fit keeps any logo held by max-width from squashing. */
+.lg-top .net-logos img { max-width: 58px; object-fit: contain; }
+.lg-top .net-logos img:is(.net-abc, .net-espnu, .net-tnt) { height: 20px; margin-block: -3px; }
+.lg-top .net-logos img:is(.net-btn, .net-fs1, .net-secnetwork, .net-secn, .net-cw, .net-thecw, .net-fox, .net-usanet, .net-trutv, .net-hbomax, .net-disney) { height: 17px; margin-block: -1.5px; }
+.lg-top .net-logos img:is(.net-accnetwork, .net-accn, .net-cbssn, .net-cbs, .net-peacock, .net-primevideo) { height: 15px; margin-block: -0.5px; }
+/* Night: ESPNU keeps its red and black with a thin white outline (made all white, the letters vanish); BTN
+   inverts like NBC, so the black "B1G" turns white and the blue stays blue. */
+:root[data-theme="dark"] .net-logos img.net-espnu { filter: drop-shadow(0 0 1px #fff); }
+:root[data-theme="dark"] .net-logos img.net-btn { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .net-logos img.net-espnu { filter: drop-shadow(0 0 1px #fff); }
+  :root:not([data-theme="light"]) .net-logos img.net-btn { filter: invert(1) hue-rotate(180deg); }
+}

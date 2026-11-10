@@ -121,22 +121,20 @@ var CFP = (function () {
   }
 
   // Ratings are aligned by the build step to ESPN team order.
-  // A team a model doesn't cover, such as an FCS opponent, falls back to Massey.
+  // Every model sits on Sagarin Predictor's scale (it covers FBS and FCS), and a team a model doesn't cover,
+  // such as an FCS opponent, falls back to Sagarin Predictor.
   function ratingFor(team, mode, sources) {
-    var r = team.r || {}, align = sources.align;
-    if (mode === 'blend') return 0.5 * (r.massey + (r.predictor - align)); // Massey + Sagarin on Massey's scale
+    var r = team.r || {};
+    if (mode === 'blend') return r.fpi == null ? r.predictor : 0.5 * (r.fpi + r.predictor); // FPI + Sagarin
     if (mode === 'all') {
       var sum = 0;
-      sources.consensus.forEach(function (k) {
-        var v = r[k];
-        sum += v == null ? r.massey : k === 'predictor' ? v - align : v;
-      });
+      sources.consensus.forEach(function (k) { sum += r[k] == null ? r.predictor : r[k]; });
       return sum / sources.consensus.length;
     }
-    return r[mode] == null ? r.massey : r[mode];
+    return r[mode] == null ? r.predictor : r[mode];
   }
 
-  // Puts ESPN's FPI on Massey's scale. FPI is already in points, so only the average shifts.
+  // Puts ESPN's FPI on Sagarin Predictor's scale. FPI is already in points, so only the average shifts.
   function applyFpi(D, json) {
     var byId = {}, sumF = 0, sumM = 0, n = 0, i;
     (json.teams || []).forEach(function (x) {
@@ -145,7 +143,7 @@ var CFP = (function () {
     });
     for (i = 0; i < D.fbs; i++) {
       var f = byId[D.teams[i].id];
-      if (f != null) { sumF += f; sumM += D.teams[i].r.massey; n++; }
+      if (f != null) { sumF += f; sumM += D.teams[i].r.predictor; n++; }
     }
     if (n < D.fbs - 8) return false;
     var shift = (sumM - sumF) / n;
@@ -233,7 +231,7 @@ var CFP = (function () {
   // picks: { gameId: ESPN id of the team picked to win }
   function prep(D, mode, picks) {
     var T = D.teams, n = T.length, fbs = D.fbs, R = new Float64Array(n), hfa = D.sources.hfa[mode] || 2.5;
-    var thru = D.sources.thru, used = mode === 'blend' ? ['massey', 'predictor'] : mode === 'all' ? D.sources.consensus : [mode];
+    var thru = D.sources.thru, used = mode === 'blend' ? ['fpi', 'predictor'] : mode === 'all' ? D.sources.consensus : [mode];
     var total = Math.sqrt(M.gameSD * M.gameSD + 2 * M.teamSD * M.teamSD), i;
     for (i = 0; i < n; i++) R[i] = ratingFor(T[i], mode, D.sources);
     // Games finished after the ratings were published still move the rating.

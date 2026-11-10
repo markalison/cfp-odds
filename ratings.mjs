@@ -76,7 +76,7 @@ async function rothman() {
   return { values, thru: `20${t[3]}-${t[1].padStart(2, '0')}-${t[2].padStart(2, '0')}` };
 }
 
-// scale: 'points' keeps the model's own point gaps. 'fit' also matches the spread of Massey's ratings.
+// scale: 'points' keeps the model's own point gaps. 'fit' also matches the spread of Sagarin Predictor's ratings.
 // average: true counts the model once in the All models average. Variants and results-only models stay out.
 export const SOURCES = [
   { k: 'fei', label: 'FEI', group: 'Point-based', scale: 'fit', average: true, url: 'https://www.bcftoys.com/2026-fei/', load: fei },

@@ -603,10 +603,10 @@
       '<div class="lg-num">' + win + '</div>' +
       tile(r ? r.cfp : null);
   }
-  // Pre-game win chance for the home team, from the selected ratings. FCS teams use their Massey rating.
+  // Pre-game win chance for the home team, from the selected ratings. FCS teams use their Sagarin Predictor rating.
   function pregameHome(g) {
     var R = res(), M = CFP.M, total = Math.sqrt(M.gameSD * M.gameSD + 2 * M.teamSD * M.teamSD);
-    function rating(i) { return i < D.fbs ? R.rating[i] : (D.teams[i].r && D.teams[i].r.massey) || 0; }
+    function rating(i) { return i < D.fbs ? R.rating[i] : (D.teams[i].r && D.teams[i].r.predictor) || 0; }
     return CFP.phi((rating(g.h) - rating(g.a) + (g.n ? 0 : (D.sources.hfa[st.mode] || 2.5))) / total);
   }
   // The home team's chance right now, using the current score and clock.
@@ -643,7 +643,7 @@
     FOX: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg', Fox: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg', FS1: 'https://upload.wikimedia.org/wikipedia/commons/3/37/2015_Fox_Sports_1_logo.svg',
     NBC: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/NBC_logo.svg', Peacock: 'https://upload.wikimedia.org/wikipedia/commons/f/fb/NBCUniversal_Peacock_Logo_%282020%E2%80%932026%29.svg',
     'SEC Network': 'https://upload.wikimedia.org/wikipedia/commons/b/b9/SEC_Network_logo.svg', SECN: 'https://upload.wikimedia.org/wikipedia/commons/b/b9/SEC_Network_logo.svg', 'ACC Network': 'https://upload.wikimedia.org/wikipedia/commons/0/00/ACC_Network_logo_fc_db.svg', ACCN: 'https://upload.wikimedia.org/wikipedia/commons/0/00/ACC_Network_logo_fc_db.svg',
-    TNT: 'https://upload.wikimedia.org/wikipedia/commons/2/24/TNT_Logo_2016.svg', truTV: 'https://upload.wikimedia.org/wikipedia/commons/3/36/TruTV_logo.svg', 'HBO Max': 'https://upload.wikimedia.org/wikipedia/commons/b/b3/HBO_Max_%282025%29.svg',
+    TNT: 'https://upload.wikimedia.org/wikipedia/commons/2/24/TNT_Logo_2016.svg', truTV: 'https://upload.wikimedia.org/wikipedia/commons/3/36/TruTV_logo.svg', 'HBO Max': 'https://upload.wikimedia.org/wikipedia/commons/b/b3/HBO_Max_%282025%29.svg', 'Prime Video': 'https://upload.wikimedia.org/wikipedia/commons/9/90/Prime_Video_logo_%282024%29.svg', BTN: 'https://upload.wikimedia.org/wikipedia/en/3/39/Big_Ten_Network_Logo.svg',
     CW: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/The_CW_2024.svg', 'The CW': 'https://upload.wikimedia.org/wikipedia/commons/b/b1/The_CW_2024.svg', 'USA Net': 'https://upload.wikimedia.org/wikipedia/commons/d/d7/USA_Network_logo_%282016%29.svg', 'Disney+': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg'
   };
   function tvBadges(names) {
@@ -701,13 +701,23 @@
         swingCache[key] = e.data;
         if (swings.key !== key) return;
         swings.worker = null; w.terminate();
-        if (st.sbSort !== 'time') renderLive();
+        if (st.sbSort === 'impact') renderLive();
       };
       w.onerror = function () { if (swings.worker === w) swings.worker = null; };
       swings.worker = w;
       w.postMessage({ D: data, mode: st.mode, seed: CFP.seedFor(st.mode), sims: SWING_SIMS, ids: ids });
     } catch (err) {}
     return null;
+  }
+  // The Scores page's current week: the week under way, moving on to the next one as soon as every game of it
+  // is over (final, or kicked off over 5 hours ago, so a postponed game can't hold it), e.g. Sunday morning
+  // after Saturday's games, rather than waiting for next week's first kickoff.
+  function scoreWeek() {
+    var wk = weekGames().wk, now = Date.now(), counts = function (g) { return g.h < D.fbs || g.a < D.fbs; };
+    var games = D.games.filter(function (g) { return g.wk === wk && counts(g); });
+    var over = games.length && games.every(function (g) { return g.s === 'post' || Date.parse(g.d) < now - 5 * 3600000; });
+    var later = D.games.filter(function (g) { return g.wk > wk && counts(g); });
+    return over && later.length ? Math.min.apply(null, later.map(function (g) { return g.wk; })) : wk;
   }
   // The weeks on the Scores page, with their date range, e.g. "Week 10 · Nov 3–7".
   function scoreWeeks() {
@@ -727,10 +737,11 @@
     if (a.split(' ')[0] === b.split(' ')[0]) b = b.split(' ')[1];
     return 'Week ' + w.wk + ' · ' + a + '–' + b;
   }
-  // Live games with the most playoff impact come first, then games still to come, then finals, for the chosen week.
+  // Live games first, then games still to come, then finals, for the chosen week; each group by start time
+  // (the default) or by playoff impact.
   // With no week chosen it follows the current week, which moves on when next week's first game kicks off.
   function renderLive() {
-    var weeks = scoreWeeks(), current = weekGames().wk;
+    var weeks = scoreWeeks(), current = scoreWeek();
     var sel = st.sbWeek != null && weeks.some(function (w) { return w.wk === st.sbWeek; }) ? st.sbWeek : current;
     $('sb-week').innerHTML = weeks.map(function (w) {
       return '<option value="' + w.wk + '"' + (w.wk === sel ? ' selected' : '') + '>' + esc(weekLabel(w)) + (w.wk === current ? ' (current)' : '') + '</option>';
@@ -747,7 +758,7 @@
     var R = res();
     var best = function (g) { return Math.max(g.h < D.fbs ? R.teams[g.h].cfp : 0, g.a < D.fbs ? R.teams[g.a].cfp : 0); };
     var stake = function (g) { var s = gameStakes(g); return s ? s.swing : 0; };
-    var byTime = st.sbSort === 'time';
+    var byTime = st.sbSort !== 'impact'; // Start time is the default
     var kickoff = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
     // Pre-game swing for every game that week, once measured; until then the live stakes stand in.
     var sw = byTime ? null : gameSwings(D.games.filter(inWeek));
@@ -816,7 +827,7 @@
 
   function renderModes() {
     function option(k, label) { return '<option value="' + k + '"' + (st.mode === k ? ' selected' : '') + '>' + esc(label) + '</option>'; }
-    var groups = '<optgroup label="Averages">' + option('blend', 'Massey + Sagarin') + option('all', 'All models average') + '</optgroup>';
+    var groups = '<optgroup label="Averages">' + option('blend', 'FPI + Sagarin') + option('all', 'All models average') + '</optgroup>';
     ['Point-based', 'Recent form', 'Results only'].forEach(function (g) {
       groups += '<optgroup label="' + g + '">' + D.sources.models.filter(function (m) { return m.group === g; }).map(function (m) { return option(m.k, m.label); }).join('') + '</optgroup>';
     });
@@ -910,7 +921,7 @@
         var byId = {}; D.teams.forEach(function (t) { byId[t.id] = t; });
         fresh.teams.forEach(function (t) {
           var old = byId[t.id];
-          t.r = old ? old.r : { massey: 28, sagarin: 45, predictor: 45 };
+          t.r = old ? old.r : { sagarin: 45, predictor: 45 };
         });
         fresh.sources = D.sources;
         fresh.swMode = D.swMode;
@@ -1020,7 +1031,7 @@
     }
     else if (id === 'sb-conf') { st.sbConf = e.target.value; renderLive(); }
     else if (id === 'sb-sort') { st.sbSort = e.target.value; renderLive(); }
-    else if (id === 'sb-week') { st.sbWeek = +e.target.value === weekGames().wk ? null : +e.target.value; renderLive(); }
+    else if (id === 'sb-week') { st.sbWeek = +e.target.value === scoreWeek() ? null : +e.target.value; renderLive(); }
     else if (e.target.classList.contains('mode-select')) {
       st.mode = e.target.value;
       [].forEach.call(document.querySelectorAll('.mode-select'), function (s) { s.value = st.mode; });

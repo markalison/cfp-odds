@@ -342,10 +342,14 @@
   });
   var weekList = Object.keys(weeks).map(function (k) { return weeks[k]; }).sort(function (a, b) { return a.wk - b.wk; });
   // The current week is the latest one under way; it stays until next week's first kickoff.
+  // The Scores page's week: the week under way, moving on to the next as soon as every game of it is over
+  // (final, or kicked off over 5 hours ago), e.g. Tuesday after Monday night's game.
   function currentWeek() {
-    var now = new Date().toISOString(), cur = weekList[0].wk;
+    var now = new Date().toISOString(), cur = weekList[0].wk, t = Date.now();
     weekList.forEach(function (w) { if (w.first <= now) cur = w.wk; });
-    return cur;
+    var over = D.games.filter(function (g) { return g.wk === cur; }).every(function (g) { return g.s === 'post' || Date.parse(g.d) < t - 5 * 3600000; });
+    var k = weekList.map(function (w) { return w.wk; }).indexOf(cur);
+    return over && weekList[k + 1] ? weekList[k + 1].wk : cur;
   }
   function weekLabel(w) {
     var a = etDate(w.first, { month: 'short', day: 'numeric' }), b = etDate(w.last, { month: 'short', day: 'numeric' });
@@ -356,10 +360,12 @@
   var TV_LOGO = {
     CBS: 'https://upload.wikimedia.org/wikipedia/commons/4/4e/CBS_logo.svg',
     FOX: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg',
+    Fox: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg', // ESPN's NFL listings spell it Fox
     NBC: 'https://upload.wikimedia.org/wikipedia/commons/3/3f/NBC_logo.svg',
     ESPN: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ESPN_wordmark.svg',
     ABC: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ABC-2021-LOGO.svg',
-    Peacock: 'https://upload.wikimedia.org/wikipedia/commons/f/fb/NBCUniversal_Peacock_Logo_%282020%E2%80%932026%29.svg'
+    Peacock: 'https://upload.wikimedia.org/wikipedia/commons/f/fb/NBCUniversal_Peacock_Logo_%282020%E2%80%932026%29.svg',
+    'Prime Video': 'https://upload.wikimedia.org/wikipedia/commons/9/90/Prime_Video_logo_%282024%29.svg'
   };
   function tvBadges(names) {
     return (names || []).map(function (n) {
@@ -426,6 +432,19 @@
         '<div class="lg-rows"><span></span><span class="h">Score</span><span class="h"></span><span class="h">Playoffs</span>') +
       cardRow(g, g.a, g.as, g.hs) + cardRow(g, g.h, g.hs, g.as) + '</div></article>';
   }
+  // Sort by Playoff impact (Start time is the default): picked games first, then the swing in playoff
+  // odds between a win and a loss, added up for both teams when it's their next game. Other games (finals, or
+  // later in a week) go by how much is at stake instead: p(1 - p) of each team's playoff odds.
+  function impact(g) {
+    if (st.picks[g.id] != null) return 10;
+    var swing = 0, stake = 0;
+    [g.h, g.a].forEach(function (i) {
+      var r = R.teams[i];
+      stake += r.playoff * (1 - r.playoff);
+      if (r.next === g.id && r.ifWin != null && r.ifLoss != null) swing += Math.abs(r.ifWin - r.ifLoss);
+    });
+    return swing || stake;
+  }
   function renderScores() {
     var cur = currentWeek(), sel = st.week || cur;
     $('nfl-week').innerHTML = weekList.map(function (w) {
@@ -433,7 +452,8 @@
     }).join('');
     var games = D.games.filter(function (g) { return g.wk === sel; });
     var byTime = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
-    var group = function (list) { return list.length ? '<div class="live-group"><div class="live-grid">' + list.sort(byTime).map(card).join('') + '</div></div>' : ''; };
+    var order = st.sbSort !== 'impact' ? byTime : function (a, b) { return impact(b) - impact(a) || byTime(a, b); };
+    var group = function (list) { return list.length ? '<div class="live-group"><div class="live-grid">' + list.sort(order).map(card).join('') + '</div></div>' : ''; };
     var html = group(games.filter(function (g) { return g.s === 'in'; })) + group(games.filter(function (g) { return g.s === 'pre'; })) + group(games.filter(function (g) { return g.s === 'post'; }));
     $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this week.</p>';
   }
@@ -585,6 +605,7 @@
     renderRankings();
   });
   $('nfl-view').addEventListener('change', function (e) { st.view = e.target.value; st.sort = null; store.set('nfl-view', st.view); renderRankings(); });
+  $('nfl-sb-sort').addEventListener('change', function (e) { st.sbSort = e.target.value; renderScores(); });
   $('nfl-week').addEventListener('change', function (e) { st.week = +e.target.value === currentWeek() ? null : +e.target.value; renderScores(); refreshScores(); });
   window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });
   // Dark and light logos differ, so redraw when the theme changes.
