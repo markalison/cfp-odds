@@ -954,7 +954,7 @@
     if (!b) return;
     if (b.dataset.sort) {
       var k = b.dataset.sort;
-      if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' || k === 'rating' || k === 'conf' ? 1 : -1; }
+      if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' || k === 'proj' || k === 'rating' || k === 'conf' ? 1 : -1; }
       st.lockOrder = null;
       renderTable();
     } else if (b.dataset.view) {
