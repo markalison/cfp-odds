@@ -95,9 +95,9 @@
     var id = nextOpen(i);
     if (id == null) return '<td class="pick">—</td>';
     var g = gameById[id], home = g.h === i, opp = D.teams[home ? g.a : g.h], vs = (home ? 'vs ' : '@') + opp.ab;
-    var pk = st.picks[id], won = pk === i, lost = pk != null && !won;
-    var label = won ? D.teams[i].short + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? D.teams[i].short + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + D.teams[i].short + ' ' + vs + '. Press to pick a win';
-    return '<td class="pick"><div class="nx-cell"><div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(id) + '" data-team="' + i + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></div>' +
+    var pk = st.picks[id], tie = pk === 'T', won = pk === i, lost = pk != null && !won && !tie;
+    var label = won ? D.teams[i].short + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? D.teams[i].short + ' ' + vs + ' picked to lose. Press to pick a tie' : tie ? D.teams[i].short + ' ' + vs + ' picked to tie. Press to clear the pick' : 'No pick for ' + D.teams[i].short + ' ' + vs + '. Press to pick a win';
+    return '<td class="pick"><div class="nx-cell"><div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : tie ? ' pick-t' : '') + '" data-pick="' + esc(id) + '" data-team="' + i + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : tie ? 'T' : '') + '</button></div>' +
       '<span class="nx-vs" aria-hidden="true">' + esc(vs) + '</span></div></td>';
   }
   // Row order: NFL and Conference by playoff odds, Division by record (then division odds). The order is set
@@ -161,7 +161,7 @@
     var lines = shown.map(function (g) {
       var home = g.h === i, o = D.teams[home ? g.a : g.h], hw = R.homeWin[g.id], p = hw == null ? null : home ? hw : 1 - hw, pk = st.picks[g.id];
       var live = g.s === 'in' ? ' <b class="score-now">' + ((home ? g.hs - g.as : g.as - g.hs) > 0 ? 'Up ' : (home ? g.hs - g.as : g.as - g.hs) < 0 ? 'Down ' : 'Tied ') + (home ? g.hs + '-' + g.as : g.as + '-' + g.hs) + '</b>' : '';
-      return '<span>' + etDate(g.d, { month: 'short', day: 'numeric' }) + ' · ' + (home ? 'vs ' : '@') + logo(o, 18) + esc(o.short) + live + '</span><span>' + (pk != null ? (pk === i ? 'Picked win' : 'Picked loss') : p == null ? '—' : Math.round(p * 100) + '%') + '</span>';
+      return '<span>' + etDate(g.d, { month: 'short', day: 'numeric' }) + ' · ' + (home ? 'vs ' : '@') + logo(o, 18) + esc(o.short) + live + '</span><span>' + (pk != null ? (pk === i ? 'Picked win' : pk === 'T' ? 'Picked tie' : 'Picked loss') : p == null ? '—' : Math.round(p * 100) + '%') + '</span>';
     }).join('') + (left.length > shown.length ? '<span class="sched-more">and ' + (left.length - shown.length) + ' more</span><span></span>' : '');
     var split = function (label, v) { return '<tr><th scope="row">' + label + '</th><td>' + pct(v) + '</td><td>' + pct(v == null ? null : 1 - v) + '</td></tr>'; };
     var seeds = (r.seeds || []).slice(0, 7), maxS = Math.max.apply(null, seeds.concat(0.0001));
@@ -177,7 +177,7 @@
     var n = Object.keys(st.picks).length;
     $('nfl-picks-bar').innerHTML = busy ? '<span><b>Simulating…</b> Updating every team’s odds for your picks.</span>' : n
       ? '<span><b>' + n + (n === 1 ? ' game' : ' games') + ' picked.</b> All odds assume ' + (n === 1 ? 'that result' : 'those results') + '.</span><button class="btn" id="nfl-clear" type="button">Clear picks</button>'
-      : '<span>Press a team’s box to cycle its next game through <b>W</b>, <b>L</b> and blank. Its opponent gets the opposite result, and all odds update.</span>';
+      : '<span>Press a team’s box to cycle its next game through <b>W</b>, <b>L</b>, <b>T</b> (tie) and blank. Its opponent gets the opposite result, and all odds update.</span>';
   }
   var played = D.games.filter(function (g) { return g.s === 'post'; }).length;
   $('nfl-note').textContent = D.season + ' season · ' + played + ' of ' + D.games.length + ' games played · updated ' +
@@ -447,8 +447,8 @@
           g.clock = s.type.shortDetail;
           c.competitors.forEach(function (x) { if (x.homeAway === 'home') g.hs = +x.score || 0; else g.as = +x.score || 0; });
           // Newly final (and not final in the build's season): lock the result in; a pick on it no longer applies.
-          if (g.s === 'post' && was !== 'post' && simById()[g.id] && simById()[g.id].s !== 'post' && auto[g.id] == null && g.hs !== g.as) {
-            auto[g.id] = g.hs > g.as ? g.h : g.a; delete st.picks[g.id]; newFinal = true;
+          if (g.s === 'post' && was !== 'post' && simById()[g.id] && simById()[g.id].s !== 'post' && auto[g.id] == null) {
+            auto[g.id] = g.hs > g.as ? g.h : g.hs < g.as ? g.a : 'T'; delete st.picks[g.id]; newFinal = true;
           }
         });
         $('nfl-live-note').hidden = true;
@@ -551,9 +551,9 @@
     if (!b) return;
     if (b.dataset.open != null) { st.open[b.dataset.open] = !st.open[b.dataset.open]; renderRankings(); return; }
     if (b.dataset.pick) {
-      // Each press cycles this team through W, L and blank; its opponent gets the opposite result.
+      // Each press cycles this team through W, L, T (tie) and blank; its opponent gets the opposite result.
       var id = b.dataset.pick, me = +b.dataset.team, g = gameById[id], opp = g.h === me ? g.a : g.h;
-      if (st.picks[id] == null) st.picks[id] = me; else if (st.picks[id] === me) st.picks[id] = opp; else delete st.picks[id];
+      if (st.picks[id] == null) st.picks[id] = me; else if (st.picks[id] === me) st.picks[id] = opp; else if (st.picks[id] === opp) st.picks[id] = 'T'; else delete st.picks[id];
       resimulate();
     } else if (b.dataset.bk) {
       var k = b.dataset.bk, t = +b.dataset.team, o = +b.dataset.opp;

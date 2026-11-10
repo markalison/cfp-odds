@@ -636,3 +636,5 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .odds-table th.c-prk { text-align: center; }
 .c-prk-cell .mv { margin-left: 3px; font: 600 10px var(--body); }
 .c-prk-cell .mv.up { color: var(--up); } .c-prk-cell .mv.down { color: var(--down); }
+/* NFL picked tie: a neutral fill, between the win green and the loss red. */
+.mini button.pick-t, .mini button.pick-t:hover { background: var(--muted); color: var(--panel); }

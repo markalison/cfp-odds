@@ -146,7 +146,9 @@ function Season(D, res) {
     (s) => s.map(sos)
   ];
   function divBest(set, rand) { return best(set, DIV_STEPS, rand); }
-  // Teams from different divisions: first only the top team of each division stays in.
+  // Teams from different divisions: first only the top team of each division stays in. Repeated for each
+  // wild card spot, this keeps the NFL's "original seeding within a division": the division tiebreaker sends
+  // the teams left back to step 1 after each winner, which is the same order as re-breaking them here.
   function wcBest(set, rand) {
     const byDiv = {};
     for (const i of set) (byDiv[T[i].div] = byDiv[T[i].div] || []).push(i);
@@ -169,7 +171,7 @@ function Season(D, res) {
 }
 
 // ---------- The simulation ----------
-// picks: { gameId: index of the team picked to win }. A picked game is decided in every simulated season.
+// picks: { gameId: index of the team picked to win, or 'T' for a tie }. A picked game is decided in every simulated season.
 function simulate(D, sims, seed, picks, ratingList) {
   picks = picks || {};
   const n = D.teams.length, T = D.teams, rand = rng(seed || 20261108);
@@ -180,8 +182,9 @@ function simulate(D, sims, seed, picks, ratingList) {
     if (g.s === 'post') {
       const r = g.hs > g.as ? 1 : g.hs < g.as ? 0 : 0.5;
       base[g.h].push([g.a, r]); base[g.a].push([g.h, 1 - r]);
-    } else if (picks[g.id] === g.h || picks[g.id] === g.a) {
-      const r = picks[g.id] === g.h ? 1 : 0;
+    } else if (picks[g.id] === g.h || picks[g.id] === g.a || picks[g.id] === 'T') {
+      // A picked tie ('T') counts half a win for each team, as a real tie does.
+      const r = picks[g.id] === 'T' ? 0.5 : picks[g.id] === g.h ? 1 : 0;
       base[g.h].push([g.a, r]); base[g.a].push([g.h, 1 - r]);
     } else open.push(g);
   }
@@ -273,7 +276,7 @@ function simulate(D, sims, seed, picks, ratingList) {
   });
   const games = {};
   for (const g of open) games[g.id] = r4(winP[g.id] / sims);
-  for (const id in picks) { const g = D.games.find((x) => x.id === id); if (g && g.s !== 'post') games[id] = picks[id] === g.h ? 1 : 0; }
+  for (const id in picks) { const g = D.games.find((x) => x.id === id); if (g && g.s !== 'post') games[id] = picks[id] === 'T' ? 0.5 : picks[id] === g.h ? 1 : 0; }
   return { teams, homeWin: games, model: M };
 }
 

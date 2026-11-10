@@ -48,6 +48,8 @@ weeks.forEach((w, k) => {
     const h = c.competitors.find((x) => x.homeAway === 'home'), a = c.competitors.find((x) => x.homeAway === 'away');
     if (idx[h.team.id] == null || idx[a.team.id] == null) continue;
     const st = c.status || e.status;
+    // A canceled game (as Bills-Bengals in 2022) is never played: leave it out, so it isn't simulated.
+    if (st.type.name === 'STATUS_CANCELED') continue;
     const s = st.type.completed ? 'post' : st.type.state === 'in' ? 'in' : 'pre';
     games.push({ id: e.id, wk: k + 1, d: e.date, h: idx[h.team.id], a: idx[a.team.id], neutral: !!c.neutralSite,
       s, hs: +h.score || 0, as: +a.score || 0,
