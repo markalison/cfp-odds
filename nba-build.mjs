@@ -14,8 +14,12 @@ const DIVS = {
   'Northwest': ['DEN', 'MIN', 'OKC', 'POR', 'UTAH'], 'Pacific': ['GS', 'LAC', 'LAL', 'PHX', 'SAC'], 'Southwest': ['DAL', 'HOU', 'MEM', 'NO', 'SA']
 };
 const EAST = ['Atlantic', 'Central', 'Southeast'];
-// National networks only; local channels (team networks) are left off the score cards.
+// National networks only; local and team channels are left off the score cards.
 const NATIONAL = ['ESPN', 'ESPN2', 'ABC', 'NBC', 'Peacock', 'Prime Video', 'NBA TV', 'TNT', 'truTV'];
+function networks(list) {
+  const name = (b) => (b.media && b.media.shortName) || (b.names && b.names[0]) || '';
+  return [...new Set(list.map(name).filter((n) => NATIONAL.includes(n)))].slice(0, 2);
+}
 
 async function get(url) {
   for (let tries = 1; ; tries++) {
@@ -50,7 +54,7 @@ for (const t of teams) {
     const sc = (x) => +(x.score && (x.score.value != null ? x.score.value : x.score)) || 0;
     games.set(e.id, { id: e.id, d: e.date, h: idx[h.id], a: idx[a.id], neutral: !!c.neutralSite,
       s: done ? 'post' : st.type.state === 'in' ? 'in' : 'pre', hs: done ? sc(h) : 0, as: done ? sc(a) : 0,
-      tv: [...new Set((c.broadcasts || []).map((b) => (b.media && b.media.shortName) || b.names && b.names[0]).filter((n) => NATIONAL.includes(n)))].slice(0, 2) });
+      tv: networks(c.broadcasts || []) });
   }
 }
 const G = [...games.values()].sort((x, y) => (x.d < y.d ? -1 : 1));

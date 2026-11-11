@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/styles.css?v=4f28a881ba">
+  <script src="js/theme.js?v=4f28a881ba"></script>
+  <title>NHL playoff odds · CFP Odds Board</title>
+  <meta name="description" content="Each NHL team's chance to make the playoffs, win its division and conference and win the Stanley Cup, from simulating the rest of the season.">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="container header-bar">
+    <div class="menu">
+      <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu: choose a sport" title="Choose a sport"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+      <div class="menu-panel" id="menu-panel" hidden>
+        <a href="nfl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
+        <a href="nba.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt=""><span>NBA</span></a>
+        <a href="nhl.html#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg" alt=""><span>NHL</span></a>
+        <a href="./#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
+        <a href="ncaab.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAB</span></a>
+      </div>
+    </div>
+    <div class="sport-now"><img src="https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg" alt=""><span>NHL</span></div>
+    <nav class="tabs" aria-label="NHL views">
+      <a href="nhl.html#rankings" data-page="rankings">Standings</a>
+      <a href="nhl.html#playoff" data-page="playoff">Bracket</a>
+      <a href="nhl.html#scores" data-page="scoreboard">Scores</a>
+    </nav>
+    <button class="btn icon-btn" id="theme" type="button"></button>
+  </div>
+</header>
+
+<main class="container main" id="main">
+  <h1 class="sr-only" id="page-title">NHL playoff odds</h1>
+
+  <div class="stack" id="page-rankings">
+    <section class="section" aria-labelledby="nfl-title">
+      <div class="section-head"><h2 id="nfl-title">NHL standings</h2><p id="nfl-note"></p></div>
+      <div class="filters">
+        <div class="ctl"><label for="nfl-view">Teams</label><select id="nfl-view"></select></div>
+        <div class="ctl"><label for="nfl-mode">Ratings used</label><select id="nfl-mode" class="nfl-mode"></select></div>
+        <div class="picks-bar" id="nfl-picks-bar" aria-live="polite"></div>
+      </div>
+      <div class="table-bar"><button class="table-toggle" id="nfl-expand" type="button" aria-pressed="false">Show all columns</button></div>
+      <div class="table-wrap" id="nfl-tw"><table class="odds-table nfl-odds nba-odds nhl-odds">
+        <thead><tr id="nfl-head"></tr></thead>
+        <tbody id="nfl-body"></tbody>
+      </table></div>
+    </section>
+
+    <section class="section nfl-how" aria-labelledby="nfl-how">
+      <h2 id="nfl-how">How these odds work</h2>
+      <ul>
+      <li>Every remaining regular-season game is played out 20,000 times. Each game is decided by the rating gap plus 0.2 goals for the home team, with 2.3 goals of game randomness, and each team’s strength also drifts by 0.25 goals per simulated season. 22% of games go to overtime or a shootout, and the loser still gets a point.</li>
+      <li>Ratings are in goals a game better than an average team. Sagarin’s ratings, MoneyPuck’s expected goals (expected goals for minus against per game, all situations) and this site’s goals rating (this season’s scores, margins capped at 4, overtime games as one-goal games, adjusted for opponent and home ice). Recent form: Sagarin’s recent rating. The default averages Sagarin Rating, MoneyPuck expected goals, Goals rating (this site).</li>
+      <li>Standings go by points, then regulation wins, then wins, then head-to-head points, then a coin toss.</li>
+      <li>The top three in each division make the playoffs, plus two wild cards per conference. The division winner with more points plays the second wild card and the other plays the first; second plays third in each division. Every round is best of seven, with more points holding home ice in games 1, 2, 5 and 7.</li>
+      <li>Playoffs after a win or loss show the chance to make the playoffs if the team wins or loses its next game.</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="stack" id="page-playoff" hidden>
+    <section class="section" aria-labelledby="nfl-bk-title">
+      <div class="bk-head">
+        <div class="section-head"><h2 id="nfl-bk-title">Projected playoffs</h2><p>The likeliest field: the top three in each division and two wild cards per conference. Select a team to advance it and see its chance to win that game or series, or simulate to advance every favorite. Picks on the Standings tab change the seeding.</p></div>
+        <div class="bk-actions">
+          <button class="btn" id="nfl-bk-clear" type="button" hidden>Clear picks</button>
+          <div class="ctl"><label for="nfl-mode-bk">Ratings used</label><select id="nfl-mode-bk" class="nfl-mode"></select></div>
+          <button class="btn bk-toggle" id="nfl-bk-sim" type="button" aria-pressed="false">Simulate games</button>
+        </div>
+      </div>
+      <div class="nfl-bracket" id="nfl-bracket"></div>
+    </section>
+  </div>
+
+  <div class="stack" id="page-scoreboard" hidden>
+    <div class="filters sb-bar">
+      <div class="ctl"><label for="nfl-week">Day</label><select id="nfl-week"></select></div>
+      <div class="ctl sb-sort"><label for="nfl-sb-sort">Sort by</label><select id="nfl-sb-sort"><option value="time">Start time</option><option value="impact">Playoff impact</option></select></div>
+    </div>
+    <p class="live-note" id="nfl-live-note" hidden></p>
+    <section class="live-board" id="nfl-scores" aria-label="Scores"></section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <p>Playoff odds for the 2026 season, from simulating every remaining game and committee ranking.</p>
+    </div>
+    <nav aria-label="Footer">
+      <a class="footer-link" href="about.html">About</a>
+    </nav>
+    <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
+  </div>
+</footer>
+<script src="nhl-engine.js?v=4f28a881ba"></script>
+<script src="nhl-data.js?v=4f28a881ba"></script>
+<script src="js/nhl.js?v=4f28a881ba"></script>
+</body>
+</html>

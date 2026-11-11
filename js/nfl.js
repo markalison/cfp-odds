@@ -426,10 +426,11 @@
   }
   function card(g) {
     var isLive = g.s === 'in', isPre = g.s === 'pre';
-    var tv = g.tv && g.tv.length && g.s !== 'post' ? '<span class="tv-list net-logos">' + tvBadges(g.tv) + '</span>' : '';
-    var top = isLive ? '<span class="lg-live"><b>' + esc(g.clock || 'In progress') + '</b></span>' + tv :
-      isPre ? '<b class="lg-kickoff">' + etDate(g.d, { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + etTime(g.d) + ' ET</b>' + tv :
-      '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + etDate(g.d, { weekday: 'short' }) + '</span></span>';
+    var tv = g.s !== 'post' ? '<span class="tv-list net-logos">' + (g.tv && g.tv.length ? tvBadges(g.tv) : '<span class="tv-name tv-tba">TV TBA</span>') + '</span>' : '';
+    var wd = etDate(g.d, { weekday: 'short', month: 'short', day: 'numeric' }); // every card names its day and date
+    var top = isLive ? '<span class="lg-live"><b>' + wd + ' · ' + esc(g.clock || 'In progress') + '</b></span>' + tv :
+      isPre ? '<b class="lg-kickoff">' + wd + ', ' + etTime(g.d) + ' ET</b>' + tv :
+      '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + wd + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
       (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
         isLive ? '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
@@ -447,8 +448,18 @@
       stake += r.playoff * (1 - r.playoff);
       if (r.next === g.id && r.ifWin != null && r.ifLoss != null) swing += Math.abs(r.ifWin - r.ifLoss);
     });
-    return swing || stake;
+    return swing ? 1 + swing : stake; // a measured swing always ranks ahead of the stake estimate
   }
+  var impactFrozen = null;
+  // Sorts by impact the first time, then keeps that order (games going live or final and new odds don't move it).
+  function frozenImpact(games, key, byTime) {
+    if (!impactFrozen || impactFrozen.key !== key) {
+      impactFrozen = { key: key, pos: {} };
+      games.slice().sort(function (a, b) { return impact(b) - impact(a) || byTime(a, b); }).forEach(function (g, n) { impactFrozen.pos[g.id] = n; });
+    }
+    var pos = impactFrozen.pos;
+    return games.slice().sort(function (a, b) { return (a.s === 'post') - (b.s === 'post') || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
+  } // the Playoff impact order, kept until the sort or week changes
   function renderScores() {
     var cur = currentWeek(), sel = st.week || cur;
     $('nfl-week').innerHTML = weekList.map(function (w) {
@@ -457,8 +468,21 @@
     var games = D.games.filter(function (g) { return g.wk === sel; });
     var byTime = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
     var order = st.sbSort !== 'impact' ? byTime : function (a, b) { return impact(b) - impact(a) || byTime(a, b); };
-    var group = function (list) { return list.length ? '<div class="live-group"><div class="live-grid">' + list.sort(order).map(card).join('') + '</div></div>' : ''; };
-    var html = group(games.filter(function (g) { return g.s === 'in'; })) + group(games.filter(function (g) { return g.s === 'pre'; })) + group(games.filter(function (g) { return g.s === 'post'; }));
+    var group = function (list, title) { return list.length ? '<div class="live-group">' + (title ? '<h4>' + title + '</h4>' : '') + '<div class="live-grid">' + list.sort(order).map(card).join('') + '</div></div>' : ''; };
+    // Upcoming and final games under a heading per day (Eastern), in the chosen order within each day.
+    var byDay = function (list, tag) {
+      var keys = [], m = {};
+      list.forEach(function (g) { var k = etDate(g.d, { year: 'numeric', month: '2-digit', day: '2-digit' }); if (!m[k]) { m[k] = []; keys.push(k); } m[k].push(g); });
+      return keys.sort(function (a, b) { return m[a][0].d < m[b][0].d ? -1 : 1; }).map(function (k) {
+        return group(m[k], etDate(m[k][0].d, { weekday: 'long', month: 'short', day: 'numeric' }) + (tag ? ' · ' + tag : ''));
+      }).join('');
+    };
+    var live = games.filter(function (g) { return g.s === 'in'; });
+    if (st.sbSort === 'impact') {
+      $('nfl-scores').innerHTML = games.length ? '<div class="live-group"><div class="live-grid">' + frozenImpact(games, sel, byTime).map(card).join('') + '</div></div>' : '<p class="live-empty">No games this week.</p>';
+      return;
+    }
+    var html = group(live, live.length ? 'In progress' : '') + byDay(games.filter(function (g) { return g.s === 'pre'; }), '') + byDay(games.filter(function (g) { return g.s === 'post'; }), 'Final');
     $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this week.</p>';
   }
   // Live scores for the chosen week straight from ESPN; odds stay as of the last build.
@@ -609,7 +633,7 @@
     renderRankings();
   });
   $('nfl-view').addEventListener('change', function (e) { st.view = e.target.value; st.sort = null; store.set('nfl-view', st.view); renderRankings(); });
-  $('nfl-sb-sort').addEventListener('change', function (e) { st.sbSort = e.target.value; renderScores(); });
+  $('nfl-sb-sort').addEventListener('change', function (e) { st.sbSort = e.target.value; impactFrozen = null; renderScores(); });
   $('nfl-week').addEventListener('change', function (e) { st.week = +e.target.value === currentWeek() ? null : +e.target.value; renderScores(); refreshScores(); });
   window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });
   // Dark and light logos differ, so redraw when the theme changes.

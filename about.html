@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=714f57e814">
-  <script src="js/theme.js?v=714f57e814"></script>
+  <link rel="stylesheet" href="css/styles.css?v=4f28a881ba">
+  <script src="js/theme.js?v=4f28a881ba"></script>
   <title>About · CFP Odds Board</title>
   <meta name="description" content="How the CFP Odds Board simulates the season: the playoff rules it applies, the ratings it uses and its limits.">
 </head>
@@ -20,7 +20,9 @@
       <div class="menu-panel" id="menu-panel" hidden>
         <a href="nfl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
         <a href="nba.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt=""><span>NBA</span></a>
+        <a href="nhl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg" alt=""><span>NHL</span></a>
         <a href="./#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
+        <a href="ncaab.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAB</span></a>
       </div>
     </div>
     <div class="sport-now"><img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></div>
@@ -58,7 +60,7 @@
       <ul>
         <li>Each game is decided by the rating gap plus home field, with 14 points of game randomness. Each team’s true strength also varies by 3 points per simulated season, so hot streaks carry through.</li>
         <li>Conference standings produce two title-game teams each simulation, or one per division in the Sun Belt.</li>
-        <li>A simulated committee scores every team: rating × 0.65, −7 per loss with −2 more past two losses, schedule strength, +2.5 per top-10 win, +1.25 per 11-25 win, −3 for a loss outside the top 60, +4 for a power-conference title.</li>
+        <li>A simulated committee scores every team: rating × 0.65, −7 per loss with −2 more past two losses, schedule strength, +2.5 per top-10 win, +1.25 per 11-25 win, −3 for a loss outside the top 60, +1 back for a loss to a top-25 team, +4 for a power-conference title.</li>
         <li>Part of the current CFP ranking carries forward (60% of the gap between it and the model), and committee opinion varies by 2.2 points per simulation. A head-to-head winner jumps a team within 3 points.</li>
         <li>The projected field follows the bid rules: the likeliest champion of each power conference, the likeliest Group of 6 bid, then the seven best remaining odds. The Playoff page seeds it by average seed. With Simulate games on, each game’s win chance comes from the two ratings, with home field for the higher seed in the first round, and the favorite advances. Title odds come from the full simulation, so a team can lead them without being favored in this one bracket.</li>
         <li>40,000 seasons are simulated each time, which puts a team near 50% within about half a point.</li>

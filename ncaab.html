@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/styles.css?v=4f28a881ba">
+  <script src="js/theme.js?v=4f28a881ba"></script>
+  <title>College basketball NCAA tournament odds · CFP Odds Board</title>
+  <meta name="description" content="Each Division I men's basketball team's chance to make the NCAA tournament, its likely seed and its chance to reach the Final Four and win the title, from simulating the rest of the season.">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="container header-bar">
+    <div class="menu">
+      <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu: choose a sport" title="Choose a sport"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
+      <div class="menu-panel" id="menu-panel" hidden>
+        <a href="nfl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
+        <a href="nba.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt=""><span>NBA</span></a>
+        <a href="nhl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg" alt=""><span>NHL</span></a>
+        <a href="./#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
+        <a href="ncaab.html#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAB</span></a>
+      </div>
+    </div>
+    <div class="sport-now"><img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAB</span></div>
+    <nav class="tabs" aria-label="NCAAB views">
+      <a href="ncaab.html#rankings" data-page="rankings">Standings</a>
+      <a href="ncaab.html#playoff" data-page="playoff">Bracket</a>
+      <a href="ncaab.html#scores" data-page="scoreboard">Scores</a>
+    </nav>
+    <button class="btn icon-btn" id="theme" type="button"></button>
+  </div>
+</header>
+
+<main class="container main" id="main">
+  <h1 class="sr-only" id="page-title">College basketball NCAA tournament odds</h1>
+
+  <div class="stack" id="page-rankings">
+    <section class="section" aria-labelledby="nfl-title">
+      <div class="section-head"><h2 id="nfl-title">NCAA tournament odds</h2><p id="nfl-note"></p></div>
+      <div class="filters">
+        <div class="ctl"><label for="nfl-view">Teams</label><select id="nfl-view"></select></div>
+        <div class="ctl"><label for="nfl-mode">Ratings used</label><select id="nfl-mode" class="nfl-mode"></select></div>
+        <div class="picks-bar" id="nfl-picks-bar" aria-live="polite"></div>
+      </div>
+      <div class="table-bar"><button class="table-toggle" id="nfl-expand" type="button" aria-pressed="false">Show all columns</button></div>
+      <div class="table-wrap" id="nfl-tw"><table class="odds-table nfl-odds nba-odds ncaab-odds">
+        <thead><tr id="nfl-head"></tr></thead>
+        <tbody id="nfl-body"></tbody>
+      </table></div>
+    </section>
+
+    <section class="section nfl-how" aria-labelledby="nfl-how">
+      <h2 id="nfl-how">How these odds work</h2>
+      <ul>
+      <li>Every remaining regular-season game is played out 20,000 times. Each game is decided by the rating gap plus 3.2 points for the home team (none on a neutral court), with 11 points of game randomness, and each team’s strength also drifts by 3 points per simulated season. Non-Division I opponents rate -22 points.</li>
+      <li>Ratings are grouped by how they calculate. Point-based: ESPN’s BPI, Bart Torvik’s T-Rank (adjusted efficiency margin at the team’s tempo), TeamRankings and this site’s points rating (this season’s scores, margins capped at 25, adjusted for opponent and home court). Recent form: TeamRankings’ last five games. The default averages ESPN BPI, Bart Torvik T-Rank, TeamRankings Predictive, Points rating (this site).</li>
+      <li>Every conference holds a single-elimination tournament on a neutral court, seeded by conference record, with byes for the top seeds (the Ivy League takes four teams, the ACC and Big Ten fifteen, the rest everyone). Each champion takes its conference’s automatic bid.</li>
+      <li>A simulated committee fills the 68-team field with the best remaining teams: each team’s strength as its season shows it, plus 8 points per unit of winning percentage, with 1.5 points of committee disagreement per simulation. The same score seeds the field on an S-curve into four regions. The four lowest at-large teams and four lowest automatic qualifiers play in the First Four. Conference separation and eligibility rules aren’t modeled.</li>
+      <li>Tournament games are on neutral courts. Make NCAA after a win or loss shows the chance to make the tournament if the team wins or loses its next game.</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="stack" id="page-playoff" hidden>
+    <section class="section" aria-labelledby="nfl-bk-title">
+      <div class="bk-head">
+        <div class="section-head"><h2 id="nfl-bk-title">Projected NCAA tournament</h2><p>The likeliest field of 68: each conference’s likeliest champion takes its automatic bid and the best remaining odds take the at-large bids, seeded by average seed on an S-curve. Select a team to advance it and see its chance to win that game, or simulate to advance every favorite. Picks on the Standings tab change the field.</p></div>
+        <div class="bk-actions">
+          <button class="btn" id="nfl-bk-clear" type="button" hidden>Clear picks</button>
+          <div class="ctl"><label for="nfl-mode-bk">Ratings used</label><select id="nfl-mode-bk" class="nfl-mode"></select></div>
+          <button class="btn bk-toggle" id="nfl-bk-sim" type="button" aria-pressed="false">Simulate games</button>
+        </div>
+      </div>
+      <div class="nfl-bracket ncaab-bracket" id="nfl-bracket"></div>
+    </section>
+  </div>
+
+  <div class="stack" id="page-scoreboard" hidden>
+    <div class="filters sb-bar">
+      <div class="ctl"><label for="nfl-week">Day</label><select id="nfl-week"></select></div>
+      <div class="ctl sb-sort"><label for="nfl-sb-sort">Sort by</label><select id="nfl-sb-sort"><option value="time">Start time</option><option value="impact">Playoff impact</option></select></div>
+    </div>
+    <p class="live-note" id="nfl-live-note" hidden></p>
+    <section class="live-board" id="nfl-scores" aria-label="Scores"></section>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <p>Playoff odds for the 2026 season, from simulating every remaining game and committee ranking.</p>
+    </div>
+    <nav aria-label="Footer">
+      <a class="footer-link" href="about.html">About</a>
+    </nav>
+    <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
+  </div>
+</footer>
+<script src="ncaab-engine.js?v=4f28a881ba"></script>
+<script src="ncaab-data.js?v=4f28a881ba"></script>
+<script src="js/ncaab.js?v=4f28a881ba"></script>
+</body>
+</html>

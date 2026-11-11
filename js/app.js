@@ -307,11 +307,17 @@
       for (var k = wins; k < dist.length; k++) sor += dist[k];
       var winOut = left.reduce(function (s, g) { var pk = st.picks[g.id]; return s * (pk ? (pk === D.teams[i].id ? 1 : 0) : g.p); }, 1);
       var ranked = pl.filter(function (x) { return D.teams[x.o].rank; });
-      var wl = pl.filter(function (x) { return x.won; }).sort(function (a, b) { return Rt[b.o] - Rt[a.o]; });
+      // A win's quality is the opponent's rating with half of home field counted (a road win is worth a bit more).
+      var tough = function (x) { return Rt[x.o] - x.site * hfa / 2; }, rk = function (x) { return D.teams[x.o].rank || 99; };
+      // Unranked teams only count as a best win when a team has no wins over the CFP top 25.
+      var wl = pl.filter(function (x) { return x.won; }), wr = wl.filter(function (x) { return rk(x) < 99; });
+      wl = (wr.length ? wr : wl).sort(function (a, b) { return tough(b) - tough(a); });
       var ll = pl.filter(function (x) { return !x.won; }).sort(function (a, b) { return Rt[a.o] - Rt[b.o]; });
       out.push({ sos: avg(pl), sosLeft: avg(left), sor: pl.length ? sor : null, winOut: left.length ? winOut : null, nLeft: left.length,
         top25: ranked.filter(function (x) { return x.won; }).length + '-' + ranked.filter(function (x) { return !x.won; }).length,
-        best: wl.filter(function (e) { return Rt[wl[0].o] - Rt[e.o] <= CLOSE; }).slice(0, 3),
+        // Wins close to the toughest one, plus any over a CFP-ranked team ranked at least as high as it.
+        best: wl.filter(function (e) { return tough(wl[0]) - tough(e) <= CLOSE || (rk(e) < 99 && rk(e) <= rk(wl[0])); }).slice(0, 3)
+          .sort(function (a, b) { return rk(a) - rk(b) || tough(b) - tough(a); }),
         worst: ll.filter(function (e) { return Rt[e.o] - Rt[ll[0].o] <= CLOSE; }).slice(0, 3) });
     }
     // Ranks among FBS teams: toughest schedule first, best (smallest) strength of record first.
@@ -375,7 +381,7 @@
         tile('SOS', 'Strength of schedule: average rating of opponents played, ranked among ' + all.n.sos + ' FBS teams (1st = toughest)' + (r.nLeft ? '; schedule left ranks ' + ordinal(r.sosLeftRank) : ''), r.sosRank ? ordinal(r.sosRank) : '—') +
         tile('Win out', 'Chance to win every regular-season game left (' + r.nLeft + ')', r.winOut == null ? '—' : pct(r.winOut)) +
         tile('vs top 25', 'Record against teams in the current CFP top 25', r.top25) +
-        tile('Best win', 'Highest-rated team beaten (by the selected ratings); wins within ' + CLOSE + ' points of it show too', opp(r.best)) +
+        tile('Best win', 'Toughest team beaten (by the selected ratings, road wins counting a bit more); wins within ' + CLOSE + ' points of it, or over a team ranked at least as high in the CFP, show too. Wins over unranked teams count only for a team with no top-25 wins', opp(r.best)) +
         (r.worst.length ? tile('Worst loss', 'Lowest-rated team lost to (by the selected ratings); losses within ' + CLOSE + ' points of it show too', opp(r.worst)) : '') +
       '</dl>' +
     '</div>';
@@ -424,7 +430,7 @@
   function rkNote() {
     var week = D.rankLabel ? D.rankLabel.replace(/^.*- /, '').replace(/^CFP Rankings /i, '') : '';
     var since = projected().since;
-    return ' <b>CFP</b> is the College Football Playoff committee ranking' + (week ? ' (' + esc(week) + ')' : '') + '. <b>Proj.</b> is our projection of the next ranking' + (since ? ', with the ' + since + ' games played since' : '') + '.';
+    return ' <b>CFP</b> is the College Football Playoff committee ranking' + (week ? ' (' + esc(week) + ')' : '') + '.' + (projOn() ? ' <b>Proj.</b> is our projection of the next ranking' + (since ? ', with the ' + since + ' games played since' : '') + '.' : '');
   }
   function renderBoardTitle(count) {
     $('board-title').textContent = st.conf ? (CFP.CONF_NAME[st.conf] || st.conf) : VIEW_NAME[st.view];
@@ -439,7 +445,19 @@
     var arrow = mv == null ? '<small class="mv up" title="New in the top 25">new</small>' : mv > 0 ? '<small class="mv up">▲' + mv + '</small>' : mv < 0 ? '<small class="mv down">▼' + (-mv) + '</small>' : '';
     return '<td class="tc c-prk-cell">' + x.proj + arrow + '</td>';
   }
+  // The Proj. column only matters in the run-up to a ranking release: Sunday 6 AM to Tuesday 9 PM Eastern.
+  function projOn() {
+    if (!D.rankDate) return false;
+    var p = {};
+    new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', hourCycle: 'h23' }).formatToParts(new Date())
+      .forEach(function (x) { p[x.type] = x.value; });
+    var h = +p.hour;
+    return (p.weekday === 'Sun' && h >= 6) || p.weekday === 'Mon' || (p.weekday === 'Tue' && h < 21);
+  }
   function renderTable() {
+    var showProj = projOn();
+    if (!showProj && st.sort === 'proj') { st.sort = 'team'; st.dir = 1; }
+    document.querySelector('.odds-table').classList.toggle('no-proj', !showProj);
     head();
     var rows = visible(buildRows());
     renderBoardTitle(rows.length);
@@ -686,6 +704,16 @@
   try { BK_WIDE.addEventListener('change', drawConnectors); } catch (x) {}
   function etTime(iso) { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }); }
   function etDay(when) { return new Date(when).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }); }
+  // Both teams' gap between winning and losing this game, added together (a stand-in until it's measured).
+  function gameStakesSum(g) {
+    var R = res(), s = 0;
+    [g.h, g.a].forEach(function (i) {
+      if (i >= D.fbs) return;
+      var r = R.teams[i], nx = schedule()[i][0];
+      if (nx && nx.id === g.id && r.ifNext != null && r.ifLose != null) s += Math.abs(r.ifNext - r.ifLose);
+    });
+    return s;
+  }
   // How far one game could move playoff odds: the team with the biggest gap between winning and losing.
   function gameStakes(g) {
     var R = res(), best = null;
@@ -765,8 +793,9 @@
     TNT: 'https://upload.wikimedia.org/wikipedia/commons/2/24/TNT_Logo_2016.svg', truTV: 'https://upload.wikimedia.org/wikipedia/commons/3/36/TruTV_logo.svg', 'HBO Max': 'https://upload.wikimedia.org/wikipedia/commons/b/b3/HBO_Max_%282025%29.svg', 'Prime Video': 'https://upload.wikimedia.org/wikipedia/commons/9/90/Prime_Video_logo_%282024%29.svg', BTN: 'https://upload.wikimedia.org/wikipedia/en/3/39/Big_Ten_Network_Logo.svg',
     CW: 'https://upload.wikimedia.org/wikipedia/commons/b/b1/The_CW_2024.svg', 'The CW': 'https://upload.wikimedia.org/wikipedia/commons/b/b1/The_CW_2024.svg', 'USA Net': 'https://upload.wikimedia.org/wikipedia/commons/d/d7/USA_Network_logo_%282016%29.svg', 'Disney+': 'https://upload.wikimedia.org/wikipedia/commons/3/3e/Disney%2B_logo.svg'
   };
+  // Major networks only (the ones with a logo); niche and streaming-only channels are left off.
   function tvBadges(names) {
-    return (names || []).map(function (n) {
+    return (names || []).filter(function (n) { return TV_LOGO[n] && n !== 'Disney+'; }).map(function (n) { // Disney+ only simulcasts ESPN/ABC
       if (TV_LOGO[n]) return '<img class="net-' + n.toLowerCase().replace(/[^a-z0-9]/g, '') + '" src="' + TV_LOGO[n] + '" alt="' + esc(n) + '" title="' + esc(n) + '" loading="lazy">';
       return '<span class="tv" style="--tv:' + (TV_COLORS[n] || 'var(--muted)') + '">' + esc(n) + '</span>';
     }).join('');
@@ -775,12 +804,13 @@
     var isLive = g.s === 'in', isPre = g.s === 'pre';
     var u = upset(g);
     // The network matters for games still to come or under way, not for finals.
-    var tv = g.tv && g.s !== 'post' ? '<span class="tv-list net-logos">' + tvBadges(g.tv) + '</span>' : '';
-    var top = isLive ? '<span class="lg-live"><b>' + esc(clock(g)) + '</b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' + tv :
+    var tv = g.s !== 'post' ? '<span class="tv-list net-logos">' + (g.tv && g.tv.length ? tvBadges(g.tv) : '<span class="tv-name tv-tba">TV TBA</span>') + '</span>' : '';
+    var wd = new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }); // every card names its day and date
+    var top = isLive ? '<span class="lg-live"><b>' + wd + ' · ' + esc(clock(g)) + '</b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' + tv :
       // Upcoming: the kickoff on the left, where "Kickoff" used to be; the network stays top right.
-      isPre ? '<b class="lg-kickoff">' + (etDay(g.d) === etDay(Date.now()) ? '' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }) + ', ') +
+      isPre ? '<b class="lg-kickoff">' +
         // ESPN marks a kickoff time that hasn't been set as midnight Eastern.
-        (etTime(g.d) === '12:00 AM' ? 'time TBA' : etTime(g.d) + ' ET') + '</b>' + tv : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span class="lg-when">' + tv + '<span>' + (etDay(g.d) === etDay(Date.now()) ? 'Today' : new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', timeZone: 'America/New_York' })) + '</span></span>';
+        wd + ', ' + (etTime(g.d) === '12:00 AM' ? 'time TBA' : etTime(g.d) + ' ET') + '</b>' + tv : '<span class="lg-live"><span class="final-pill">FINAL</span>' + (u ? '<span class="upset-pill">UPSET</span>' : '') + '</span><span class="lg-when">' + tv + '<span>' + wd + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
       '<div class="lg-top">' + top + '</div>' +
       (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
@@ -800,7 +830,7 @@
   // Results are remembered per ratings model and game list, so a week that's been measured never reshuffles.
   // The build measures the default ratings' current and next week ahead of time (g.sw), so those show their
   // final order straight away.
-  var swings = { key: null, worker: null }, swingCache = {};
+  var swings = { key: null, worker: null }, swingCache = {}, impactFrozen = null;
   function gameSwings(games) {
     if (!games.length) return null;
     var key = st.mode + '|' + games.map(function (g) { return g.id + g.s.charAt(0); }).sort().join(',');
@@ -820,7 +850,7 @@
         swingCache[key] = e.data;
         if (swings.key !== key) return;
         swings.worker = null; w.terminate();
-        if (st.sbSort === 'impact') renderLive();
+        // A measured order is used next time this week is sorted; the list on screen stays put.
       };
       w.onerror = function () { if (swings.worker === w) swings.worker = null; };
       swings.worker = w;
@@ -896,9 +926,38 @@
     var who = sbConf ? esc(sbGroup ? GROUP_NAME[sbGroup] : CFP.CONF_NAME[sbConf] || sbConf) + ' ' : '';
     // Only a failed ESPN check is worth a line here.
     $('live-head').innerHTML = st.live === 'blocked' ? '<p class="live-note"><b>Couldn’t reach ESPN.</b> Showing the saved scores.</p>' : '';
+    // Upcoming and final games under a heading per day, in the chosen order within each day.
+    function byDay(games, tag, note) {
+      var keys = [], m = {};
+      games.forEach(function (g) { var k = etDay(g.d); if (!m[k]) { m[k] = []; keys.push(k); } m[k].push(g); });
+      return keys.sort().map(function (k, n) {
+        var label = new Date(m[k][0].d).toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', timeZone: 'America/New_York' });
+        return group(label + (tag ? ' · ' + tag : ''), m[k], n === 0 ? note : '');
+      }).join('');
+    }
+    // Playoff impact: one list, sorted once and then left in that order (games going live or final, new
+    // odds or picks don't reshuffle it) until the sort, week, conference or ratings change.
+    if (!byTime) {
+      // Sorted before a newly chosen model's odds were in, it sorts once more when they land; never after that.
+      var all = D.games.filter(counts), fkey = sel + '|' + sbConf + '|' + st.mode, ready = !!results[st.mode];
+      if (!impactFrozen || impactFrozen.key !== fkey || (!impactFrozen.ready && ready)) {
+        impactFrozen = null;
+        {
+          var val = function (g) { return (st.picks[g.id] ? 10 : 0) + (sw ? sw[g.id] || 0 : gameStakesSum(g)); };
+          var ids = all.slice().sort(function (a, b) { return val(b) - val(a) || kickoff(a, b); }).map(function (g) { return g.id; });
+          impactFrozen = { key: fkey, ready: ready, pos: {} };
+          ids.forEach(function (id, n) { impactFrozen.pos[id] = n; });
+        }
+      }
+      var pos = impactFrozen ? impactFrozen.pos : {};
+      all.sort(function (a, b) { return (a.s === 'post') - (b.s === 'post') || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || kickoff(a, b); });
+      $('live-board').innerHTML = all.length ? group('', all, 'Biggest combined swing in both teams’ playoff odds first.') :
+        '<p class="live-empty">No ' + who + 'games in week ' + sel + '.' + (nextText ? ' ' + nextText : '') + '</p>';
+      return;
+    }
     $('live-board').innerHTML =
       (live.length || later.length || done.length ?
-        group(live.length && (later.length || done.length) ? 'In progress' : '', live, impactNote) + group(later.length && (live.length || done.length) ? 'Upcoming' : '', later, impactNote) + group('', done) :
+        group(live.length ? 'In progress' : '', live, impactNote) + byDay(later, '', live.length ? '' : impactNote) + byDay(done, 'Final', live.length || later.length ? '' : impactNote) :
         '<p class="live-empty">No ' + who + 'games in week ' + sel + '.' + (nextText ? ' ' + nextText : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
@@ -1163,7 +1222,7 @@
       renderTable();
     }
     else if (id === 'sb-conf') { st.sbConf = e.target.value; renderLive(); }
-    else if (id === 'sb-sort') { st.sbSort = e.target.value; renderLive(); }
+    else if (id === 'sb-sort') { st.sbSort = e.target.value; impactFrozen = null; renderLive(); }
     else if (id === 'sb-week') { st.sbWeek = +e.target.value === scoreWeek() ? null : +e.target.value; renderLive(); }
     else if (e.target.classList.contains('mode-select')) {
       st.mode = e.target.value;

@@ -33,6 +33,7 @@ var CFP = (function () {
     wTop10: 2.5,       // per win over a final top-10 team
     wTop25: 1.25,      // per win over a final 11-25 team
     wBadLoss: 3,       // extra per loss to a team outside the top 60
+    wGoodLoss: 1,      // back per loss to a top-25 team (the committee forgives these a little)
     wChampP4: 4,       // power-conference champion
     wChampG6: 2,       // other-conference champion
     wG6: -2,           // non-power schedule discount
@@ -202,15 +203,16 @@ var CFP = (function () {
   }
 
   // ---------- Playoff impact of single games ----------
-  // Total swing in Make CFP odds across every team, for each game in ids. All of those games go back to
+  // Swing in its two teams' Make CFP odds, added together, for each game in ids. All of those games go back to
   // unplayed (a pre-game view): a final compares its real result with the game left open; any other game
   // compares a home win with an away win. Every run shares one seed and one game list (finals become locked
   // games), so each difference comes from that one game.
   function measureSwings(D, mode, seed, sims, ids) {
-    var set = {}, lock = {}, done = [], open = [], out = {};
+    var set = {}, lock = {}, done = [], open = [], out = {}, pair = {};
     ids.forEach(function (id) { set[id] = 1; });
     D.games.forEach(function (g) {
       if (!set[g.id]) return;
+      pair[g.id] = [g.h, g.a].filter(function (i) { return i < D.fbs; });
       if (g.s === 'post') { lock[g.id] = D.teams[g.w].id; done.push(g.id); }
       else open.push({ id: g.id, h: D.teams[g.h].id, a: D.teams[g.a].id });
     });
@@ -221,11 +223,11 @@ var CFP = (function () {
       for (var i = 0; i < P.fbs; i++) r.push(t.cfp[i] / sims);
       return r;
     }
-    function diff(a, b) { var s = 0; for (var i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]); return Math.round(s * 1e4) / 1e4; }
+    function diff(a, b, id) { var s = 0; pair[id].forEach(function (i) { s += Math.abs(a[i] - b[i]); }); return Math.round(s * 1e4) / 1e4; }
     function withPick(id, v) { var pk = {}; for (var k in lock) if (k !== id) pk[k] = lock[k]; if (v) pk[id] = v; return pk; }
     var base = done.length ? cfp(lock) : null;
-    done.forEach(function (id) { out[id] = diff(cfp(withPick(id, null)), base); });
-    open.forEach(function (o) { out[o.id] = diff(cfp(withPick(o.id, o.h)), cfp(withPick(o.id, o.a))); });
+    done.forEach(function (id) { out[id] = diff(cfp(withPick(id, null)), base, id); });
+    open.forEach(function (o) { out[o.id] = diff(cfp(withPick(o.id, o.h)), cfp(withPick(o.id, o.a)), o.id); });
     return out;
   }
 
@@ -319,7 +321,7 @@ var CFP = (function () {
     for (i = 0; i < np; i++) {
       var w = pw[i], l = pl[i];
       if (w < fbs) { var qq = qv[l]; if (qq >= t10) S[w] += M.wTop10; else if (qq >= t25) S[w] += M.wTop25; }
-      if (l < fbs && qv[w] < t60) S[l] -= M.wBadLoss;
+      if (l < fbs) { if (qv[w] < t60) S[l] -= M.wBadLoss; else if (qv[w] >= t25) S[l] += M.wGoodLoss; }
     }
   }
 

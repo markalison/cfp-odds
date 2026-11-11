@@ -390,9 +390,10 @@
   function card(g) {
     var isLive = g.s === 'in', isPre = g.s === 'pre';
     var tv = g.tv && g.tv.length && g.s !== 'post' ? '<span class="tv-list net-logos">' + tvBadges(g.tv) + '</span>' : '';
-    var top = isLive ? '<span class="lg-live"><b>' + esc(g.clock || 'In progress') + '</b></span>' + tv :
-      isPre ? '<b class="lg-kickoff">' + etTime(g.d) + ' ET</b>' + tv :
-      '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + etDate(g.d, { weekday: 'short' }) + '</span></span>';
+    var wd = etDate(g.d, { weekday: 'short', month: 'short', day: 'numeric' }); // every card names its day and date
+    var top = isLive ? '<span class="lg-live"><b>' + wd + ' · ' + esc(g.clock || 'In progress') + '</b></span>' + tv :
+      isPre ? '<b class="lg-kickoff">' + wd + ', ' + etTime(g.d) + ' ET</b>' + tv :
+      '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + wd + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
       (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
         isLive ? '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
@@ -410,8 +411,18 @@
       stake += r.playoff * (1 - r.playoff);
       if (r.next === g.id && r.ifWin != null && r.ifLoss != null) swing += Math.abs(r.ifWin - r.ifLoss);
     });
-    return swing || stake;
+    return swing ? 1 + swing : stake; // a measured swing always ranks ahead of the stake estimate
   }
+  var impactFrozen = null;
+  // Sorts by impact the first time, then keeps that order (games going live or final and new odds don't move it).
+  function frozenImpact(games, key, byTime) {
+    if (!impactFrozen || impactFrozen.key !== key) {
+      impactFrozen = { key: key, pos: {} };
+      games.slice().sort(function (a, b) { return impact(b) - impact(a) || byTime(a, b); }).forEach(function (g, n) { impactFrozen.pos[g.id] = n; });
+    }
+    var pos = impactFrozen.pos;
+    return games.slice().sort(function (a, b) { return (a.s === 'post') - (b.s === 'post') || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
+  } // the Playoff impact order, kept until the sort or day changes
   function renderScores() {
     var cur = currentDay(), sel = st.day || cur;
     $('nfl-week').innerHTML = dayList.map(function (x) {
@@ -421,6 +432,10 @@
     var byTime = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
     var order = st.sbSort !== 'impact' ? byTime : function (a, b) { return impact(b) - impact(a) || byTime(a, b); };
     var group = function (list) { return list.length ? '<div class="live-group"><div class="live-grid">' + list.sort(order).map(card).join('') + '</div></div>' : ''; };
+    if (st.sbSort === 'impact') {
+      $('nfl-scores').innerHTML = games.length ? '<div class="live-group"><div class="live-grid">' + frozenImpact(games, sel, byTime).map(card).join('') + '</div></div>' : '<p class="live-empty">No games this day.</p>';
+      return;
+    }
     var html = group(games.filter(function (g) { return g.s === 'in'; })) + group(games.filter(function (g) { return g.s === 'pre'; })) + group(games.filter(function (g) { return g.s === 'post'; }));
     $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this day.</p>';
   }
@@ -572,7 +587,7 @@
     renderRankings();
   });
   $('nfl-view').addEventListener('change', function (e) { st.view = e.target.value; st.sort = null; store.set('nba-view', st.view); renderRankings(); });
-  $('nfl-sb-sort').addEventListener('change', function (e) { st.sbSort = e.target.value; renderScores(); });
+  $('nfl-sb-sort').addEventListener('change', function (e) { st.sbSort = e.target.value; impactFrozen = null; renderScores(); });
   $('nfl-week').addEventListener('change', function (e) { st.day = e.target.value === currentDay() ? null : e.target.value; renderScores(); refreshScores(); });
   window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });
   // Dark and light logos differ, so redraw when the theme changes.
