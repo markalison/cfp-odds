@@ -2,6 +2,7 @@
 // (D-I against anyone), and the ratings models, simulates the season and the NCAA tournament for each model
 // and writes ncaab-data.json. Usage: node ncaab-build.mjs [sims]
 import { writeFileSync } from 'node:fs';
+import { byDate, centered, REGRESS, priorFit, loadSnaps, addSnap } from './hist.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const SIM = require('./ncaab-engine.js');
@@ -211,5 +212,34 @@ const t0 = Date.now(), results = {};
 for (const m of MODELS) results[m.k] = SIM.simulate(simD, SIMS, undefined, undefined, sources[m.k].rating);
 const played = G.filter((g) => g.s === 'post').length;
 console.log(`NCAAB ${SEASON}: ${nD1} D-I teams in ${confs.length} conferences (${confs.map((c) => c.k).join(' ')}); ${played}/${G.length} games played; models ${MODELS.map((m) => m.k).join(', ')}; ${SIMS} seasons each in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+// Playoff odds over time for the team panels: this refresh's odds are saved to a snapshot file kept in the repo,
+// and the chart uses saved odds where it has them, otherwise the season re-run with the ratings of that time.
+{
+  const t0 = Date.now();
+// Preseason: last season's final BPI, pulled a third of the way to average.
+  let pre = null;
+  try {
+    const bj = await get(`https://site.web.api.espn.com/apis/fitt/v3/sports/basketball/mens-college-basketball/powerindex?limit=500&season=${SEASON - 1}`);
+    const v = new Array(nD1).fill(null);
+    for (const it of bj.teams) {
+      const cat = it.categories.find((c) => c.name === 'bpi'), i = idx[it.team.id];
+      if (cat && i != null && i < nD1) v[i] = +cat.values[0];
+    }
+    const have = v.filter((x) => x != null).length;
+    if (have < nD1 - 15) throw new Error('only ' + have + ' teams');
+    const known = centered(v.map((x, i) => (x == null ? sources.all.rating[i] : x)));
+    const rating = known.map((x) => x * REGRESS);
+    pre = { rating, run: (games) => SIM.simulate({ ...D, games }, 4000, undefined, undefined, rating).teams, note: "last season's final BPI, pulled a third of the way to average" };
+  } catch (e) { console.warn('Last season BPI unavailable:', e.message); }
+  const sim = (games, rating) => SIM.simulate({ ...D, games }, 4000, undefined, undefined, rating).teams;
+  if (!pre) pre = { rating: sources.all.rating, run: (games) => sim(games, sources.all.rating), note: "today's ratings (last season's were unavailable)" };
+  const HF = new URL('./ncaab-hist.json', import.meta.url), store = loadSnaps(HF), ids = D.teams.map((t) => t.espn);
+  addSnap(HF, store, D.asOf, ids, results.all.teams.map((t) => t.make));
+  // Ratings as of a past time: the preseason ratings, updated with the results played by then (8 games' worth of pull back toward preseason).
+  const nR = pre.rating.length;
+  const past = (t, games) => sim(games, priorFit(nR, D.games.filter((g) => g.s === 'post' && Date.parse(g.d) < t).map((g) => ({ h: g.h, a: g.a, m: Math.max(-SIM.M.capMargin, Math.min(SIM.M.capMargin, g.hs - g.as)) - (g.n ? 0 : SIM.M.hfa) })), pre.rating, 8, SIM.M.nonD1));
+  D.hist = byDate(D, { ids, store, value: (t) => t.make, nowTeams: results.all.teams, pre, past, note: 'the preseason ratings updated with the results played by then' });
+  console.log('NCAAB odds history:', D.hist.labels.map((l, k) => l + (D.hist.src[k] === 'saved' ? '*' : '')).join(' '), '(* saved), snapshots', store.snaps.length, 'in', ((Date.now() - t0) / 1000).toFixed(1) + 's');
+}
 writeFileSync(new URL('./ncaab-data.json', import.meta.url), JSON.stringify({ D, models: MODELS, results,
   ratings: Object.fromEntries(MODELS.map((m) => [m.k, sources[m.k].rating.map((v) => Math.round(v * 100) / 100)])), sims: SIMS, avg: AVG_LABELS }));

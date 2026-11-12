@@ -48,7 +48,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data.js nfl-data.js nba-data.js ncaab-data.js nhl-data.js index.html about.html nfl.html nba.html ncaab.html nhl.html
+          git add data.js nfl-data.js nba-data.js ncaab-data.js nhl-data.js index.html about.html nfl.html nba.html ncaab.html nhl.html cfp-hist.json nfl-hist.json nba-hist.json ncaab-hist.json nhl-hist.json
           if git diff --cached --quiet; then
             echo "No changes to publish."
           else

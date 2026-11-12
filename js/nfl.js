@@ -104,7 +104,7 @@
     return '<td class="pick"><div class="nx-cell"><div class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : tie ? ' pick-t' : '') + '" data-pick="' + esc(id) + '" data-team="' + i + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : tie ? 'T' : '') + '</button></div>' +
       '<span class="nx-vs" aria-hidden="true">' + esc(vs) + '</span></div></td>';
   }
-  // Row order: NFL and Conference by playoff odds, Division by record (then division odds). The order is set
+  // Row order: current standings (record, then playoff odds) in every view until a column is sorted. The order is set
   // when the view is chosen or picks are cleared, and held while picks change the odds, so rows don't jump.
   function winPct(i) { var r = rec[i], g = r.w + r.l + r.t; return g ? (r.w + r.t / 2) / g : 0; }
   function sortRows(v) {
@@ -112,9 +112,7 @@
     var by = sk ? function (a, b) {
       var x = sortValue(sk.k, a), y = sortValue(sk.k, b);
       return (typeof x === 'string' ? x.localeCompare(y) : x - y) * sk.dir || R.teams[b].playoff - R.teams[a].playoff;
-    } : v === 'div'
-      ? function (a, b) { return winPct(b) - winPct(a) || R.teams[b].div - R.teams[a].div; }
-      : function (a, b) { var x = R.teams[a], y = R.teams[b]; return y.playoff - x.playoff || y.div - x.div || y.wins - x.wins; };
+    } : function (a, b) { return winPct(b) - winPct(a) || R.teams[b].div - R.teams[a].div || R.teams[b].playoff - R.teams[a].playoff; };
     var all = D.teams.map(function (t, i) { return i; });
     var key = v === 'conf' ? 'conf' : v === 'div' ? 'div' : null;
     var names = key ? all.map(function (i) { return D.teams[i][key]; }).filter(function (n, k, arr) { return arr.indexOf(n) === k; }).sort() : [null];
@@ -164,46 +162,39 @@
     var tile = function (v) { return v == null ? '<div class="lg-num">—</div>' : '<div class="lg-cfp" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; };
     return '<div class="odds-row"><span class="h">' + label + '</span><span class="h">If win</span><span class="h">If loss</span>' + tile(now) + tile(win) + tile(loss) + '</div>';
   }
-  // Strength by week: the site's points rating (capped margins, home field, pulled toward average) replayed
-  // with only the games finished through each week. Worked out once per set of finals.
-  var strengthCache = { key: null, weeks: [], val: [] };
-  function strengthByWeek() {
-    var finals = D.games.filter(function (g) { return g.s === 'post'; });
-    var key = finals.length;
-    if (strengthCache.key === key) return strengthCache;
-    var last = finals.reduce(function (m, g) { return Math.max(m, g.wk); }, 0), weeks = [], val = D.teams.map(function () { return []; });
-    for (var k = 1; k <= last; k++) {
-      var rk = NFLSIM.pointsRating({ teams: D.teams, games: finals.filter(function (g) { return g.wk <= k; }) });
-      weeks.push(k);
-      rk.forEach(function (v, i) { val[i].push(v); });
-    }
-    strengthCache = { key: key, weeks: weeks, val: val };
-    return strengthCache;
-  }
-  // League rank (1 = strongest) of a team's rating in week k.
-  function strengthRank(S, i, k) { var v = S.val[i][k]; return 1 + S.val.filter(function (x) { return x[k] > v + 1e-9; }).length; }
-  function playedIn(i, wk) { return D.games.some(function (g) { return g.wk === wk && g.s === 'post' && (g.h === i || g.a === i); }); }
-  function strengthChart(i) {
-    var S = strengthByWeek(), v = S.val[i], n = S.weeks.length;
-    if (!n) return '<p class="ap-none">No games played yet.</p>';
-    // Scaled to this team's own swings (at least ±5), centred on an average team.
-    var top = Math.max(5, Math.ceil(Math.max.apply(null, v.map(Math.abs)) / 5) * 5);
-    var W = 260, H = 110, L = 26, Rp = 8, T = 8, B = 18;
+  // Playoff odds over time (D.hist from the build): each point re-runs the season as it stood then, with the
+  // default ratings; the last point is now.
+  function histLabel(l) { return l === 'Pre' ? 'Preseason' : l === 'Now' ? 'Now' : /^\d+$/.test(l) ? 'After week ' + l : 'Through ' + l; }
+  function oddsChart(i, what) {
+    var H = D.hist, v = H && H.v[i];
+    if (!v || !v.length) return '<p class="ap-none">No history yet.</p>';
+    var n = v.length, W = 260, Hh = 110, L = 30, Rp = 8, T = 8, B = 18, dates = H.labels.some(function (l) { return /[a-z]/.test(l) && l !== 'Pre' && l !== 'Now'; });
     var px = function (k) { return L + (n === 1 ? (W - L - Rp) / 2 : k * (W - L - Rp) / (n - 1)); };
-    var py = function (x) { return T + (top - x) * (H - T - B) / (2 * top); };
-    var grid = [top, 0, -top].map(function (y) {
-      return '<line x1="' + L + '" x2="' + (W - Rp) + '" y1="' + py(y) + '" y2="' + py(y) + '" class="ap-grid"/><text x="' + (L - 5) + '" y="' + (py(y) + 3) + '" class="ap-y">' + (y > 0 ? '+' : '') + y + '</text>';
+    var py = function (x) { return T + (1000 - x) * (Hh - T - B) / 1000; };
+    var grid = [1000, 500, 0].map(function (y) {
+      return '<line x1="' + L + '" x2="' + (W - Rp) + '" y1="' + py(y) + '" y2="' + py(y) + '" class="ap-grid"/><text x="' + (L - 5) + '" y="' + (py(y) + 3) + '" class="ap-y">' + y / 10 + '%</text>';
     }).join('');
-    var line = n > 1 ? '<polyline points="' + v.map(function (x, k) { return px(k).toFixed(1) + ',' + py(x).toFixed(1); }).join(' ') + '" class="ap-line"/>' : '';
+    var pts = [];
+    v.forEach(function (x, k) { if (x != null) pts.push(px(k).toFixed(1) + ',' + py(x).toFixed(1)); });
+    var line = pts.length > 1 ? '<polyline points="' + pts.join(' ') + '" class="ap-line"/>' : '';
     var dots = v.map(function (x, k) {
-      var bye = !playedIn(i, S.weeks[k]);
-      var t = 'Week ' + S.weeks[k] + (bye ? ' (bye)' : '') + ': ' + (x > 0 ? '+' : '') + x.toFixed(1) + ', ' + ordinal(strengthRank(S, i, k)) + ' in the NFL';
-      return '<circle cx="' + px(k).toFixed(1) + '" cy="' + py(x).toFixed(1) + '" r="' + (bye ? 2.5 : 3) + '" class="' + (bye ? 'ap-nr' : 'ap-dot') + '"><title>' + t + '</title></circle>';
+      return x == null ? '' : '<circle cx="' + px(k).toFixed(1) + '" cy="' + py(x).toFixed(1) + '" r="3" class="ap-dot"><title>' + histLabel(H.labels[k]) + ': ' + pct(x / 1000) + (H.src && H.src[k] === 'saved' ? ' (as the site had it then)' : H.src && (H.src[k] === 'rebuilt' || H.src[k] === 'pre') ? ' (rebuilt)' : '') + '</title></circle>';
     }).join('');
-    var step = n > 12 ? 2 : 1;
-    var xs = S.weeks.map(function (w, k) { return k % step && k !== n - 1 ? '' : '<text x="' + px(k).toFixed(1) + '" y="' + (H - 4) + '" class="ap-x">' + w + '</text>'; }).join('');
-    var label = D.teams[i].name + ' points rating by week: ' + v.map(function (x, k) { return 'week ' + S.weeks[k] + ' ' + (x > 0 ? '+' : '') + x.toFixed(1); }).join(', ');
-    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(label) + '">' + grid + line + dots + xs + '</svg>';
+    var step = Math.max(1, Math.ceil(n / (dates ? 4 : 9)));
+    var xs = H.labels.map(function (l, k) {
+      if (k % step && k !== n - 1) return '';
+      return '<text x="' + px(k).toFixed(1) + '" y="' + (Hh - 4) + '" class="ap-x"' + (k === n - 1 && n > 1 ? ' text-anchor="end"' : k === 0 ? ' text-anchor="start"' : '') + '>' + (l === 'Pre' ? 'P' : l) + '</text>';
+    }).join('');
+    var label = D.teams[i].name + ', ' + what + ' over time: ' + v.map(function (x, k) { return histLabel(H.labels[k]) + ' ' + (x == null ? 'none' : pct(x / 1000)); }).join(', ');
+    return '<svg viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="' + esc(label) + '">' + grid + line + dots + xs + '</svg>';
+  }
+  function oddsChartBlock(i, what, model) {
+    var H = D.hist, v = H && H.v[i], now = v && v.length ? v[v.length - 1] : null;
+    var how = what + ' after each ' + (H && H.labels.some(function (l) { return /^\d+$/.test(l); }) ? 'week' : 'week (Sunday night)') +
+      '. Points marked "as the site had it" are the odds saved at the time; the others are rebuilt by re-running the season as it stood then, with ' +
+      (H && H.past ? H.past : 'the ratings of that time') + '. The preseason point uses ' + (H && H.pre ? H.pre : 'preseason ratings') +
+      '. The last point is now, with today\'s ' + model + ' ratings.';
+    return '<div class="ap-chart"><h3 title="' + esc(how) + '">' + esc(what) + ' over time' + (now != null ? ', now ' + pct(now / 1000) : '') + '</h3>' + oddsChart(i, what) + '</div>';
   }
   // A y axis for the seed chart: the top of the scale, half of it and zero, with light lines across.
   function histY(top, plot) {
@@ -265,7 +256,7 @@
       tile('SOS', 'Strength of schedule: average rating of opponents played, ranked among the 32 teams (1st = toughest)' + (leftRank ? '; schedule left ranks ' + ordinal(leftRank) : ''), sosRank ? ordinal(sosRank) : '—') +
     '</dl></div>';
   }
-  // Team panel, laid out like the college one: strength by week, the games left with pick boxes, then
+  // Team panel, laid out like the college one: playoff odds over time, the next games with pick boxes, then
   // Make playoffs (with any picks) over the seed distribution.
   function detail(i) {
     var t = D.teams[i], r = R.teams[i];
@@ -285,10 +276,8 @@
     var seeds = (r.seeds || []).slice(0, 7), maxS = [0.05, 0.1, 0.2, 0.25, 0.4, 0.5, 0.6, 0.8, 1].find(function (x) { return x >= Math.max.apply(null, seeds.concat(0.0001)) - 1e-9; });
     var bars = seeds.map(function (v, k) { var lab = 'Seed ' + (k + 1) + ': ' + (v * 100).toFixed(1) + '% of simulations'; return '<div title="' + lab + '" aria-label="' + lab + '"><i style="height:' + (v / maxS * 100).toFixed(1) + '%"></i></div>'; }).join('');
     var xs = seeds.map(function (_, k) { return '<span>' + (k + 1) + '</span>'; }).join('');
-    var S = strengthByWeek(), nowV = S.weeks.length ? S.val[i][S.weeks.length - 1] : null;
-    var head = nowV == null ? 'Strength by week' : 'Strength by week, now ' + (nowV > 0 ? '+' : '') + nowV.toFixed(1) + ' (' + ordinal(strengthRank(S, i, S.weeks.length - 1)) + ')';
     return '<tr class="detail"><td colspan="' + visibleCols() + '">' + stats + '<div class="detail-inner">' + resumeTiles(i) +
-      '<div class="ap-chart"><h3 title="Points rating from the games played through each week: points better than an average team on a neutral field (capped margins, home field taken out). Hollow dots are bye weeks.">' + head + '</h3>' + strengthChart(i) + '</div>' +
+      oddsChartBlock(i, 'Make playoffs', 'All models average') +
       '<div><div class="sched-head"><h3 title="Chance to win each game">Regular season left</h3>' + winOutButton(i, left) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
       '<div><div class="scenario"><span>Make playoffs' + (Object.keys(st.picks).length ? ' with your picks' : '') + '</span><b>' + pct(r.playoff) + '</b></div>' +
         '<h3>Seed distribution, % of all simulations</h3>' + histY(maxS, '<div class="hist" role="img" aria-label="Chance of each seed for ' + esc(t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div>') + '</div>' +

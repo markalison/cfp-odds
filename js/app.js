@@ -333,33 +333,43 @@
   function ordinal(n) { var v = n % 100, s = v >= 11 && v <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th'; return n + s; }
   // The team's AP poll rank through the season: a line over the weeks it was ranked, a hollow dot at the
   // bottom (NR) for weeks it wasn't. Rank 1 is at the top.
-  function apChart(x) {
-    var ap = D.ap, ranks = ap && ap.rank[x.t.id];
-    if (!ap || !ap.polls.length) return '';
-    if (!ranks || !ranks.some(function (r) { return r != null; })) return '<p class="ap-none">Not ranked this season.</p>';
-    var W = 260, H = 110, L = 22, R = 8, T = 8, B = 18, n = ap.polls.length, nr = 31;
-    var px = function (k) { return L + (n === 1 ? (W - L - R) / 2 : k * (W - L - R) / (n - 1)); };
-    var py = function (r) { return T + ((r == null ? nr : r) - 1) * (H - T - B) / (nr - 1); };
-    var grid = [1, 10, 25].map(function (r) {
-      return '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + py(r) + '" y2="' + py(r) + '" class="ap-grid"/><text x="' + (L - 5) + '" y="' + (py(r) + 3) + '" class="ap-y">' + r + '</text>';
-    }).join('') + '<text x="' + (L - 5) + '" y="' + (py(null) + 3) + '" class="ap-y">NR</text>';
-    var paths = [], cur = [];
-    ranks.forEach(function (r, k) {
-      if (r == null) { if (cur.length) paths.push(cur); cur = []; } else cur.push(px(k).toFixed(1) + ',' + py(r).toFixed(1));
-    });
-    if (cur.length) paths.push(cur);
-    var lines = paths.map(function (p) { return p.length > 1 ? '<polyline points="' + p.join(' ') + '" class="ap-line"/>' : ''; }).join('');
-    var dots = ranks.map(function (r, k) {
-      var t = (ap.polls[k] === 'Pre' ? 'Preseason' : 'Week ' + ap.polls[k]) + ': ' + (r == null ? 'not ranked' : 'No. ' + r);
-      return '<circle cx="' + px(k).toFixed(1) + '" cy="' + py(r).toFixed(1) + '" r="' + (r == null ? 2.5 : 3) + '" class="' + (r == null ? 'ap-nr' : 'ap-dot') + '"><title>' + t + '</title></circle>';
+  // Playoff odds over time (D.hist from the build): each point re-runs the season as it stood then, with the
+  // default ratings; the last point is now.
+  function histLabel(l) { return l === 'Pre' ? 'Preseason' : l === 'Now' ? 'Now' : /^\d+$/.test(l) ? 'After week ' + l : 'Through ' + l; }
+  function oddsChart(i, what) {
+    var H = D.hist, v = H && H.v[i];
+    if (!v || !v.length) return '<p class="ap-none">No history yet.</p>';
+    var n = v.length, W = 260, Hh = 110, L = 30, Rp = 8, T = 8, B = 18, dates = H.labels.some(function (l) { return /[a-z]/.test(l) && l !== 'Pre' && l !== 'Now'; });
+    var px = function (k) { return L + (n === 1 ? (W - L - Rp) / 2 : k * (W - L - Rp) / (n - 1)); };
+    var py = function (x) { return T + (1000 - x) * (Hh - T - B) / 1000; };
+    var grid = [1000, 500, 0].map(function (y) {
+      return '<line x1="' + L + '" x2="' + (W - Rp) + '" y1="' + py(y) + '" y2="' + py(y) + '" class="ap-grid"/><text x="' + (L - 5) + '" y="' + (py(y) + 3) + '" class="ap-y">' + y / 10 + '%</text>';
     }).join('');
-    var xs = ap.polls.map(function (p, k) { return '<text x="' + px(k).toFixed(1) + '" y="' + (H - 4) + '" class="ap-x">' + (p === 'Pre' ? 'P' : p) + '</text>'; }).join('');
-    var last = ranks[ranks.length - 1];
-    var label = esc(x.t.name) + ' in the AP poll: ' + ranks.map(function (r, k) { return (ap.polls[k] === 'Pre' ? 'preseason' : 'week ' + ap.polls[k]) + ' ' + (r == null ? 'unranked' : r); }).join(', ');
-    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + label + '">' + grid + lines + dots + xs + '</svg>';
+    var pts = [];
+    v.forEach(function (x, k) { if (x != null) pts.push(px(k).toFixed(1) + ',' + py(x).toFixed(1)); });
+    var line = pts.length > 1 ? '<polyline points="' + pts.join(' ') + '" class="ap-line"/>' : '';
+    var dots = v.map(function (x, k) {
+      return x == null ? '' : '<circle cx="' + px(k).toFixed(1) + '" cy="' + py(x).toFixed(1) + '" r="3" class="ap-dot"><title>' + histLabel(H.labels[k]) + ': ' + pct(x / 1000) + (H.src && H.src[k] === 'saved' ? ' (as the site had it then)' : H.src && (H.src[k] === 'rebuilt' || H.src[k] === 'pre') ? ' (rebuilt)' : '') + '</title></circle>';
+    }).join('');
+    var step = Math.max(1, Math.ceil(n / (dates ? 4 : 9)));
+    var xs = H.labels.map(function (l, k) {
+      if (k % step && k !== n - 1) return '';
+      return '<text x="' + px(k).toFixed(1) + '" y="' + (Hh - 4) + '" class="ap-x"' + (k === n - 1 && n > 1 ? ' text-anchor="end"' : k === 0 ? ' text-anchor="start"' : '') + '>' + (l === 'Pre' ? 'P' : l) + '</text>';
+    }).join('');
+    var label = D.teams[i].name + ', ' + what + ' over time: ' + v.map(function (x, k) { return histLabel(H.labels[k]) + ' ' + (x == null ? 'none' : pct(x / 1000)); }).join(', ');
+    return '<svg viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="' + esc(label) + '">' + grid + line + dots + xs + '</svg>';
   }
+  function oddsChartBlock(i, what, model) {
+    var H = D.hist, v = H && H.v[i], now = v && v.length ? v[v.length - 1] : null;
+    var how = what + ' after each ' + (H && H.labels.some(function (l) { return /^\d+$/.test(l); }) ? 'week' : 'week (Sunday night)') +
+      '. Points marked "as the site had it" are the odds saved at the time; the others are rebuilt by re-running the season as it stood then, with ' +
+      (H && H.past ? H.past : 'the ratings of that time') + '. The preseason point uses ' + (H && H.pre ? H.pre : 'preseason ratings') +
+      '. The last point is now, with today\'s ' + model + ' ratings.';
+    return '<div class="ap-chart"><h3 title="' + esc(how) + '">' + esc(what) + ' over time' + (now != null ? ', now ' + pct(now / 1000) : '') + '</h3>' + oddsChart(i, what) + '</div>';
+  }
+
   // The résumé, short: four tiles (record, strength of record, schedule strength, win out), one line of
-  // top-25 record, best win and worst loss, then the AP poll chart.
+  // top-25 record, best win and worst loss.
   function resumeBlock(x) {
     var all = resumes(), r = all.teams[x.i], rec = x.rec;
     // Opponents as logos side by side; each matchup is in its hover text.
@@ -405,21 +415,21 @@
     var sc = schedule()[x.i], R = x.r, hist = R.hist, maxH = Math.max.apply(null, hist.concat(1)), N = res().sims;
     // Each game left has the same W / L / blank pick box as the table's Next column, so any game can be
     // decided here; the odds, and the seed chart below, re-run with the picks.
-    var lines = sc.map(function (g) {
+    // The next four games; Clear and Win out still cover every game left.
+    var lines = sc.slice(0, 4).map(function (g) {
       var o = D.teams[g.o], pk = st.picks[g.id], won = pk === x.t.id, lost = !!pk && !won;
       var vs = (g.home === -1 ? 'at ' : 'vs ') + (o.ab || o.name);
       var label = won ? x.t.name + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + ' ' + vs + '. Press to pick a win';
       var box = '<span class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(o.id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></span>';
       return '<span class="sched-g">' + box + '<span>' + (g.home === 1 ? 'vs ' : g.home === -1 ? 'at ' : 'vs ') + logo(o, 18) + esc(o.name) + (g.s === 'in' ? ' <b class="score-now">' + (g.us > g.them ? 'Up ' : g.us < g.them ? 'Down ' : 'Tied ') + g.us + '-' + g.them + '</b>' : '') + '</span></span><span>' + Math.round(g.p * 100) + '%</span>';
-    }).join('');
+    }).join('') + (sc.length > 4 ? '<span class="sched-more">and ' + (sc.length - 4) + ' more</span><span></span>' : '');
     var bars = hist.map(function (h, i) {
       var label = 'Seed ' + (i + 1) + ': ' + (h / N * 100).toFixed(1) + '% of simulations';
       return '<div title="' + label + '" aria-label="' + label + '"><i style="height:' + (h / maxH * 100).toFixed(1) + '%"></i></div>';
     }).join('');
     var xs = hist.map(function (_, i) { return '<span>' + (i + 1) + '</span>'; }).join('');
-    var apNow = D.ap && D.ap.rank[x.t.id] ? D.ap.rank[x.t.id][D.ap.rank[x.t.id].length - 1] : null;
     return '<div class="detail-inner">' + resumeBlock(x) +
-      '<div class="ap-chart"><h3>AP poll' + (apNow ? ', now No. ' + apNow : '') + '</h3>' + apChart(x) + '</div>' +
+      oddsChartBlock(x.i, 'Make CFP', 'Massey + Sagarin') +
       '<div><div class="sched-head"><h3 title="Chance to win each game">Regular season left</h3>' + winOutButton(x, sc) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
       '<div>' + scenarioLine(x) + '<h3>Seed distribution, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
     '</div>';

@@ -1,6 +1,7 @@
 // Builds the NFL playoff odds: fetches the schedule, scores and FPI from ESPN, simulates the season and
 // writes nfl-data.json. Usage: node nfl-build.mjs [sims], then node assemble.mjs
 import { writeFileSync } from 'node:fs';
+import { weekly, centered, loadSnaps, addSnap } from './hist.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const NFL = require('./nfl-engine.js');
@@ -215,4 +216,49 @@ const t0 = Date.now(), results = {};
 for (const m of MODELS) results[m.k] = NFL.simulate(simD, SIMS, undefined, undefined, sources[m.k].rating);
 const played = games.filter((g) => g.s === 'post').length;
 console.log(`NFL ${SEASON}: ${played}/${games.length} games played; models ${MODELS.map((m) => m.k).join(', ')}; ${SIMS} seasons each in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+// Playoff odds over time for the team panels: this refresh's odds are saved to a snapshot file kept in the repo,
+// and the chart uses saved odds where it has them, otherwise the season re-run with the ratings of that time.
+{
+  const t0 = Date.now();
+// Preseason: ESPN's FPI as of its last preseason update.
+  let pre = null;
+  try {
+    const CORE = `https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${SEASON}/types/1/weeks`;
+    const wks = (await get(`${CORE}?limit=20`)).items.map((w) => +(w.$ref.match(/weeks\/(\d+)/) || [])[1]).sort((a, b) => b - a);
+    for (const w of wks) {
+      const pj = await get(`${CORE}/${w}/powerindex?limit=40`);
+      if (!pj.count) continue;
+      const v = teams.map(() => null);
+      for (const it of pj.items) {
+        const id = (it.team.$ref.match(/teams\/(\d+)/) || [])[1], f = (it.predictives || it.stats || []).find((p) => p.name === 'fpi');
+        if (idx[id] != null && f) v[idx[id]] = +f.value;
+      }
+      if (v.some((x) => x == null)) throw new Error('preseason FPI missing teams');
+      const rating = centered(v), day = new Date(pj.items[0].lastUpdated || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+      pre = { rating, run: (games) => NFL.simulate({ ...D, games }, 4000, undefined, undefined, rating).teams, note: `ESPN's preseason FPI (${day})` };
+      break;
+    }
+  } catch (e) { console.warn('Preseason FPI unavailable:', e.message); }
+  const sim = (games, rating) => NFL.simulate({ ...D, games }, 4000, undefined, undefined, rating).teams;
+  if (!pre) pre = { rating: sources.all.rating, run: (games) => sim(games, sources.all.rating), note: "today's ratings (preseason FPI was unavailable)" };
+  const HF = new URL('./nfl-hist.json', import.meta.url), store = loadSnaps(HF), ids = D.teams.map((t) => t.espn);
+  addSnap(HF, store, D.asOf, ids, results.all.teams.map((t) => t.playoff));
+  // ESPN's FPI as it stood after each regular-season week (ESPN keeps every week's version).
+  const fpiWeek = {};
+  const lastWk = Math.max(0, ...D.games.filter((g) => g.s === 'post').map((g) => g.wk));
+  for (let k = 1; k < lastWk; k++) {
+    try {
+      const pj = await get(`https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/${SEASON}/types/2/weeks/${k}/powerindex?limit=40`);
+      const v = teams.map(() => null);
+      for (const it of pj.items || []) {
+        const id = (it.team.$ref.match(/teams\/(\d+)/) || [])[1], f = (it.predictives || it.stats || []).find((p) => p.name === 'fpi');
+        if (idx[id] != null && f) v[idx[id]] = +f.value;
+      }
+      if (v.every((x) => x != null)) fpiWeek[k] = centered(v);
+    } catch (e) { /* that week falls back to preseason */ }
+  }
+  const past = (k, games) => sim(games, fpiWeek[k] || pre.rating);
+  D.hist = weekly(D, { ids, store, value: (t) => t.playoff, nowTeams: results.all.teams, pre, past, note: "ESPN's FPI as it stood after that week" });
+  console.log('NFL odds history:', D.hist.labels.map((l, k) => l + (D.hist.src[k] === 'saved' ? '*' : '')).join(' '), '(* saved), FPI weeks', Object.keys(fpiWeek).length, 'snapshots', store.snaps.length, 'in', ((Date.now() - t0) / 1000).toFixed(1) + 's');
+}
 writeFileSync(new URL('./nfl-data.json', import.meta.url), JSON.stringify({ D, models: MODELS, results, ratings: Object.fromEntries(MODELS.map((m) => [m.k, sources[m.k].rating.map((v) => Math.round(v * 100) / 100)])), sims: SIMS, fpi: fpiCount === 32, avg: AVG_LABELS }));

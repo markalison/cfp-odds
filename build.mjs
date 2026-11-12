@@ -1,10 +1,11 @@
 // Fetches ESPN and Sagarin, reads massey.tsv, runs the simulations and writes data.json.
 // Usage: node build.mjs [sims]   Then: node assemble.mjs
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { weekly, REGRESS, loadSnaps, addSnap } from './hist.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const CFP = require('./engine.js');
-import { SOURCES, canonical } from './ratings.mjs';
+import { SOURCES, canonical, teamRankings } from './ratings.mjs';
 
 const SIMS = +process.argv[2] || 40000;
 const SEASON = 2026;
@@ -177,6 +178,66 @@ for (const mode of ['blend', 'all'].concat(models.map((m) => m.k))) {
   }
   D.swMode = 'blend';
   console.log('playoff impact measured for', n, 'games in', ((Date.now() - t0) / 1000).toFixed(1) + 's');
+}
+// Playoff odds over time for the team panels: this refresh's odds are saved to a snapshot file kept in the repo,
+// and the chart uses saved odds where it has them, otherwise the season re-run with the ratings of that time.
+{
+  const t0 = Date.now();
+  // Before its first ranking the committee's picks are the model's alone, so past weeks leave out today's CFP ranking.
+  const past = { ...D, rankDate: null, teams: D.teams.map((t) => ({ ...t, rank: undefined })) };
+// Preseason: last season's final FPI, pulled a third of the way to average, centred on today's Massey +
+  // Sagarin average (teams without one keep today's rating). It's a ratings mode of its own, 'pre'.
+  let pre = null;
+  try {
+    const lj = await j(`https://site.web.api.espn.com/apis/fitt/v3/sports/football/college-football/powerindex?season=${SEASON - 1}&limit=200&region=us&lang=en`);
+    const last = {};
+    (lj.teams || []).forEach((x) => { const c = (x.categories || []).find((k) => k.name === 'fpi'); if (c && typeof c.values[0] === 'number') last[String(x.team.id)] = c.values[0]; });
+    const now = D.teams.map((t) => CFP.ratingFor(t, 'blend', D.sources));
+    const have = D.teams.slice(0, D.fbs).map((t, i) => [i, last[t.id]]).filter((p) => p[1] != null);
+    if (have.length < D.fbs - 15) throw new Error('only ' + have.length + ' teams');
+    const mNow = have.reduce((s, p) => s + now[p[0]], 0) / have.length, mLast = have.reduce((s, p) => s + p[1], 0) / have.length;
+    const preTeams = past.teams.map((t, i) => ({ ...t, r: { ...t.r, pre: i < D.fbs && last[t.id] != null ? mNow + (last[t.id] - mLast) * REGRESS : now[i] } }));
+    pre = { rating: preTeams.map((t) => t.r.pre), run: (games) => CFP.runAll({ ...past, teams: preTeams, games }, 'pre', 4000, CFP.seedFor('blend'), 200).teams.slice(0, D.fbs), note: "last season's final FPI, pulled a third of the way to average" };
+  } catch (e) { console.warn('Last season FPI unavailable:', e.message); }
+  // A run with any list of ratings, as a ratings mode of its own ('h').
+  const sim = (games, rating) => CFP.runAll({ ...past, games, teams: past.teams.map((t, i) => ({ ...t, r: { ...t.r, h: rating[i] } })) }, 'h', 4000, CFP.seedFor('blend'), 200).teams.slice(0, D.fbs);
+  const nowR = D.teams.map((t) => CFP.ratingFor(t, 'blend', D.sources));
+  // Preferred preseason ratings: TeamRankings Predictive as of the day before the first game (it keeps every
+  // past day), shifted onto today's Massey + Sagarin average. Last season's FPI above is the fallback.
+  try {
+    const first = Math.min(...D.games.map((g) => Date.parse(g.d)));
+    const day = new Date(first - 86400e3), { values } = await teamRankings('predictive-by-other', day.toISOString().slice(0, 10));
+    const v = new Array(D.fbs).fill(null);
+    for (const [name, x] of Object.entries(values)) { const i = nameIndex.get(canonical(name)); if (i != null && !isNaN(x)) v[i] = x; }
+    const have = v.map((x, i) => [i, x]).filter((p) => p[1] != null);
+    if (have.length < D.fbs - 8) throw new Error('only ' + have.length + ' teams matched');
+    const shift = have.reduce((s, p) => s + nowR[p[0]] - p[1], 0) / have.length;
+    const rating = D.teams.map((t, i) => (i < D.fbs && v[i] != null ? v[i] + shift : nowR[i]));
+    pre = { rating, run: (games) => sim(games, rating), note: 'TeamRankings Predictive as of ' + day.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) };
+  } catch (e) { console.warn('TeamRankings preseason unavailable:', e.message); }
+  if (!pre) pre = { rating: nowR, run: (games) => sim(games, nowR), note: "today's ratings (last season's FPI was unavailable)" };
+  const HF = new URL('./cfp-hist.json', import.meta.url), store = loadSnaps(HF), ids = D.teams.slice(0, D.fbs).map((t) => t.id);
+  addSnap(HF, store, D.asOf, ids, results.blend.teams.slice(0, D.fbs).map((t) => t.cfp));
+  // ESPN's FPI after each week, shifted onto today's Massey + Sagarin average (FCS teams keep today's rating).
+  const fpiWeek = {};
+  const lastWk = Math.max(0, ...D.games.filter((g) => g.s === 'post' && g.wk != null).map((g) => g.wk));
+  for (let k = 1; k < lastWk; k++) {
+    try {
+      const pj = await j(`https://sports.core.api.espn.com/v2/sports/football/leagues/college-football/seasons/${SEASON}/types/2/weeks/${k}/powerindex?limit=300`);
+      const byId = {};
+      for (const it of pj.items || []) {
+        const id = (it.team.$ref.match(/teams\/(\d+)/) || [])[1], f = (it.predictives || it.stats || []).find((p) => p.name === 'fpi');
+        if (id && f) byId[id] = +f.value;
+      }
+      const have = D.teams.slice(0, D.fbs).map((t, i) => [i, byId[t.id]]).filter((p) => p[1] != null);
+      if (have.length < D.fbs - 15) continue;
+      const shift = have.reduce((s, p) => s + nowR[p[0]] - p[1], 0) / have.length;
+      fpiWeek[k] = D.teams.map((t, i) => (i < D.fbs && byId[t.id] != null ? byId[t.id] + shift : nowR[i]));
+    } catch (e) { /* that week falls back to preseason */ }
+  }
+  const pastRun = (k, games) => sim(games, fpiWeek[k] || pre.rating);
+  D.hist = weekly(D, { ids, store, value: (t) => t.cfp, nowTeams: results.blend.teams.slice(0, D.fbs), pre, past: pastRun, note: "ESPN's FPI as it stood after that week" });
+  console.log('CFP odds history:', D.hist.labels.map((l, k) => l + (D.hist.src[k] === 'saved' ? '*' : '')).join(' '), '(* saved), FPI weeks', Object.keys(fpiWeek).length, 'snapshots', store.snaps.length, 'in', ((Date.now() - t0) / 1000).toFixed(1) + 's');
 }
 writeFileSync(new URL('./data.json', import.meta.url), JSON.stringify({ D, results }));
 const R = results.massey, T = D.teams;

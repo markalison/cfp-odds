@@ -26,8 +26,9 @@ const NAMES = {
 };
 export const canonical = (name) => { const n = norm(name); return NAMES[n] ? norm(NAMES[n]) : n; };
 
-async function teamRankings(path) {
-  const html = await text('https://www.teamrankings.com/college-football/ranking/' + path);
+// A date (YYYY-MM-DD) gives the ratings as they stood that morning; TeamRankings keeps every past day.
+export async function teamRankings(path, date) {
+  const html = await text('https://www.teamrankings.com/college-football/ranking/' + path + (date ? '?date=' + date : ''));
   const values = {};
   rows(html).forEach((c) => { if (c.length > 2 && /^\d+$/.test(c[0])) values[c[1].replace(/\s*\(\d+-\d+(-\d+)?\)\s*$/, '')] = parseFloat(c[2]); });
   // The page shows no date. It updates daily, so it includes results through yesterday.

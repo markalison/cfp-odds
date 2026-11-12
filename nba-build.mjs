@@ -1,6 +1,7 @@
 // Builds the NBA playoff odds: fetches teams, every team's schedule and scores, and the ratings models,
 // simulates the season for each model and writes nba-data.json. Usage: node nba-build.mjs [sims]
 import { writeFileSync } from 'node:fs';
+import { byDate, centered, REGRESS, priorFit, loadSnaps, addSnap } from './hist.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const NBA = require('./nba-engine.js');
@@ -89,9 +90,10 @@ try {
   for (const k in cols) if (cols[k].every((v) => v != null && !isNaN(v))) sources[k] = { rating: center(cols[k]) };
 } catch (e) { console.warn('Sagarin unavailable:', e.message); }
 
-// TeamRankings: Predictive and Last 5 Games, by city ("LA Lakers", "Okla City").
-async function teamRankings(path) {
-  const html = await text('https://www.teamrankings.com/nba/ranking/' + path);
+// TeamRankings: Predictive and Last 5 Games, by city ("LA Lakers", "Okla City"). A date (YYYY-MM-DD) gives the
+// ratings as they stood that morning.
+async function teamRankings(path, date) {
+  const html = await text('https://www.teamrankings.com/nba/ranking/' + path + (date ? '?date=' + date : ''));
   const city = {};
   teams.forEach((t, i) => { city[t.city] = i; });
   Object.assign(city, { 'LA Lakers': idx[teams.find((t) => t.ab === 'LAL').espn], 'LA Clippers': idx[teams.find((t) => t.ab === 'LAC').espn],
@@ -134,5 +136,45 @@ const t0 = Date.now(), results = {};
 for (const m of MODELS) results[m.k] = NBA.simulate(simD, SIMS, undefined, undefined, sources[m.k].rating);
 const played = G.filter((g) => g.s === 'post').length;
 console.log(`NBA ${SEASON}: ${played}/${G.length} games played; models ${MODELS.map((m) => m.k).join(', ')}; ${SIMS} seasons each in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+// Playoff odds over time for the team panels: this refresh's odds are saved to a snapshot file kept in the repo,
+// and the chart uses saved odds where it has them, otherwise the season re-run with the ratings of that time.
+{
+  const t0 = Date.now();
+// Preseason: last season's final BPI, pulled a third of the way to average.
+  let pre = null;
+  try {
+    const bj = await get(`https://site.web.api.espn.com/apis/fitt/v3/sports/basketball/nba/powerindex?season=${SEASON - 1}&limit=40`);
+    const v = teams.map(() => null);
+    for (const it of bj.teams) {
+      const c = it.categories.find((x) => x.name === 'bpi'), i = idx[it.team.id];
+      if (c && i != null) v[i] = +c.values[0];
+    }
+    if (v.some((x) => x == null)) throw new Error('last season BPI missing teams');
+    const rating = centered(v).map((x) => x * REGRESS);
+    pre = { rating, run: (games) => NBA.simulate({ ...D, games }, 4000, undefined, undefined, rating).teams, note: "last season's final BPI, pulled a third of the way to average" };
+  } catch (e) { console.warn('Last season BPI unavailable:', e.message); }
+  const sim = (games, rating) => NBA.simulate({ ...D, games }, 4000, undefined, undefined, rating).teams;
+  // TeamRankings keeps its Predictive rating for every past date, so the preseason point and the rebuilt
+  // points use it as it stood then (the day before the opener for preseason).
+  const day = (t) => new Date(t).toISOString().slice(0, 10);
+  const trOn = {};
+  const opener = Math.min(...D.games.map((g) => Date.parse(g.d)));
+  try {
+    const r = await teamRankings('predictive-by-other', day(opener - 86400e3));
+    pre = { rating: r, run: (games) => sim(games, r), note: 'TeamRankings Predictive as of ' + new Date(opener - 86400e3).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) };
+  } catch (e) { console.warn('TeamRankings preseason unavailable:', e.message); }
+  for (let t = Date.UTC(new Date(opener).getUTCFullYear(), new Date(opener).getUTCMonth(), new Date(opener).getUTCDate(), 10); t < Date.now(); t += 86400e3) {
+    if (new Date(t).getUTCDay() !== 1) continue;
+    try { trOn[t] = await teamRankings('predictive-by-other', day(t)); } catch (e) { /* falls back below */ }
+  }
+  if (!pre) pre = { rating: sources.all.rating, run: (games) => sim(games, sources.all.rating), note: "today's ratings (last season's were unavailable)" };
+  const HF = new URL('./nba-hist.json', import.meta.url), store = loadSnaps(HF), ids = D.teams.map((t) => t.espn);
+  addSnap(HF, store, D.asOf, ids, results.all.teams.map((t) => t.playoff));
+  // Ratings as of a past time: the preseason ratings, updated with the results played by then (15 games' worth of pull back toward preseason).
+  const nR = pre.rating.length;
+  const past = (t, games) => trOn[t] ? sim(games, trOn[t]) : sim(games, priorFit(nR, D.games.filter((g) => g.s === 'post' && Date.parse(g.d) < t).map((g) => ({ h: g.h, a: g.a, m: Math.max(-NBA.M.capMargin, Math.min(NBA.M.capMargin, g.hs - g.as)) - (g.neutral ? 0 : NBA.M.hfa) })), pre.rating, 15));
+  D.hist = byDate(D, { ids, store, value: (t) => t.playoff, nowTeams: results.all.teams, pre, past, note: Object.keys(trOn).length ? 'TeamRankings Predictive as it stood that Monday morning' : 'the preseason ratings updated with the results played by then' });
+  console.log('NBA odds history:', D.hist.labels.map((l, k) => l + (D.hist.src[k] === 'saved' ? '*' : '')).join(' '), '(* saved), snapshots', store.snaps.length, 'in', ((Date.now() - t0) / 1000).toFixed(1) + 's');
+}
 writeFileSync(new URL('./nba-data.json', import.meta.url), JSON.stringify({ D, models: MODELS, results,
   ratings: Object.fromEntries(MODELS.map((m) => [m.k, sources[m.k].rating.map((v) => Math.round(v * 100) / 100)])), sims: SIMS, avg: AVG_LABELS }));

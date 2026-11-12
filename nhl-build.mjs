@@ -1,6 +1,7 @@
 // Builds the NHL playoff odds: fetches teams, every team's schedule and scores, and the ratings models,
 // simulates the season for each model and writes nhl-data.json. Usage: node nhl-build.mjs [sims]
 import { writeFileSync } from 'node:fs';
+import { byDate, centered, REGRESS, priorFit, loadSnaps, addSnap } from './hist.mjs';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const NHL = require('./nhl-engine.js');
@@ -15,10 +16,11 @@ const DIVS = {
 };
 const EAST = ['Atlantic', 'Metropolitan'];
 // Major national networks only (as on the other score pages).
-const NATIONAL = ['ESPN', 'ESPN2', 'ABC', 'TNT', 'truTV', 'TBS', 'NHL Network', 'Prime Video', 'Peacock', 'NBC'];
+// National TV first, then the national streams (ESPN calls NHL Network 'NHL Net'). Listed in this order.
+const NATIONAL = ['ESPN', 'ESPN2', 'ABC', 'TNT', 'truTV', 'TBS', 'NHL Net', 'NHL Network', 'NBC', 'Prime Video', 'Peacock', 'ESPN+', 'Disney+'];
 function networks(list) {
   const name = (b) => (b.media && b.media.shortName) || (b.names && b.names[0]) || '';
-  return [...new Set(list.map(name).filter((n) => NATIONAL.includes(n)))].slice(0, 2);
+  return [...new Set(list.map(name).filter((n) => NATIONAL.includes(n)))].sort((x, y) => NATIONAL.indexOf(x) - NATIONAL.indexOf(y)).slice(0, 3);
 }
 
 async function get(url) {
@@ -122,5 +124,36 @@ const t0 = Date.now(), results = {};
 for (const m of MODELS) results[m.k] = NHL.simulate(simD, SIMS, undefined, undefined, sources[m.k].rating);
 const played = G.filter((g) => g.s === 'post').length;
 console.log(`NHL ${SEASON}: ${played}/${G.length} games played (${G.filter((g) => g.ot).length} to OT/SO); models ${MODELS.map((m) => m.k).join(', ')}; ${SIMS} seasons each in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+// Playoff odds over time for the team panels: this refresh's odds are saved to a snapshot file kept in the repo,
+// and the chart uses saved odds where it has them, otherwise the season re-run with the ratings of that time.
+{
+  const t0 = Date.now();
+// Preseason: last season's MoneyPuck expected-goal margin per game, on the current ratings' spread and
+  // pulled a third of the way to average.
+  let pre = null;
+  try {
+    const csv = await text(`https://moneypuck.com/moneypuck/playerData/seasonSummary/${SEASON - 2}/regular/teams.csv`);
+    const [head, ...rows] = csv.trim().split('\n').map((r) => r.split(','));
+    const col = (k) => head.indexOf(k), MP = { TBL: 'TB', SJS: 'SJ', NJD: 'NJ', LAK: 'LA', UTA: 'UTAH', ARI: 'UTAH' };
+    const v = new Array(teams.length).fill(null);
+    for (const r of rows) {
+      if (r[col('situation')] !== 'all') continue;
+      const i = byAb[MP[r[0]] || r[0]], gp = +r[col('games_played')];
+      if (i != null && gp) v[i] = (+r[col('xGoalsFor')] - +r[col('xGoalsAgainst')]) / gp;
+    }
+    if (v.some((x) => x == null)) throw new Error('missing ' + teams.filter((_, i) => v[i] == null).map((t) => t.ab).join(', '));
+    const c = centered(v), f = sd(sources.all.rating) / sd(c), rating = c.map((x) => x * f * REGRESS);
+    pre = { rating, run: (games) => NHL.simulate({ ...D, games }, 4000, undefined, undefined, rating).teams, note: "last season's MoneyPuck expected goals, pulled a third of the way to average" };
+  } catch (e) { console.warn('Last season MoneyPuck unavailable:', e.message); }
+  const sim = (games, rating) => NHL.simulate({ ...D, games }, 4000, undefined, undefined, rating).teams;
+  if (!pre) pre = { rating: sources.all.rating, run: (games) => sim(games, sources.all.rating), note: "today's ratings (last season's were unavailable)" };
+  const HF = new URL('./nhl-hist.json', import.meta.url), store = loadSnaps(HF), ids = D.teams.map((t) => t.espn);
+  addSnap(HF, store, D.asOf, ids, results.all.teams.map((t) => t.playoff));
+  // Ratings as of a past time: the preseason ratings, updated with the results played by then (25 games' worth of pull back toward preseason).
+  const nR = pre.rating.length;
+  const past = (t, games) => sim(games, priorFit(nR, D.games.filter((g) => g.s === 'post' && Date.parse(g.d) < t).map((g) => ({ h: g.h, a: g.a, m: Math.max(-NHL.M.capMargin, Math.min(NHL.M.capMargin, g.ot ? Math.sign(g.hs - g.as) : g.hs - g.as)) - (g.neutral ? 0 : NHL.M.hfa) })), pre.rating, 25));
+  D.hist = byDate(D, { ids, store, value: (t) => t.playoff, nowTeams: results.all.teams, pre, past, note: 'the preseason ratings updated with the results played by then' });
+  console.log('NHL odds history:', D.hist.labels.map((l, k) => l + (D.hist.src[k] === 'saved' ? '*' : '')).join(' '), '(* saved), snapshots', store.snaps.length, 'in', ((Date.now() - t0) / 1000).toFixed(1) + 's');
+}
 writeFileSync(new URL('./nhl-data.json', import.meta.url), JSON.stringify({ D, models: MODELS, results,
   ratings: Object.fromEntries(MODELS.map((m) => [m.k, sources[m.k].rating.map((v) => Math.round(v * 1000) / 1000)])), sims: SIMS, avg: AVG_LABELS }));

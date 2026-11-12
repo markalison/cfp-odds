@@ -473,6 +473,10 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 /* NBC: black lettering turns white while the peacock keeps its colors. */
 :root[data-theme="dark"] .net-logos img.net-nbc { filter: invert(1) hue-rotate(180deg); }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img.net-nbc { filter: invert(1) hue-rotate(180deg); } }
+/* Dark mode: NBA TV (a white badge) and TBS keep their own colours; NHL Network's black-and-white shield is inverted. */
+:root[data-theme="dark"] .net-logos img:is(.net-nbatv, .net-tbs) { filter: none; }
+:root[data-theme="dark"] .net-logos img:is(.net-nhlnetwork, .net-nhlnet) { filter: invert(1) hue-rotate(180deg); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .net-logos img:is(.net-nbatv, .net-tbs) { filter: none; } :root:not([data-theme="light"]) .net-logos img:is(.net-nhlnetwork, .net-nhlnet) { filter: invert(1) hue-rotate(180deg); } }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) :is(.net-logos img.net-fs1, .net-logos img.net-secnetwork, .net-logos img.net-secn, .net-logos img.net-accnetwork, .net-logos img.net-accn) { filter: none; } }
 /* ABC is a filled circle with cut-out letters: a plain color flip keeps the letters. */
 :root[data-theme="dark"] .net-logos img[alt="ABC"] { filter: invert(1); }
