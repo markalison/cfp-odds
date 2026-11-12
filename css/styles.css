@@ -170,7 +170,7 @@ table { border-collapse: separate; border-spacing: 0; width: 100%; }
 .odds-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .odds-table th.c-idx { text-align: right; }
 .odds-table th.c-rec, .odds-table td.rec { text-align: left; }
-.odds-table td.c-cn-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+.odds-table td.l.c-cn-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
 .cn-short { display: none; }
 @media (max-width: 599px) {
   .odds-table:not(.expanded) .cn-long { display: none; }
@@ -340,6 +340,11 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .hist i { display: block; width: 100%; min-height: 1px; background: var(--bar); border-radius: 0; }
 .hist-x { display: flex; gap: 2px; margin-top: 3px; font-size: 11px; color: var(--muted); }
 .hist-x span { flex: 1; text-align: center; }
+/* Seed chart with a y axis (NFL panel): labels at the top of the scale, half way and zero, and light lines. */
+.hist-y { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 6px; }
+.hist-ax { position: relative; height: 74px; min-width: 26px; font: 600 10px/1 var(--display); color: var(--muted); }
+.hist-ax span { position: absolute; right: 0; transform: translateY(-50%); }
+.hist-y .hist { background: linear-gradient(var(--line), var(--line)) 0 0 / 100% 1px no-repeat, linear-gradient(var(--line), var(--line)) 0 50% / 100% 1px no-repeat; }
 @media (min-width: 700px) { .detail-inner { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s6); padding: var(--s4) var(--s5) var(--s5); } }
 /* College panels: the résumé strip spans the top; below it the schedule and odds lists, then the AP poll and
    seed charts. Two across on tablets (lists in one row, charts in the next), four across on wide screens. */
@@ -365,6 +370,10 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .lg-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); font-size: var(--text-sm); color: var(--muted); }
 .lg-top b { color: var(--ink); font-weight: 600; }
 .lg-live { display: inline-flex; align-items: center; gap: var(--s2); }
+/* Time remaining in a live game. */
+.lg-clock { color: #d42a1f; }
+:root[data-theme="dark"] .lg-clock { color: #ff6b5e; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .lg-clock { color: #ff6b5e; } }
 .upset-pill { display: inline-block; padding: 2px 6px; background: var(--warn); color: var(--panel); font: 700 11px/1.2 var(--display); letter-spacing: .07em; }
 /* Score cards: team, score, win chance and Make CFP. */
 .lg-rows { display: grid; grid-template-columns: minmax(0, max-content) minmax(40px, 1fr) 46px 80px; align-items: center; gap: var(--s1) var(--s2); }
@@ -415,7 +424,7 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .bk-toggle[aria-pressed="true"], .bk-toggle[aria-pressed="true"]:hover { background: var(--accent); border-color: var(--accent); color: var(--panel); }
 .bracket { display: grid; gap: var(--s5); }
 .bk-rounds { position: relative; display: grid; gap: var(--s5); }
-.bk-round { display: grid; grid-template-rows: 1fr; grid-template-columns: minmax(0, 1fr); gap: var(--s3); min-width: 0; }
+.bk-round { display: grid; grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); gap: var(--s3); min-width: 0; }
 .bk-round h3 { padding: var(--s2) var(--s3); background: var(--bar-track); border-radius: 0; font-size: var(--text-xs); letter-spacing: .08em; color: var(--ink); }
 /* Bowl branding: dates and sites on rounds and games. */
 .bk-round h3 small { display: block; margin-top: 2px; font: 500 11px/1.3 var(--body); letter-spacing: 0; text-transform: none; color: var(--muted); }
@@ -554,7 +563,7 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .nfl-rounds img.bk-conf { display: block; width: auto; flex: none; }
 .nfl-rounds .bk-sb { height: 30px; }
 .nfl-half { display: grid; gap: var(--s3); }
-.nfl-rounds .bk-round { grid-template-rows: 1fr; }
+.nfl-rounds .bk-round { grid-template-rows: auto 1fr; }
 .nfl-rounds .bk-round:first-child .bk-games, .nfl-rounds .bk-round:nth-child(2) .bk-games { grid-template-columns: none; }
 .nfl-rounds .bk-games { display: grid; gap: var(--s5); }
 @media (min-width: 1000px) {
@@ -598,6 +607,8 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 @media (min-width: 600px) and (max-width: 899px) { .odds-table:not(.expanded) .c-cn { width: 110px; } }
 /* Wide screens: NFL names run longer ("Jacksonville Jaguars"), so Team gets more of the width. */
 @media (min-width: 900px) { .nfl-odds .c-team { width: 230px; } .nfl-odds .c-cn { width: 90px; } .nfl-odds .c-cfp { width: 110px; } }
+/* NHL: room for "Metropolitan" on one line. */
+@media (min-width: 1100px) { .nhl-odds .c-cn { width: 108px; } }
 /* Narrow desktops: NFL divisions as short codes, so the table still fits without scrolling sideways. */
 @media (min-width: 900px) and (max-width: 1099px) {
   .nfl-odds .c-cn { width: 58px; } .nfl-odds .c-team { width: 220px; } .nfl-odds .c-cfp { width: 104px; }
@@ -606,6 +617,12 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 /* NBA bracket: five rounds (play-in, first round, semifinals, conference finals, Finals) across, and a
    Finals logo sized like the Super Bowl one. */
 @media (min-width: 1000px) { .bk-rounds.nba-rounds { grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: var(--s5); } }
+/* Stanley Cup and Final Four marks on their games' cards. */
+/* The Stanley Cup Final shield on the Final card header. */
+.nhl-rounds img.bk-cup { height: 36px; margin-block: -4px; }
+.bk-where img.bk-ff { display: block; height: 26px; width: auto; flex: none; margin-block: -4px; }
+/* Narrow Finals card: the Finals logo stands in for its name, leaving room for the date and network. */
+@container (max-width: 220px) { .bk-nbaf + .bk-title { display: none; } }
 .nba-rounds img.bk-nbaf { display: block; height: 22px; width: auto; flex: none; }
 /* NBA bracket cards are narrow on wide screens: there they show the team abbreviation and no record; a
    roomier card (phones, tablets) shows the full name and record. */
@@ -749,6 +766,7 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .ncaab-champs { font-size: var(--text-sm); color: var(--muted); }
 .ncaab-final { grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
 .ncaab-rounds .bk-round { grid-template-rows: auto 1fr; align-content: start; }
+@media (min-width: 1000px) { .ncaab-f4rounds { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1000px) { .ncaab-rounds .bk-round { align-content: stretch; } }
 /* Phones and tablets: two games a row in the first three rounds (narrow cards show abbreviations). */
 @media (max-width: 999px) { .ncaab-rounds .bk-round:nth-child(-n+3) .bk-games { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

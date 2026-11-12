@@ -620,6 +620,8 @@
     var short = when.replace(/^\w+, /, '').replace(':00 ', ' ');
     return '<span class="bk-place">' + place + '</span><span class="bk-air"><b>' + esc(short) + '<span class="bk-et"> ET</span></b>' + netLogos(tv) + '</span>';
   }
+  // Header dates for each round (the rest goes to screen readers).
+  var ROUND_WHEN = { 'First round': 'Dec 18–19', Quarterfinals: 'Dec 30 – Jan 1', Semifinals: 'Jan 14–15', Championship: 'Jan 25' };
   var ROUND_INFO = {
     'First round': 'Dec 18–19 · higher seed hosts',
     Quarterfinals: 'Dec 30 – Jan 1 · Fiesta, Peach, Rose, Cotton',
@@ -655,7 +657,7 @@
     var sf = [bracketGame('sf-0', qf[0].winner, qf[1].winner, false, 'Winner of semifinal 1', sfLine('orange')), bracketGame('sf-1', qf[2].winner, qf[3].winner, false, 'Winner of semifinal 2', sfLine('sugar'))];
     var fin = bracketGame('f', sf[0].winner, sf[1].winner, false, 'Champion', gameLine(BOWLS.title.tv, BOWLS.title.when, bowlChip('title')));
     $('bk-clear').hidden = !Object.keys(st.bkPicks).length; // after the games drop stale picks
-    function round(title, games) { return '<section class="bk-round" aria-label="' + esc(title + ', ' + (ROUND_INFO[title] || '')) + '"><div class="bk-games">' + games.map(function (g) { return g.html; }).join('') + '</div></section>'; }
+    function round(title, games) { return '<section class="bk-round" aria-label="' + esc(title + ', ' + (ROUND_INFO[title] || '')) + '">' + '<h3>' + esc(title) + '<small>' + ROUND_WHEN[title] + '</small></h3>' + '<div class="bk-games">' + games.map(function (g) { return g.html; }).join('') + '</div></section>'; }
     var champ = fin.winner.tbd ? null : fin.winner;
     var titles = s.slice().sort(function (a, b) { return b.x.r.title - a.x.r.title; }).slice(0, 6);
     var champCard = '';
@@ -806,7 +808,7 @@
     // The network matters for games still to come or under way, not for finals.
     var tv = g.s !== 'post' ? '<span class="tv-list net-logos">' + (g.tv && g.tv.length ? tvBadges(g.tv) : '<span class="tv-name tv-tba">TV TBA</span>') + '</span>' : '';
     var wd = new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }); // every card names its day and date
-    var top = isLive ? '<span class="lg-live"><b>' + wd + ' · ' + esc(clock(g)) + '</b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' + tv :
+    var top = isLive ? '<span class="lg-live"><b><span class="lg-clock">' + esc(clock(g)) + '</span></b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' + tv :
       // Upcoming: the kickoff on the left, where "Kickoff" used to be; the network stays top right.
       isPre ? '<b class="lg-kickoff">' +
         // ESPN marks a kickoff time that hasn't been set as midnight Eastern.
@@ -830,6 +832,7 @@
   // Results are remembered per ratings model and game list, so a week that's been measured never reshuffles.
   // The build measures the default ratings' current and next week ahead of time (g.sw), so those show their
   // final order straight away.
+  var LIVE_RANK = { in: 0, pre: 1, post: 2 }; // score lists: live games first, finals last
   var swings = { key: null, worker: null }, swingCache = {}, impactFrozen = null;
   function gameSwings(games) {
     if (!games.length) return null;
@@ -950,7 +953,7 @@
         }
       }
       var pos = impactFrozen ? impactFrozen.pos : {};
-      all.sort(function (a, b) { return (a.s === 'post') - (b.s === 'post') || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || kickoff(a, b); });
+      all.sort(function (a, b) { return LIVE_RANK[a.s] - LIVE_RANK[b.s] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || kickoff(a, b); });
       $('live-board').innerHTML = all.length ? group('', all, 'Biggest combined swing in both teams’ playoff odds first.') :
         '<p class="live-empty">No ' + who + 'games in week ' + sel + '.' + (nextText ? ' ' + nextText : '') + '</p>';
       return;

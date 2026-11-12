@@ -242,7 +242,14 @@
   }
   // 2027 postseason (NHL): playoffs from about April 18; the Stanley Cup Final in June.
   function label(c, text) { return '<span class="bk-title">' + esc(c + ' · ' + text) + '</span>'; }
-  function air(when) { return '<b>' + when + '</b>'; }
+  function air(when) {
+    var nets = [];
+    if (Array.isArray(when)) { nets = when[1]; when = when[0]; }
+    return '<b>' + when + '</b>' + (nets.length ? '<span class="net-logos">' + tvBadges(nets) + '</span>' : '');
+  }
+  // The Final's card carries the shield from the Stanley Cup Final logo (the 2026 logo with the year changed
+  // to 27, img/). TNT has the Final in odd-numbered years, ABC in even ones.
+  var CUP_LOGO = '<img class="bk-conf bk-cup" src="img/stanley-cup-2027-shield.png" alt="" loading="lazy">';
   // A game or series card: the better seed on top. The bracket starts blank: a slot is decided only by the
   // reader's pick, or by the favorite with Simulate games on. Chances show once it's picked or simulated.
   function game(key, lab, h, a, seedOf, isSeries, when, neutral, ph) {
@@ -273,6 +280,8 @@
     return { r1: r1, sf: r2, cf: cf, champ: cf.winner };
   }
   var NBA_ROUNDS = ['First Round', 'Second Round', 'Conference Finals', 'Stanley Cup Final'];
+  // Header dates, as on the game cards (the league hasn't set exact 2027 playoff dates).
+  var NBA_WHEN = ['From Apr 18', 'May', 'Late May', 'June'];
   var NBA_WIDE = matchMedia('(min-width: 1000px)');
   // Connector lines on wide screens, as on the other brackets: the play-in's 8-seed game feeds 1v8 and its
   // 7/8 game feeds 2v7; each pair of series feeds the next round.
@@ -302,14 +311,14 @@
     var E = confPath('East'), W = confPath('West');
     // The Stanley Cup Final: more projected points has home ice.
     var fx = E.champ, fy = W.champ, top = fx != null && fy != null && R.teams[fy].pts > R.teams[fx].pts ? [fy, fx] : [fx, fy];
-    var fin = game('fin', '<span class="bk-title">Stanley Cup Final</span>', top[0], top[1], function (i) { return D.teams[i].conf.charAt(0); }, true, 'June');
+    var fin = game('fin', CUP_LOGO + '<span class="bk-title">Stanley Cup Final</span>', top[0], top[1], function (i) { return D.teams[i].conf.charAt(0); }, true, ['June', [D.season % 2 ? 'TNT' : 'ABC']]);
     $('nfl-bk-clear').hidden = !Object.keys(st.bk).length;
     $('nfl-bk-sim').setAttribute('aria-pressed', st.bkSim ? 'true' : 'false');
     $('nfl-bk-sim').textContent = st.bkSim ? 'Show seeds only' : 'Simulate games';
     var cols = [[E.r1, W.r1], [E.sf, W.sf], [[E.cf], [W.cf]], [[fin]]];
     var half = function (games) { return '<div class="nfl-half">' + games.map(function (g) { return g.html; }).join('') + '</div>'; };
     $('nfl-bracket').innerHTML = '<div class="bk-rounds nfl-rounds nba-rounds nhl-rounds" id="nfl-rounds">' + cols.map(function (games, k) {
-      return '<section class="bk-round" aria-label="' + NBA_ROUNDS[k] + '"><div class="bk-games">' + games.map(half).join('') + '</div></section>';
+      return '<section class="bk-round" aria-label="' + NBA_ROUNDS[k] + ', ' + NBA_WHEN[k] + '">' + '<h3>' + NBA_ROUNDS[k] + '<small>' + NBA_WHEN[k] + '</small></h3>' + '<div class="bk-games">' + games.map(half).join('') + '</div></section>';
     }).join('') + '</div>';
     drawLines();
   }
@@ -330,6 +339,8 @@
   }
   function dayLabel(x) { return new Date(x.day + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }); }
   var TV_LOGO = {
+    TBS: 'https://upload.wikimedia.org/wikipedia/commons/2/2c/TBS_2020.svg',
+    'NHL Network': 'https://upload.wikimedia.org/wikipedia/commons/f/f4/NHL_Network_2012.svg',
     CBS: 'https://upload.wikimedia.org/wikipedia/commons/4/4e/CBS_logo.svg',
     FOX: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg',
     Fox: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg', // ESPN's NFL listings spell it Fox
@@ -396,7 +407,7 @@
     var isLive = g.s === 'in', isPre = g.s === 'pre';
     var tv = g.tv && g.tv.length && g.s !== 'post' ? '<span class="tv-list net-logos">' + tvBadges(g.tv) + '</span>' : '';
     var wd = etDate(g.d, { weekday: 'short', month: 'short', day: 'numeric' }); // every card names its day and date
-    var top = isLive ? '<span class="lg-live"><b>' + wd + ' · ' + esc(g.clock || 'In progress') + '</b></span>' + tv :
+    var top = isLive ? '<span class="lg-live"><b><span class="lg-clock">' + esc(g.clock || 'In progress') + '</span></b></span>' + tv :
       isPre ? '<b class="lg-kickoff">' + wd + ', ' + etTime(g.d) + ' ET</b>' + tv :
       '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + wd + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
@@ -418,6 +429,7 @@
     });
     return swing ? 1 + swing : stake; // a measured swing always ranks ahead of the stake estimate
   }
+  var LIVE_RANK = { in: 0, pre: 1, post: 2 }; // score lists: live games first, finals last
   var impactFrozen = null;
   // Sorts by impact the first time, then keeps that order (games going live or final and new odds don't move it).
   function frozenImpact(games, key, byTime) {
@@ -426,7 +438,7 @@
       games.slice().sort(function (a, b) { return impact(b) - impact(a) || byTime(a, b); }).forEach(function (g, n) { impactFrozen.pos[g.id] = n; });
     }
     var pos = impactFrozen.pos;
-    return games.slice().sort(function (a, b) { return (a.s === 'post') - (b.s === 'post') || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
+    return games.slice().sort(function (a, b) { return LIVE_RANK[a.s] - LIVE_RANK[b.s] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
   } // the Playoff impact order, kept until the sort or day changes
   function renderScores() {
     var cur = currentDay(), sel = st.day || cur;

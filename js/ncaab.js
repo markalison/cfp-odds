@@ -246,6 +246,8 @@
   }
   // A game card: the better seed on top. A slot is decided only by the reader's pick, or by the favorite with
   // Simulate games on. Every tournament game is on a neutral court.
+  // 2027 Final Four (Detroit) logo; CBS has the Final Four and the title game in 2027.
+  var FF_LOGO = 'https://upload.wikimedia.org/wikipedia/en/0/0c/2027_NCAA_Men%27s_Final_Four_Logo.svg';
   function game(key, lab, h, a, seedOf, when, ph) {
     ph = ph || [];
     var both = h != null && a != null;
@@ -254,7 +256,11 @@
     if (w != null) pathP[w] = (pathP[w] == null ? 1 : pathP[w]) * (w === h ? p : 1 - p); // chance of winning every game on its path
     var show = w != null ? p : null;
     // Region games carry no header of their own (the round's heading above the column says it); a null label.
-    var head = lab == null ? '' : '<div class="bk-where"><span class="bk-place"><span class="bk-title">' + esc(lab) + '</span></span>' + (when ? '<span class="bk-air"><b>' + when + '</b></span>' : '') + '</div>';
+    // when is a date, or [date, networks] when the broadcaster is known; a Final Four game carries its logo.
+    var nets = [];
+    if (Array.isArray(when)) { nets = when[1]; when = when[0]; }
+    var mark = /^(Final Four|National Championship)/.test(lab || '') ? '<img class="bk-conf bk-ff" src="' + FF_LOGO + '" alt="" loading="lazy">' : '';
+    var head = lab == null ? '' : '<div class="bk-where"><span class="bk-place">' + mark + '<span class="bk-title">' + esc(lab) + '</span></span>' + (when ? '<span class="bk-air"><b>' + when + '</b>' + (nets.length ? '<span class="net-logos">' + tvBadges(nets) + '</span>' : '') + '</span>' : '') + '</div>';
     return { winner: w, html: '<div class="bk-game' + (lab == null ? ' bk-bare' : '') + '">' + head +
       bkRow(key, h, a, h == null ? '' : seedOf(h), show, w == null ? null : w === h, pk, ph[0]) + bkRow(key, a, h, a == null ? '' : seedOf(a), show == null ? null : 1 - show, w == null ? null : w === a, pk, ph[1]) + '</div>' };
   }
@@ -294,8 +300,8 @@
     });
     // Final Four: East v West, South v Midwest.
     var regSeed = function (i) { return sOf(i); };
-    var s1 = game('f4-0', 'Final Four · East v West', champs[0], champs[1], regSeed, 'Apr 3'), s2 = game('f4-1', 'Final Four · South v Midwest', champs[2], champs[3], regSeed, 'Apr 3');
-    var fin = game('final', 'National Championship', s1.winner, s2.winner, regSeed, 'Apr 5');
+    var s1 = game('f4-0', 'Final Four · East v West', champs[0], champs[1], regSeed, ['Apr 3', ['CBS']]), s2 = game('f4-1', 'Final Four · South v Midwest', champs[2], champs[3], regSeed, ['Apr 3', ['CBS']]);
+    var fin = game('final', 'National Championship', s1.winner, s2.winner, regSeed, ['Apr 5', ['CBS']]);
     $('nfl-bk-clear').hidden = !Object.keys(st.bk).length;
     $('nfl-bk-sim').setAttribute('aria-pressed', st.bkSim ? 'true' : 'false');
     $('nfl-bk-sim').textContent = st.bkSim ? 'Show seeds only' : 'Simulate games';
@@ -322,7 +328,9 @@
       '<div class="ncaab-nav">' + map + '<div class="ncaab-tabs" role="group" aria-label="Bracket section">' + tabs.map(function (n, k) { return '<button type="button" class="btn bk-toggle" data-bkreg="' + k + '" aria-pressed="' + (k === cur) + '">' + n + '</button>'; }).join('') + '</div>' +
       '<p class="ncaab-where">' + (cur < 4 ? REGIONS[cur] + ' region · ' + ['top left', 'bottom left', 'top right', 'bottom right'][cur] + ' of the bracket · its winner plays the ' + REGIONS[[1, 0, 3, 2][cur]] + ' winner in the Final Four' : 'Final Four · East v West and South v Midwest, then the title game') + '</p></div>' +
       (cur < 4 ? '<section class="ncaab-region" aria-label="' + REGIONS[cur] + ' region">' + regionHtml[cur] + '</section>'
-        : '<section class="ncaab-region" aria-label="Final Four">' + champLine + '<div class="ncaab-ff ncaab-final">' + s1.html + s2.html + fin.html + '</div></section>') +
+        : '<section class="ncaab-region" aria-label="Final Four">' + champLine + '<div class="bk-rounds ncaab-rounds ncaab-f4rounds">' +
+          '<section class="bk-round" aria-label="Final Four, Apr 3"><h3>Final Four<small>Apr 3</small></h3><div class="bk-games">' + s1.html + s2.html + '</div></section>' +
+          '<section class="bk-round" aria-label="National Championship, Apr 5"><h3>National Championship<small>Apr 5</small></h3><div class="bk-games">' + fin.html + '</div></section></div></section>') +
       titles +
       '<section class="ncaab-region ncaab-first4" aria-label="First Four"><h3 class="ncaab-reg-title">First Four · Mar 16–17</h3><div class="ncaab-ff">' + ffGames.map(function (g) { return g.html; }).join('') + '</div></section>';
   }
@@ -340,6 +348,7 @@
   function dayLabel(x) { return new Date(x.day + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC' }); }
   // Major networks only, as logos (the college football page's set).
   var TV_LOGO = {
+    TBS: 'https://upload.wikimedia.org/wikipedia/commons/2/2c/TBS_2020.svg',
     ESPN: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ESPN_wordmark.svg', ESPN2: 'https://upload.wikimedia.org/wikipedia/commons/b/bf/ESPN2_logo.svg', ESPNU: 'https://upload.wikimedia.org/wikipedia/commons/c/ca/ESPN_U_logo.svg',
     ABC: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/ABC-2021-LOGO.svg', CBS: 'https://upload.wikimedia.org/wikipedia/commons/4/4e/CBS_logo.svg', CBSSN: 'https://upload.wikimedia.org/wikipedia/commons/0/04/CBS_Sports_Network_2021.svg',
     FOX: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg', Fox: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg', FS1: 'https://upload.wikimedia.org/wikipedia/commons/3/37/2015_Fox_Sports_1_logo.svg',
@@ -398,7 +407,7 @@
     var isLive = g.s === 'in', isPre = g.s === 'pre';
     var tv = g.tv && g.tv.length && g.s !== 'post' ? '<span class="tv-list net-logos">' + tvBadges(g.tv) + '</span>' : '';
     var wd = etDate(g.d, { weekday: 'short', month: 'short', day: 'numeric' }); // every card names its day and date
-    var top = isLive ? '<span class="lg-live"><b>' + wd + ' · ' + esc(g.clock || 'In progress') + '</b></span>' + tv :
+    var top = isLive ? '<span class="lg-live"><b><span class="lg-clock">' + esc(g.clock || 'In progress') + '</span></b></span>' + tv :
       isPre ? '<b class="lg-kickoff">' + wd + ', ' + etTime(g.d) + ' ET</b>' + tv :
       '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + wd + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
@@ -420,6 +429,7 @@
     });
     return swing ? 1 + swing : stake; // a measured swing always ranks ahead of the stake estimate
   }
+  var LIVE_RANK = { in: 0, pre: 1, post: 2 }; // score lists: live games first, finals last
   var impactFrozen = null; // the Playoff impact order, kept until the sort or day changes
   function frozenImpact(games, key, byTime) {
     if (!impactFrozen || impactFrozen.key !== key) {
@@ -427,7 +437,7 @@
       games.slice().sort(function (a, b) { return impact(b) - impact(a) || byTime(a, b); }).forEach(function (g, n) { impactFrozen.pos[g.id] = n; });
     }
     var pos = impactFrozen.pos;
-    return games.slice().sort(function (a, b) { return (a.s === 'post') - (b.s === 'post') || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
+    return games.slice().sort(function (a, b) { return LIVE_RANK[a.s] - LIVE_RANK[b.s] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
   }
   function renderScores() {
     var cur = currentDay(), sel = st.day || cur;

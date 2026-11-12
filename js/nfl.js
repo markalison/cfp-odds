@@ -164,26 +164,134 @@
     var tile = function (v) { return v == null ? '<div class="lg-num">—</div>' : '<div class="lg-cfp" style="--p:' + v.toFixed(3) + '">' + pct(v) + '</div>'; };
     return '<div class="odds-row"><span class="h">' + label + '</span><span class="h">If win</span><span class="h">If loss</span>' + tile(now) + tile(win) + tile(loss) + '</div>';
   }
+  // Strength by week: the site's points rating (capped margins, home field, pulled toward average) replayed
+  // with only the games finished through each week. Worked out once per set of finals.
+  var strengthCache = { key: null, weeks: [], val: [] };
+  function strengthByWeek() {
+    var finals = D.games.filter(function (g) { return g.s === 'post'; });
+    var key = finals.length;
+    if (strengthCache.key === key) return strengthCache;
+    var last = finals.reduce(function (m, g) { return Math.max(m, g.wk); }, 0), weeks = [], val = D.teams.map(function () { return []; });
+    for (var k = 1; k <= last; k++) {
+      var rk = NFLSIM.pointsRating({ teams: D.teams, games: finals.filter(function (g) { return g.wk <= k; }) });
+      weeks.push(k);
+      rk.forEach(function (v, i) { val[i].push(v); });
+    }
+    strengthCache = { key: key, weeks: weeks, val: val };
+    return strengthCache;
+  }
+  // League rank (1 = strongest) of a team's rating in week k.
+  function strengthRank(S, i, k) { var v = S.val[i][k]; return 1 + S.val.filter(function (x) { return x[k] > v + 1e-9; }).length; }
+  function playedIn(i, wk) { return D.games.some(function (g) { return g.wk === wk && g.s === 'post' && (g.h === i || g.a === i); }); }
+  function strengthChart(i) {
+    var S = strengthByWeek(), v = S.val[i], n = S.weeks.length;
+    if (!n) return '<p class="ap-none">No games played yet.</p>';
+    // Scaled to this team's own swings (at least ±5), centred on an average team.
+    var top = Math.max(5, Math.ceil(Math.max.apply(null, v.map(Math.abs)) / 5) * 5);
+    var W = 260, H = 110, L = 26, Rp = 8, T = 8, B = 18;
+    var px = function (k) { return L + (n === 1 ? (W - L - Rp) / 2 : k * (W - L - Rp) / (n - 1)); };
+    var py = function (x) { return T + (top - x) * (H - T - B) / (2 * top); };
+    var grid = [top, 0, -top].map(function (y) {
+      return '<line x1="' + L + '" x2="' + (W - Rp) + '" y1="' + py(y) + '" y2="' + py(y) + '" class="ap-grid"/><text x="' + (L - 5) + '" y="' + (py(y) + 3) + '" class="ap-y">' + (y > 0 ? '+' : '') + y + '</text>';
+    }).join('');
+    var line = n > 1 ? '<polyline points="' + v.map(function (x, k) { return px(k).toFixed(1) + ',' + py(x).toFixed(1); }).join(' ') + '" class="ap-line"/>' : '';
+    var dots = v.map(function (x, k) {
+      var bye = !playedIn(i, S.weeks[k]);
+      var t = 'Week ' + S.weeks[k] + (bye ? ' (bye)' : '') + ': ' + (x > 0 ? '+' : '') + x.toFixed(1) + ', ' + ordinal(strengthRank(S, i, k)) + ' in the NFL';
+      return '<circle cx="' + px(k).toFixed(1) + '" cy="' + py(x).toFixed(1) + '" r="' + (bye ? 2.5 : 3) + '" class="' + (bye ? 'ap-nr' : 'ap-dot') + '"><title>' + t + '</title></circle>';
+    }).join('');
+    var step = n > 12 ? 2 : 1;
+    var xs = S.weeks.map(function (w, k) { return k % step && k !== n - 1 ? '' : '<text x="' + px(k).toFixed(1) + '" y="' + (H - 4) + '" class="ap-x">' + w + '</text>'; }).join('');
+    var label = D.teams[i].name + ' points rating by week: ' + v.map(function (x, k) { return 'week ' + S.weeks[k] + ' ' + (x > 0 ? '+' : '') + x.toFixed(1); }).join(', ');
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(label) + '">' + grid + line + dots + xs + '</svg>';
+  }
+  // A y axis for the seed chart: the top of the scale, half of it and zero, with light lines across.
+  function histY(top, plot) {
+    var f = function (x) { return Math.round(x * 100) + '%'; };
+    return '<div class="hist-y"><div class="hist-ax" aria-hidden="true"><span style="top:0">' + f(top) + '</span><span style="top:50%">' + f(top / 2) + '</span><span style="top:100%">0</span></div><div class="hist-plot">' + plot + '</div></div>';
+  }
+  function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  // Clear / Win out for a team's games left, as on the college panel.
+  function winOutButton(i, left) {
+    if (!left.length) return '';
+    var on = left.every(function (g) { return st.picks[g.id] === i; }), any = left.some(function (g) { return st.picks[g.id] != null; });
+    var ids = esc(left.map(function (g) { return g.id; }).join(','));
+    return '<span class="sched-btns"><button type="button" class="winout-btn" data-clearteam="' + i + '" data-games="' + ids + '"' + (any ? '' : ' disabled') + '>Clear</button>' +
+      '<button type="button" class="winout-btn" data-winout="' + i + '" data-games="' + ids + '" aria-pressed="' + on + '">Win out</button></span>';
+  }
+  // The tile row, as on the college panel: record, division record, strength of record and of schedule
+  // (each ranked among the 32 teams, by the selected ratings).
+  function resumeTiles(i) {
+    var n = D.teams.length, sd = Math.sqrt(MODEL.gameSD * MODEL.gameSD + 2 * MODEL.teamSD * MODEL.teamSD);
+    var played = D.teams.map(function () { return []; }), leftOpp = D.teams.map(function () { return []; });
+    D.games.forEach(function (g) {
+      if (g.s === 'post') {
+        var r = g.hs > g.as ? 1 : g.hs < g.as ? 0 : 0.5, site = g.neutral ? 0 : 1;
+        played[g.h].push({ o: g.a, r: r, site: site }); played[g.a].push({ o: g.h, r: 1 - r, site: -site });
+      } else { leftOpp[g.h].push(g.a); leftOpp[g.a].push(g.h); }
+    });
+    var rt = function (x) { return R.teams[x].rating; };
+    // The level of the last playoff spot: the 14th-best rating.
+    var bench = D.teams.map(function (_, x) { return rt(x); }).sort(function (a, b) { return b - a; })[13];
+    // Strength of record: the chance that a team at that level does at least as well against this schedule
+    // (a tie counts half). Smaller is harder, so it ranks higher.
+    function sor(x) {
+      var dist = [1];
+      played[x].forEach(function (e) {
+        var p = phi((bench - rt(e.o) + e.site * MODEL.hfa) / sd), nd = new Array(dist.length + 1).fill(0);
+        dist.forEach(function (q, k) { nd[k] += q * (1 - p); nd[k + 1] += q * p; });
+        dist = nd;
+      });
+      var score = played[x].reduce(function (a, e) { return a + e.r; }, 0), above = 0;
+      dist.forEach(function (q, k) { if (k > score + 1e-9) above += q; else if (Math.abs(k - score) < 1e-9) above += q / 2; });
+      return above;
+    }
+    var avg = function (list) { return list.length ? list.reduce(function (a, x) { return a + rt(x); }, 0) / list.length : null; };
+    var sos = function (x) { return avg(played[x].map(function (e) { return e.o; })); };
+    var rankOf = function (fn, better) {
+      var v = fn(i); if (v == null) return null;
+      return 1 + D.teams.filter(function (_, x) { var w = fn(x); return w != null && (better > 0 ? w > v + 1e-9 : w < v - 1e-9); }).length;
+    };
+    var sorRank = played[i].length ? rankOf(sor, -1) : null, sosRank = rankOf(sos, 1);
+    var leftRank = leftOpp[i].length ? 1 + D.teams.filter(function (_, x) { var w = avg(leftOpp[x]); return w != null && w > avg(leftOpp[i]) + 1e-9; }).length : null;
+    var dv = { w: 0, l: 0, t: 0 };
+    played[i].forEach(function (e) { if (D.teams[e.o].div === D.teams[i].div) { if (e.r === 1) dv.w++; else if (e.r === 0) dv.l++; else dv.t++; } });
+    var rc = rec[i], recTxt = rc.w + '-' + rc.l + (rc.t ? '-' + rc.t : '');
+    var tile = function (label, title, value) { return '<div><dt><abbr title="' + esc(title) + '">' + label + '</abbr></dt><dd>' + value + '</dd></div>'; };
+    return '<div class="resume"><dl class="rs-tiles nfl-tiles">' +
+      tile('Record', 'Overall record', recTxt) +
+      tile('Division', 'Record against ' + D.teams[i].div + ' teams', dv.w + '-' + dv.l + (dv.t ? '-' + dv.t : '')) +
+      tile('SOR', 'Strength of record: how hard this record would be for a team at the level of the last playoff spot (the 14th-best rating) to match against this schedule, ranked among the 32 teams (1st = hardest)', sorRank ? ordinal(sorRank) : '—') +
+      tile('SOS', 'Strength of schedule: average rating of opponents played, ranked among the 32 teams (1st = toughest)' + (leftRank ? '; schedule left ranks ' + ordinal(leftRank) : ''), sosRank ? ordinal(sosRank) : '—') +
+    '</dl></div>';
+  }
+  // Team panel, laid out like the college one: strength by week, the games left with pick boxes, then
+  // Make playoffs (with any picks) over the seed distribution.
   function detail(i) {
     var t = D.teams[i], r = R.teams[i];
     var stat = function (label, v) { return '<div><dt>' + label + '</dt><dd>' + v + '</dd></div>'; };
     var stats = '<dl class="field-stats narrow-only">' + [['Playoffs', r.playoff], ['Win division', r.div], ['1 seed', r.bye], ['Win conf', r.conf], ['Win Super Bowl', r.sb]].map(function (x) { return stat(x[0], pct(x[1])); }).join('') +
       stat('Index', (r.rating > 0 ? '+' : '') + r.rating.toFixed(1)) + '</dl>';
     var left = D.games.filter(function (g) { return (g.h === i || g.a === i) && g.s !== 'post'; }).sort(function (a, b) { return a.d < b.d ? -1 : 1; });
-    var shown = left.slice(0, 12);
-    var lines = shown.map(function (g) {
+    // The next four games; Win out and Clear still cover every game left.
+    var lines = left.slice(0, 4).map(function (g) {
       var home = g.h === i, o = D.teams[home ? g.a : g.h], hw = R.homeWin[g.id], p = hw == null ? null : home ? hw : 1 - hw, pk = st.picks[g.id];
+      var tie = pk === 'T', won = pk === i, lost = pk != null && !won && !tie, vs = (home ? 'vs ' : '@') + o.ab;
+      var label = won ? t.short + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? t.short + ' ' + vs + ' picked to lose. Press to pick a tie' : tie ? t.short + ' ' + vs + ' picked to tie. Press to clear the pick' : 'No pick for ' + t.short + ' ' + vs + '. Press to pick a win';
+      var box = '<span class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : tie ? ' pick-t' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + i + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : tie ? 'T' : '') + '</button></span>';
       var live = g.s === 'in' ? ' <b class="score-now">' + ((home ? g.hs - g.as : g.as - g.hs) > 0 ? 'Up ' : (home ? g.hs - g.as : g.as - g.hs) < 0 ? 'Down ' : 'Tied ') + (home ? g.hs + '-' + g.as : g.as + '-' + g.hs) + '</b>' : '';
-      return '<span>' + etDate(g.d, { month: 'short', day: 'numeric' }) + ' · ' + (home ? 'vs ' : '@') + logo(o, 18) + esc(o.short) + live + '</span><span>' + (pk != null ? (pk === i ? 'Picked win' : pk === 'T' ? 'Picked tie' : 'Picked loss') : p == null ? '—' : Math.round(p * 100) + '%') + '</span>';
-    }).join('') + (left.length > shown.length ? '<span class="sched-more">and ' + (left.length - shown.length) + ' more</span><span></span>' : '');
-    var split = function (label, v) { return '<tr><th scope="row">' + label + '</th><td>' + pct(v) + '</td><td>' + pct(v == null ? null : 1 - v) + '</td></tr>'; };
-    var seeds = (r.seeds || []).slice(0, 7), maxS = Math.max.apply(null, seeds.concat(0.0001));
+      return '<span class="sched-g">' + box + '<span>' + etDate(g.d, { month: 'short', day: 'numeric' }) + ' · ' + (home ? 'vs ' : '@') + logo(o, 18) + esc(o.short) + live + '</span></span><span>' + (p == null ? '—' : Math.round(p * 100) + '%') + '</span>';
+    }).join('') + (left.length > 4 ? '<span class="sched-more">and ' + (left.length - 4) + ' more</span><span></span>' : '');
+    var seeds = (r.seeds || []).slice(0, 7), maxS = [0.05, 0.1, 0.2, 0.25, 0.4, 0.5, 0.6, 0.8, 1].find(function (x) { return x >= Math.max.apply(null, seeds.concat(0.0001)) - 1e-9; });
     var bars = seeds.map(function (v, k) { var lab = 'Seed ' + (k + 1) + ': ' + (v * 100).toFixed(1) + '% of simulations'; return '<div title="' + lab + '" aria-label="' + lab + '"><i style="height:' + (v / maxS * 100).toFixed(1) + '%"></i></div>'; }).join('');
     var xs = seeds.map(function (_, k) { return '<span>' + (k + 1) + '</span>'; }).join('');
-    return '<tr class="detail"><td colspan="' + visibleCols() + '">' + stats + '<div class="detail-inner">' +
-      '<div><h3>Regular season left (chance to win)</h3><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
-      '<div><h3>What moves the odds</h3>' + '<dl class="kv"><dt>Make playoffs</dt><dd>' + pct(r.playoff) + '</dd><dt>If they win next game</dt><dd>' + pct(r.ifWin) + '</dd><dt>If they lose next game</dt><dd>' + pct(r.ifLoss) + '</dd><dt>Projected wins</dt><dd>' + r.wins.toFixed(1) + '</dd></dl></div>' +
-      '<div><h3>Seed, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each seed for ' + esc(t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
+    var S = strengthByWeek(), nowV = S.weeks.length ? S.val[i][S.weeks.length - 1] : null;
+    var head = nowV == null ? 'Strength by week' : 'Strength by week, now ' + (nowV > 0 ? '+' : '') + nowV.toFixed(1) + ' (' + ordinal(strengthRank(S, i, S.weeks.length - 1)) + ')';
+    return '<tr class="detail"><td colspan="' + visibleCols() + '">' + stats + '<div class="detail-inner">' + resumeTiles(i) +
+      '<div class="ap-chart"><h3 title="Points rating from the games played through each week: points better than an average team on a neutral field (capped margins, home field taken out). Hollow dots are bye weeks.">' + head + '</h3>' + strengthChart(i) + '</div>' +
+      '<div><div class="sched-head"><h3 title="Chance to win each game">Regular season left</h3>' + winOutButton(i, left) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
+      '<div><div class="scenario"><span>Make playoffs' + (Object.keys(st.picks).length ? ' with your picks' : '') + '</span><b>' + pct(r.playoff) + '</b></div>' +
+        '<h3>Seed distribution, % of all simulations</h3>' + histY(maxS, '<div class="hist" role="img" aria-label="Chance of each seed for ' + esc(t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div>') + '</div>' +
     '</div></td></tr>';
   }
   function renderPicksBar() {
@@ -277,6 +385,7 @@
     return { wc: wc, dv: dv, cc: cc, champ: cc.winner, seedOf: seedOf, feeds: feeds };
   }
   var NFL_ROUNDS = [['Wild Card', 'Jan 16–18 · higher seed hosts · 1 seeds rest'], ['Divisional', 'Jan 23–24 · 1 seed hosts the lowest seed left'], ['Conference', 'Jan 31 · AFC on CBS, NFC on FOX'], ['Super Bowl', 'Feb 14 · SoFi Stadium, Inglewood, Calif.']];
+  var NFL_WHEN = ['Jan 16–18', 'Jan 23–24', 'Jan 31', 'Feb 14'];
   // Connector lines on wide screens, as on the college bracket. Before the Wild Card games are all picked,
   // each conference's three Wild Card games join one line that reaches both Divisional games (the NFL
   // reseeds, so either is possible); once they're picked, each winner's line goes to its own game.
@@ -330,7 +439,7 @@
     var cols = [[A.wc, N.wc], [A.dv, N.dv], [[A.cc], [N.cc]], [[sb]]];
     var half = function (games) { return '<div class="nfl-half">' + games.map(function (g) { return g.html; }).join('') + '</div>'; };
     $('nfl-bracket').innerHTML = '<div class="bk-rounds nfl-rounds" id="nfl-rounds">' + cols.map(function (games, k) {
-      return '<section class="bk-round" aria-label="' + NFL_ROUNDS[k][0] + ', ' + NFL_ROUNDS[k][1] + '">' +
+      return '<section class="bk-round" aria-label="' + NFL_ROUNDS[k][0] + ', ' + NFL_ROUNDS[k][1] + '">' + '<h3>' + NFL_ROUNDS[k][0] + '<small>' + NFL_WHEN[k] + '</small></h3>' +
         '<div class="bk-games">' + games.map(half).join('') + '</div></section>';
     }).join('') + '</div>';
     feedsByConf = [A.feeds, N.feeds];
@@ -362,6 +471,8 @@
     return 'Week ' + w.wk + ' · ' + a + '–' + b;
   }
   var TV_LOGO = {
+    Netflix: 'https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg',
+    'NFL Net': 'https://upload.wikimedia.org/wikipedia/en/8/8f/NFL_Network_logo.svg',
     CBS: 'https://upload.wikimedia.org/wikipedia/commons/4/4e/CBS_logo.svg',
     FOX: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg',
     Fox: 'https://upload.wikimedia.org/wikipedia/commons/c/c0/Fox_Broadcasting_Company_logo_%282019%29.svg', // ESPN's NFL listings spell it Fox
@@ -428,7 +539,7 @@
     var isLive = g.s === 'in', isPre = g.s === 'pre';
     var tv = g.s !== 'post' ? '<span class="tv-list net-logos">' + (g.tv && g.tv.length ? tvBadges(g.tv) : '<span class="tv-name tv-tba">TV TBA</span>') + '</span>' : '';
     var wd = etDate(g.d, { weekday: 'short', month: 'short', day: 'numeric' }); // every card names its day and date
-    var top = isLive ? '<span class="lg-live"><b>' + wd + ' · ' + esc(g.clock || 'In progress') + '</b></span>' + tv :
+    var top = isLive ? '<span class="lg-live"><b><span class="lg-clock">' + esc(g.clock || 'In progress') + '</span></b></span>' + tv :
       isPre ? '<b class="lg-kickoff">' + wd + ', ' + etTime(g.d) + ' ET</b>' + tv :
       '<span class="lg-live"><span class="final-pill">FINAL</span></span><span class="lg-when"><span>' + wd + '</span></span>';
     return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
@@ -450,6 +561,7 @@
     });
     return swing ? 1 + swing : stake; // a measured swing always ranks ahead of the stake estimate
   }
+  var LIVE_RANK = { in: 0, pre: 1, post: 2 }; // score lists: live games first, finals last
   var impactFrozen = null;
   // Sorts by impact the first time, then keeps that order (games going live or final and new odds don't move it).
   function frozenImpact(games, key, byTime) {
@@ -458,7 +570,7 @@
       games.slice().sort(function (a, b) { return impact(b) - impact(a) || byTime(a, b); }).forEach(function (g, n) { impactFrozen.pos[g.id] = n; });
     }
     var pos = impactFrozen.pos;
-    return games.slice().sort(function (a, b) { return (a.s === 'post') - (b.s === 'post') || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
+    return games.slice().sort(function (a, b) { return LIVE_RANK[a.s] - LIVE_RANK[b.s] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
   } // the Playoff impact order, kept until the sort or week changes
   function renderScores() {
     var cur = currentWeek(), sel = st.week || cur;
@@ -611,6 +723,12 @@
       // Each press cycles this team through W, L, T (tie) and blank; its opponent gets the opposite result.
       var id = b.dataset.pick, me = +b.dataset.team, g = gameById[id], opp = g.h === me ? g.a : g.h;
       if (st.picks[id] == null) st.picks[id] = me; else if (st.picks[id] === me) st.picks[id] = opp; else if (st.picks[id] === opp) st.picks[id] = 'T'; else delete st.picks[id];
+      resimulate();
+    } else if (b.dataset.winout != null || b.dataset.clearteam != null) {
+      // Win out picks every game left as a win for this team (or, when it's on, clears them); Clear drops them.
+      var team = +(b.dataset.winout != null ? b.dataset.winout : b.dataset.clearteam), ids = b.dataset.games.split(',');
+      var on = b.dataset.winout != null && ids.every(function (x) { return st.picks[x] === team; });
+      ids.forEach(function (x) { if (b.dataset.winout != null && !on) st.picks[x] = team; else delete st.picks[x]; });
       resimulate();
     } else if (b.dataset.bk) {
       var k = b.dataset.bk, t = +b.dataset.team, o = +b.dataset.opp;
