@@ -786,3 +786,45 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .ncaab-map button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--panel); }
 /* NHL bracket: four rounds (first round, second round, conference finals, Stanley Cup Final) across. */
 @media (min-width: 1000px) { .bk-rounds.nhl-rounds { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+
+/* Scores: the day strip (NBA, NHL, NCAAB), under the Sort menu. A quiet row on a hairline: seven days spread
+   evenly (five on tablets, three on phones), each with its game count; the chosen day gets ink text and a thin
+   accent underline. Chevrons at the ends, a calendar button at the far right. */
+.sb-bar:has(.day-strip) { row-gap: var(--s2); }
+.sb-bar:has(.day-strip) .sb-sort { order: -1; }
+.day-strip { display: flex; align-items: stretch; flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--line); }
+.day-cells { display: flex; flex: 1 1 auto; min-width: 0; }
+.day-btn { flex: 1 1 0; min-width: 0; display: grid; gap: 3px; justify-items: center; align-content: center; padding: 8px 4px 7px; margin-bottom: -1px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; font-family: var(--display); line-height: 1; }
+.day-btn .dw { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; }
+.day-btn .dd { font-size: 16px; font-weight: 600; white-space: nowrap; }
+.day-btn .dc { font: 400 11px/1 var(--body); white-space: nowrap; opacity: .8; }
+.day-btn:hover:not(:disabled) { color: var(--ink); }
+.day-btn[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.day-btn[aria-pressed="true"] .dd { font-weight: 700; }
+.day-btn.today .dw { color: var(--accent); }
+.day-btn.empty:not([aria-pressed="true"]) { opacity: .55; }
+.day-btn:disabled { opacity: .2; cursor: default; }
+.day-arrow, .day-cal { flex: none; display: grid; place-items: center; width: 36px; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+.day-arrow { font-size: 24px; line-height: 1; }
+.day-arrow:hover:not(:disabled), .day-cal:hover { color: var(--ink); }
+.day-arrow:disabled { opacity: .3; cursor: default; }
+.day-jump { position: relative; flex: none; display: flex; }
+.day-cal { height: 100%; }
+/* The month calendar that opens from the calendar button. */
+.day-cal[aria-expanded="true"] { color: var(--ink); }
+.day-pop { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; width: 248px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, .18); }
+.cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.cal-head b { font: 700 15px/1 var(--display); letter-spacing: .04em; text-transform: uppercase; }
+.cal-nav { width: 30px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font-size: 20px; line-height: 1; cursor: pointer; }
+.cal-nav:hover:not(:disabled) { color: var(--ink); background: var(--bg); }
+.cal-nav:disabled { opacity: .3; cursor: default; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-dow { padding: 4px 0; text-align: center; font: 600 10px/1 var(--display); letter-spacing: .08em; color: var(--muted); }
+.cal-day { height: 30px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--ink); font: 500 13px/1 var(--body); font-variant-numeric: tabular-nums; cursor: pointer; }
+.cal-day:hover:not(:disabled) { background: var(--bg); }
+.cal-day.empty { color: var(--muted); opacity: .6; }
+.cal-day.today { box-shadow: inset 0 0 0 1px var(--accent); }
+.cal-day.on { background: var(--accent); color: var(--panel); opacity: 1; font-weight: 700; }
+.cal-day:disabled { opacity: .2; cursor: default; }
+@media (max-width: 899px) { .day-btn.far { display: none; } }
+@media (max-width: 519px) { .day-btn.mid { display: none; } .day-arrow, .day-cal { width: 30px; } }

@@ -72,8 +72,9 @@
       th('team', 'Team', 'l c-team team-col') +
       th('dv', 'Div.', 'l c-cn') +
       th('rec', 'Rec', 'c-rec') +
+      th('wins', '<abbr title="Projected final record: average wins over the simulated seasons">Proj.</abbr>', 'c-pw tc') +
       th('rating', '<abbr title="' + esc(modelLabel()) + ' rating: points better than an average team on a neutral field">Index</abbr>', 'c-idx tc') +
-      '<th class="pick c-pick">Next</th>' +
+      '<th class="pick c-pick" title="Each team’s game in week ' + currentWeek() + '">Wk ' + currentWeek() + '</th>' +
       th('playoff', 'Playoffs', 'c-cfp', 'Chance to make the playoffs, and after a win or loss in the next game') +
       th('div', 'Win div', 'c-div sec') +
       th('bye', '1 seed', 'c-bye sec', 'Chance to be the top seed, with the only first-round bye') +
@@ -89,6 +90,8 @@
     if (k === 'dv') return D.teams[i].div;
     return r[k];
   }
+  // Projected final record over 17 games, from the average simulated wins.
+  function projRec(r) { var w = Math.round(r.wins); return w + '-' + (17 - w); }
   function shaded(v) { return '<td class="sec pct-cell" style="--p:' + (v || 0).toFixed(3) + '">' + pct(v) + '</td>'; }
   // Next: the W / L / blank box with the opponent under it, as in the college table.
   // Next shows only the coming week's game (the Scores page's week): a team on a bye that week gets a blank cell
@@ -120,7 +123,7 @@
   }
   // A label row must span exactly the columns showing, or the fixed table layout adds empty columns.
   var WIDE_Q = matchMedia('(min-width: 900px)'), TABLET_Q = matchMedia('(min-width: 600px)');
-  function visibleCols() { var ex = document.querySelector('#nfl-tw table.expanded'); return WIDE_Q.matches || ex ? 11 : TABLET_Q.matches ? 7 : 6; }
+  function visibleCols() { var ex = document.querySelector('#nfl-tw table.expanded'); return WIDE_Q.matches || ex ? 12 : TABLET_Q.matches ? 8 : 6; }
   [WIDE_Q, TABLET_Q].forEach(function (q) { try { q.addEventListener('change', function () { renderRankings(); }); } catch (e) {} });
   // Conference and Division views: each group opens with its own copy of the column headings (sort buttons
   // included), with the group's name in the Team column. The table's own header row is hidden then, and each
@@ -141,10 +144,11 @@
   function row(i, k) {
     var t = D.teams[i], r = R.teams[i];
     return '<tr><td class="first c-rk">' + (k + 1) + '</td>' +
-      '<td class="team-col"><div class="teamcell">' + logo(t, 30) + '<span><button class="tname" type="button" data-open="' + i + '" aria-expanded="' + !!st.open[i] + '" aria-label="' + esc(t.name) + '"><span class="tn-long">' + esc(t.name) + '</span><span class="tn-short" aria-hidden="true">' + esc(t.ab) + '</span></button></span></div></td>' +
+      '<td class="team-col"><div class="teamcell">' + logo(t, 30) + '<span><button class="tname" type="button" data-open="' + i + '" aria-expanded="' + !!st.open[i] + '" aria-label="' + esc(t.name) + '"><span class="tn-long">' + esc(t.name) + '</span><span class="tn-mid" aria-hidden="true">' + esc(t.short) + '</span><span class="tn-short" aria-hidden="true">' + esc(t.ab) + '</span></button></span></div></td>' +
       // Division, styled like the college table's Conf. column: "AFC East", or "AFC E" on phones.
       '<td class="l c-cn-cell"><span class="cn-long">' + esc(t.div) + '</span><span class="cn-short" aria-hidden="true">' + esc(t.div.replace(/ (\w)\w+$/, ' $1')) + '</span></td>' +
       '<td class="num rec">' + recText(i) + '</td>' +
+      '<td class="num tc pw">' + projRec(r) + '</td>' +
       '<td class="num tc">' + (r.rating > 0 ? '+' : '') + r.rating.toFixed(1) + '</td>' +
       nextCell(i) +
       '<td class="odds-cell" style="--p:' + playoffShown(i).toFixed(3) + '"><div class="odds"><span class="v">' + pct(playoffShown(i)) + '</span></div></td>' +
@@ -278,7 +282,7 @@
     var xs = seeds.map(function (_, k) { return '<span>' + (k + 1) + '</span>'; }).join('');
     return '<tr class="detail"><td colspan="' + visibleCols() + '">' + stats + '<div class="detail-inner">' + resumeTiles(i) +
       oddsChartBlock(i, 'Make playoffs', 'All models average') +
-      '<div><div class="sched-head"><h3 title="Chance to win each game">Regular season left</h3>' + winOutButton(i, left) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
+      '<div><div class="sched-head"><h3 title="Chance to win each game">Next games</h3>' + winOutButton(i, left) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
       '<div><div class="scenario"><span>Make playoffs' + (Object.keys(st.picks).length ? ' with your picks' : '') + '</span><b>' + pct(r.playoff) + '</b></div>' +
         '<h3>Seed distribution, % of all simulations</h3>' + histY(maxS, '<div class="hist" role="img" aria-label="Chance of each seed for ' + esc(t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div>') + '</div>' +
     '</div></td></tr>';
@@ -290,7 +294,7 @@
       : '<span>Press a team’s box to cycle its next game through <b>W</b>, <b>L</b>, <b>T</b> (tie) and blank. Its opponent gets the opposite result, and all odds update.</span>';
   }
   var played = D.games.filter(function (g) { return g.s === 'post'; }).length;
-  $('nfl-note').textContent = D.season + ' season · ' + played + ' of ' + D.games.length + ' games played · updated ' +
+  $('nfl-note').textContent = D.season + ' season · ' + played.toLocaleString('en-US') + ' of ' + D.games.length.toLocaleString('en-US') + ' games played · updated ' +
     new Date(D.asOf).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) + ' ET';
 
   // ---------- Bracket: the likeliest field ----------

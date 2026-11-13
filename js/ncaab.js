@@ -70,7 +70,7 @@
   var savedView = store.get('ncaab-view');
   if (VIEWS.some(function (v) { return v[0] === savedView; })) st.view = savedView;
   $('nfl-view').innerHTML = VIEWS.map(function (v, k) { return (k === 3 ? '<optgroup label="Conference">' : '') + '<option value="' + esc(v[0]) + '">' + esc(v[1]) + '</option>' + (k === VIEWS.length - 1 ? '</optgroup>' : ''); }).join('');
-  $('nfl-view').previousElementSibling.textContent = 'Teams';
+  $('nfl-view').previousElementSibling.textContent = 'View';
   $('nfl-view').value = st.view;
 
   function renderHead() {
@@ -200,6 +200,66 @@
       '. The last point is now, with today\'s ' + model + ' ratings.';
     return '<div class="ap-chart"><h3 title="' + esc(how) + '">' + esc(what) + ' over time' + (now != null ? ', now ' + pct(now / 1000) : '') + '</h3>' + oddsChart(i, what) + '</div>';
   }
+  // A y axis for the seed chart: the top of the scale, half of it and zero, with light lines across.
+  function histY(top, plot) {
+    var f = function (x) { return Math.round(x * 100) + '%'; };
+    return '<div class="hist-y"><div class="hist-ax" aria-hidden="true"><span style="top:0">' + f(top) + '</span><span style="top:50%">' + f(top / 2) + '</span><span style="top:100%">0</span></div><div class="hist-plot">' + plot + '</div></div>';
+  }
+  function ordinal(n) { var s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+  // Clear / Win out for a team's games left, as on the college panel.
+  function winOutButton(i, left) {
+    if (!left.length) return '';
+    var on = left.every(function (g) { return st.picks[g.id] === i; }), any = left.some(function (g) { return st.picks[g.id] != null; });
+    var ids = esc(left.map(function (g) { return g.id; }).join(','));
+    return '<span class="sched-btns"><button type="button" class="winout-btn" data-clearteam="' + i + '" data-games="' + ids + '"' + (any ? '' : ' disabled') + '>Clear</button>' +
+      '<button type="button" class="winout-btn" data-winout="' + i + '" data-games="' + ids + '" aria-pressed="' + on + '">Win out</button></span>';
+  }
+  // The tile row, as on the college panel: record, division record, strength of record and of schedule
+  // (each ranked among all Division I teams, by the selected ratings).
+  function resumeTiles(i) {
+    var n = D.teams.length, sd = Math.sqrt(MODEL.gameSD * MODEL.gameSD + 2 * MODEL.teamSD * MODEL.teamSD);
+    var played = D.teams.map(function () { return []; }), leftOpp = D.teams.map(function () { return []; });
+    D.games.forEach(function (g) {
+      if (g.s === 'post') {
+        var r = g.hs > g.as ? 1 : g.hs < g.as ? 0 : 0.5, site = g.neutral || g.n ? 0 : 1;
+        played[g.h].push({ o: g.a, r: r, site: site }); played[g.a].push({ o: g.h, r: 1 - r, site: -site });
+      } else { leftOpp[g.h].push(g.a); leftOpp[g.a].push(g.h); }
+    });
+    var rt = function (x) { return R.teams[x] ? R.teams[x].rating : MODEL.nonD1 != null ? MODEL.nonD1 : 0; };
+    // The level of the last spot in the field: about the 45th-best rating.
+    var bench = R.teams.map(function (_, x) { return rt(x); }).sort(function (a, b) { return b - a; })[44];
+    // Strength of record: the chance that a team at that level does at least as well against this schedule
+    // (a tie counts half). Smaller is harder, so it ranks higher.
+    function sor(x) {
+      var dist = [1];
+      played[x].forEach(function (e) {
+        var p = phi((bench - rt(e.o) + e.site * MODEL.hfa) / sd), nd = new Array(dist.length + 1).fill(0);
+        dist.forEach(function (q, k) { nd[k] += q * (1 - p); nd[k + 1] += q * p; });
+        dist = nd;
+      });
+      var score = played[x].reduce(function (a, e) { return a + e.r; }, 0), above = 0;
+      dist.forEach(function (q, k) { if (k > score + 1e-9) above += q; else if (Math.abs(k - score) < 1e-9) above += q / 2; });
+      return above;
+    }
+    var avg = function (list) { return list.length ? list.reduce(function (a, x) { return a + rt(x); }, 0) / list.length : null; };
+    var sos = function (x) { return avg(played[x].map(function (e) { return e.o; })); };
+    var rankOf = function (fn, better) {
+      var v = fn(i); if (v == null) return null;
+      return 1 + R.teams.filter(function (_, x) { var w = fn(x); return w != null && (better > 0 ? w > v + 1e-9 : w < v - 1e-9); }).length;
+    };
+    var sorRank = played[i].length ? rankOf(sor, -1) : null, sosRank = rankOf(sos, 1);
+    var leftRank = leftOpp[i].length ? 1 + R.teams.filter(function (_, x) { var w = avg(leftOpp[x]); return w != null && w > avg(leftOpp[i]) + 1e-9; }).length : null;
+    var dv = { w: 0, l: 0, t: 0 };
+    played[i].forEach(function (e) { if (D.teams[e.o].conf === D.teams[i].conf) { if (e.r === 1) dv.w++; else if (e.r === 0) dv.l++; else dv.t++; } });
+    var rc = rec[i], recTxt = rc.w + '-' + rc.l + (rc.t ? '-' + rc.t : '');
+    var tile = function (label, title, value) { return '<div><dt><abbr title="' + esc(title) + '">' + label + '</abbr></dt><dd>' + value + '</dd></div>'; };
+    return '<div class="resume"><dl class="rs-tiles nfl-tiles">' +
+      tile('Record', 'Overall record', recTxt) +
+      tile('Conference', 'Record in conference games', dv.w + '-' + dv.l + (dv.t ? '-' + dv.t : '')) +
+      tile('SOR', 'Strength of record: how hard this record would be for a team at the level of the last spot in the field (about the 45th-best rating) to match against this schedule, ranked among all Division I teams (1st = hardest)', sorRank ? ordinal(sorRank) : '—') +
+      tile('SOS', 'Strength of schedule: average rating of opponents played, ranked among all Division I teams (1st = toughest)' + (leftRank ? '; schedule left ranks ' + ordinal(leftRank) : ''), sosRank ? ordinal(sosRank) : '—') +
+    '</dl></div>';
+  }
   function detail(i) {
     var t = D.teams[i], r = R.teams[i];
     var stat = function (label, v) { return '<div><dt>' + label + '</dt><dd>' + v + '</dd></div>'; };
@@ -210,15 +270,19 @@
     var lines = shown.map(function (g) {
       var home = g.h === i, o = D.teams[home ? g.a : g.h], hw = R.homeWin[g.id], p = hw == null ? null : home ? hw : 1 - hw, pk = st.picks[g.id];
       var live = g.s === 'in' ? ' <b class="score-now">' + ((home ? g.hs - g.as : g.as - g.hs) > 0 ? 'Up ' : (home ? g.hs - g.as : g.as - g.hs) < 0 ? 'Down ' : 'Tied ') + (home ? g.hs + '-' + g.as : g.as + '-' + g.hs) + '</b>' : '';
-      return '<span>' + etDate(g.d, { month: 'short', day: 'numeric' }) + ' · ' + (g.n ? 'vs ' : home ? 'vs ' : '@') + logo(o, 18) + esc(o.name) + live + '</span><span>' + (pk != null ? (pk === i ? 'Picked win' : 'Picked loss') : p == null ? '—' : Math.round(p * 100) + '%') + '</span>';
+      var won = pk === i, lost = pk != null && !won, vs = (home ? 'vs ' : '@') + o.ab;
+      var plabel = won ? t.short + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? t.short + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + t.short + ' ' + vs + '. Press to pick a win';
+      var box = '<span class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + i + '" aria-label="' + esc(plabel) + '" title="' + esc(plabel) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></span>';
+      return '<span class="sched-g">' + box + '<span>' + etDate(g.d, { month: 'short', day: 'numeric' }) + ' · ' + (g.n ? 'vs ' : home ? 'vs ' : '@') + logo(o, 18) + esc(o.name) + live + '</span></span><span>' + (p == null ? '—' : Math.round(p * 100) + '%') + '</span>';
     }).join('') + (left.length > shown.length ? '<span class="sched-more">and ' + (left.length - shown.length) + ' more</span><span></span>' : '');
-    var seeds = r.seeds || [], maxS = Math.max.apply(null, seeds.concat(0.0001));
+    var seeds = r.seeds || [], maxS = [0.05, 0.1, 0.2, 0.25, 0.4, 0.5, 0.6, 0.8, 1].find(function (x) { return x >= Math.max.apply(null, seeds.concat(0.0001)) - 1e-9; });
     var bars = seeds.map(function (v, k) { var lab = 'Seed ' + (k + 1) + ': ' + (v * 100).toFixed(1) + '% of simulations'; return '<div title="' + lab + '" aria-label="' + lab + '"><i style="height:' + (v / maxS * 100).toFixed(1) + '%"></i></div>'; }).join('');
     var xs = seeds.map(function (_, k) { return '<span>' + (k + 1) + '</span>'; }).join('');
-    return '<tr class="detail"><td colspan="' + visibleCols() + '">' + stats + '<div class="detail-inner">' +
+    return '<tr class="detail"><td colspan="' + visibleCols() + '">' + stats + '<div class="detail-inner">' + resumeTiles(i) +
       oddsChartBlock(i, 'Make NCAA', 'All models average') +
-      '<div><h3>Next games (chance to win)</h3><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
-      '<div><h3>Seed, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each seed for ' + esc(t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
+      '<div><div class="sched-head"><h3 title="Chance to win each game">Next games</h3>' + winOutButton(i, left) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
+      '<div><div class="scenario"><span>Make NCAA' + (Object.keys(st.picks).length ? ' with your picks' : '') + '</span><b>' + pct(r.make) + '</b></div>' +
+        '<h3>Seed distribution, % of all simulations</h3>' + histY(maxS, '<div class="hist" role="img" aria-label="Chance of each seed for ' + esc(t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div>') + '</div>' +
     '</div></td></tr>';
   }
   function renderPicksBar() {
@@ -472,8 +536,56 @@
     var pos = impactFrozen.pos;
     return games.slice().sort(function (a, b) { return LIVE_RANK[a.s] - LIVE_RANK[b.s] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
   }
+  // The day picker: a strip of seven calendar days around the chosen one, arrows to step a day, and a
+  // calendar for longer jumps. It stands in for the Day dropdown, which stays in the page but hidden.
+  // The month calendar behind the calendar button. st.cal is the month showing ('YYYY-MM'), or null when closed.
+  function addMonth(ym, n) { var t = new Date(Date.UTC(+ym.slice(0, 4), +ym.slice(5, 7) - 1 + n, 1, 12)); return t.toISOString().slice(0, 7); }
+  function calendarHtml(sel, first, last, today) {
+    var ym = st.cal, y = +ym.slice(0, 4), m = +ym.slice(5, 7);
+    var start = new Date(Date.UTC(y, m - 1, 1, 12)), lead = start.getUTCDay(), dim = new Date(Date.UTC(y, m, 0, 12)).getUTCDate();
+    var prev = addMonth(ym, -1), next = addMonth(ym, 1), cells = '';
+    for (var b = 0; b < lead; b++) cells += '<span></span>';
+    for (var d = 1; d <= dim; d++) {
+      var day = ym + '-' + (d < 10 ? '0' : '') + d, off = day < first || day > last;
+      var label = new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' }) + (days[day] ? '' : ', no games');
+      cells += '<button type="button" class="cal-day' + (day === sel ? ' on' : '') + (day === today ? ' today' : '') + (days[day] ? '' : ' empty') + '" data-day="' + day + '"' + (off ? ' disabled' : '') + ' aria-label="' + esc(label) + '">' + d + '</button>';
+    }
+    return '<div class="day-pop" id="day-pop" role="dialog" aria-label="Pick a date">' +
+      '<div class="cal-head"><button type="button" class="cal-nav" data-calmonth="' + prev + '"' + (prev < first.slice(0, 7) ? ' disabled' : '') + ' aria-label="Previous month">\u2039</button>' +
+      '<b>' + esc(start.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })) + '</b>' +
+      '<button type="button" class="cal-nav" data-calmonth="' + next + '"' + (next > last.slice(0, 7) ? ' disabled' : '') + ' aria-label="Next month">\u203a</button></div>' +
+      '<div class="cal-grid">' + ['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(function (x) { return '<span class="cal-dow" aria-hidden="true">' + x + '</span>'; }).join('') + cells + '</div></div>';
+  }
+  function redrawDayStrip() { renderDayStrip(st.day || currentDay(), currentDay()); }
+  function addDays(day, n) { var t = new Date(day + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + n); return t.toISOString().slice(0, 10); }
+  function renderDayStrip(sel, cur) {
+    var el = $('day-strip');
+    if (!el) {
+      var ctl = $('nfl-week').closest('.ctl');
+      el = document.createElement('div'); el.id = 'day-strip'; el.className = 'day-strip'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Day');
+      ctl.hidden = true; ctl.parentNode.insertBefore(el, ctl);
+    }
+    var first = dayList[0].day, last = dayList[dayList.length - 1].day, today = etDay(new Date().toISOString());
+    var fmt = function (day, o) { return new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC' }, o)); };
+    var arrow = function (dir, to) {
+      var off = to < first || to > last;
+      return '<button type="button" class="day-arrow" data-day="' + to + '"' + (off ? ' disabled' : '') + ' aria-label="' + (dir < 0 ? 'Previous day' : 'Next day') + '">' + (dir < 0 ? '\u2039' : '\u203a') + '</button>';
+    };
+    var cells = '', count = {};
+    D.games.forEach(function (g) { count[g.day] = (count[g.day] || 0) + 1; });
+    for (var k = -3; k <= 3; k++) {
+      var day = addDays(sel, k), off = day < first || day > last, on = k === 0, n = count[day] || 0;
+      cells += '<button type="button" class="day-btn' + (day === today ? ' today' : '') + (Math.abs(k) === 3 ? ' far' : Math.abs(k) === 2 ? ' mid' : '') + (days[day] ? '' : ' empty') + '" data-day="' + day + '"' + (off ? ' disabled' : '') +
+        ' aria-pressed="' + on + '" aria-label="' + esc(fmt(day, { weekday: 'long', month: 'long', day: 'numeric' }) + (day === today ? ' (today)' : '') + (days[day] ? '' : ', no games')) + '">' +
+        '<span class="dw">' + fmt(day, { weekday: 'short' }) + '</span><span class="dd">' + fmt(day, { month: 'short', day: 'numeric' }) + '</span><span class="dc">' + (off ? '' : n ? n + (n === 1 ? ' game' : ' games') : 'No games') + '</span></button>';
+    }
+    el.innerHTML = arrow(-1, addDays(sel, -1)) + '<div class="day-cells">' + cells + '</div>' + arrow(1, addDays(sel, 1)) +
+      '<span class="day-jump"><button type="button" class="day-cal" data-cal="1" aria-expanded="' + !!st.cal + '" aria-label="Pick a date" title="Pick a date"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/></svg></button>' + (st.cal ? calendarHtml(sel, first, last, today) : '') + '</span>';
+  }
+  function pickDay(day) { st.cal = null; st.day = day === currentDay() ? null : day; impactFrozen = null; renderScores(); refreshScores(); }
   function renderScores() {
     var cur = currentDay(), sel = st.day || cur;
+    renderDayStrip(sel, cur);
     $('nfl-week').innerHTML = dayList.map(function (x) {
       return '<option value="' + x.day + '"' + (x.day === sel ? ' selected' : '') + '>' + esc(dayLabel(x)) + (x.day === cur ? ' (today)' : '') + '</option>';
     }).join('');
@@ -602,10 +714,19 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
+    if (b.dataset.cal) { st.cal = st.cal ? null : (st.day || currentDay()).slice(0, 7); redrawDayStrip(); return; }
+    if (b.dataset.calmonth) { st.cal = b.dataset.calmonth; redrawDayStrip(); return; }
+    if (b.dataset.day) { pickDay(b.dataset.day); return; }
     if (b.dataset.open != null) { st.open[b.dataset.open] = !st.open[b.dataset.open]; renderRankings(); return; }
     if (b.dataset.pick) {
       var id = b.dataset.pick, me = +b.dataset.team, g = gameById[id], opp = g.h === me ? g.a : g.h;
       if (st.picks[id] == null) st.picks[id] = me; else if (st.picks[id] === me) st.picks[id] = opp; else delete st.picks[id];
+      resimulate();
+    } else if (b.dataset.winout != null || b.dataset.clearteam != null) {
+      // Win out picks every game left as a win for this team (or, when it's on, clears them); Clear drops them.
+      var team = +(b.dataset.winout != null ? b.dataset.winout : b.dataset.clearteam), ids = b.dataset.games.split(',');
+      var on = b.dataset.winout != null && ids.every(function (x) { return st.picks[x] === team; });
+      ids.forEach(function (x) { if (b.dataset.winout != null && !on) st.picks[x] = team; else delete st.picks[x]; });
       resimulate();
     } else if (b.dataset.bkreg != null) {
       st.bkReg = +b.dataset.bkreg; renderBracket();
@@ -630,6 +751,8 @@
   });
   $('nfl-view').addEventListener('change', function (e) { st.view = e.target.value; st.sort = null; st.order = null; store.set('ncaab-view', st.view); renderRankings(); });
   $('nfl-sb-sort').addEventListener('change', function (e) { st.sbSort = e.target.value; impactFrozen = null; renderScores(); });
+  document.addEventListener('click', function (e) { if (st.cal && !e.target.closest('.day-jump')) { st.cal = null; redrawDayStrip(); } });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && st.cal) { st.cal = null; redrawDayStrip(); var c = document.querySelector('.day-cal'); if (c) c.focus(); } });
   $('nfl-week').addEventListener('change', function (e) { st.day = e.target.value === currentDay() ? null : e.target.value; renderScores(); refreshScores(); });
   window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });
   new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });

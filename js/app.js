@@ -143,7 +143,7 @@
       th('conf', 'Conf.', 'l c-cn') + '</th>' +
       th('rec', 'Rec', 'c-rec') + '</th>' +
       th('index', '<abbr title="' + esc(modeName()) + ' rating as last published">Index</abbr>', 'c-idx tc') + '</th>' +
-      '<th class="pick c-pick">Next</th>' +
+      '<th class="pick c-pick" title="Each team’s game in week ' + weekGames().wk + '">Wk ' + weekGames().wk + '</th>' +
       th('cfp', 'Make CFP', 'c-cfp') + '</th>' +
       th('bye', '1st rd bye', 'c-bye sec') + '</th>' +
       th('champ', 'Win conf.', 'c-conf sec') + '</th>' +
@@ -411,8 +411,14 @@
   function scenarioLine(x) {
     return '<div class="scenario"><span>Make CFP' + (hasPicks() ? ' with your picks' : '') + '</span><b>' + pct(x.r.cfp) + '</b></div>';
   }
+  // A y axis for the seed chart: the top of the scale, half of it and zero, with light lines across.
+  function histY(top, plot) {
+    var f = function (v) { return Math.round(v * 100) + '%'; };
+    return '<div class="hist-y"><div class="hist-ax" aria-hidden="true"><span style="top:0">' + f(top) + '</span><span style="top:50%">' + f(top / 2) + '</span><span style="top:100%">0</span></div><div class="hist-plot">' + plot + '</div></div>';
+  }
   function detailBody(x) {
-    var sc = schedule()[x.i], R = x.r, hist = R.hist, maxH = Math.max.apply(null, hist.concat(1)), N = res().sims;
+    var sc = schedule()[x.i], R = x.r, hist = R.hist, N = res().sims;
+    var topS = [0.05, 0.1, 0.2, 0.25, 0.4, 0.5, 0.6, 0.8, 1].find(function (s) { return s >= Math.max.apply(null, hist.concat(0)) / N - 1e-9; }) || 1, maxH = topS * N;
     // Each game left has the same W / L / blank pick box as the table's Next column, so any game can be
     // decided here; the odds, and the seed chart below, re-run with the picks.
     // The next four games; Clear and Win out still cover every game left.
@@ -421,7 +427,7 @@
       var vs = (g.home === -1 ? 'at ' : 'vs ') + (o.ab || o.name);
       var label = won ? x.t.name + ' ' + vs + ' picked to win. Press to pick a loss' : lost ? x.t.name + ' ' + vs + ' picked to lose. Press to clear the pick' : 'No pick for ' + x.t.name + ' ' + vs + '. Press to pick a win';
       var box = '<span class="mini"><button type="button" class="pick-box' + (won ? ' pick-w' : lost ? ' pick-l' : '') + '" data-pick="' + esc(g.id) + '" data-team="' + x.t.id + '" data-opp="' + esc(o.id) + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + (won ? 'W' : lost ? 'L' : '') + '</button></span>';
-      return '<span class="sched-g">' + box + '<span>' + (g.home === 1 ? 'vs ' : g.home === -1 ? 'at ' : 'vs ') + logo(o, 18) + esc(o.name) + (g.s === 'in' ? ' <b class="score-now">' + (g.us > g.them ? 'Up ' : g.us < g.them ? 'Down ' : 'Tied ') + g.us + '-' + g.them + '</b>' : '') + '</span></span><span>' + Math.round(g.p * 100) + '%</span>';
+      return '<span class="sched-g">' + box + '<span>' + (g.d ? shortDay(g.d) + ' · ' : '') + (g.home === -1 ? '@' : 'vs ') + logo(o, 18) + esc(o.name) + (g.s === 'in' ? ' <b class="score-now">' + (g.us > g.them ? 'Up ' : g.us < g.them ? 'Down ' : 'Tied ') + g.us + '-' + g.them + '</b>' : '') + '</span></span><span>' + Math.round(g.p * 100) + '%</span>';
     }).join('') + (sc.length > 4 ? '<span class="sched-more">and ' + (sc.length - 4) + ' more</span><span></span>' : '');
     var bars = hist.map(function (h, i) {
       var label = 'Seed ' + (i + 1) + ': ' + (h / N * 100).toFixed(1) + '% of simulations';
@@ -430,8 +436,8 @@
     var xs = hist.map(function (_, i) { return '<span>' + (i + 1) + '</span>'; }).join('');
     return '<div class="detail-inner">' + resumeBlock(x) +
       oddsChartBlock(x.i, 'Make CFP', 'Massey + Sagarin') +
-      '<div><div class="sched-head"><h3 title="Chance to win each game">Regular season left</h3>' + winOutButton(x, sc) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
-      '<div>' + scenarioLine(x) + '<h3>Seed distribution, % of all simulations</h3><div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div></div>' +
+      '<div><div class="sched-head"><h3 title="Chance to win each game">Next games</h3>' + winOutButton(x, sc) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
+      '<div>' + scenarioLine(x) + '<h3>Seed distribution, % of all simulations</h3>' + histY(topS, '<div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div>') + '</div>' +
     '</div>';
   }
   // The table heading names what's shown: a conference if one is chosen, otherwise the team group.
@@ -667,7 +673,7 @@
     var sf = [bracketGame('sf-0', qf[0].winner, qf[1].winner, false, 'Winner of semifinal 1', sfLine('orange')), bracketGame('sf-1', qf[2].winner, qf[3].winner, false, 'Winner of semifinal 2', sfLine('sugar'))];
     var fin = bracketGame('f', sf[0].winner, sf[1].winner, false, 'Champion', gameLine(BOWLS.title.tv, BOWLS.title.when, bowlChip('title')));
     $('bk-clear').hidden = !Object.keys(st.bkPicks).length; // after the games drop stale picks
-    function round(title, games) { return '<section class="bk-round" aria-label="' + esc(title + ', ' + (ROUND_INFO[title] || '')) + '">' + '<h3>' + esc(title) + '<small>' + ROUND_WHEN[title] + '</small></h3>' + '<div class="bk-games">' + games.map(function (g) { return g.html; }).join('') + '</div></section>'; }
+    function round(title, games) { return '<section class="bk-round" aria-label="' + esc(title + ', ' + (ROUND_INFO[title] || '')) + '">' + '<h3>' + esc(title === 'First round' ? 'First Round' : title) + '<small>' + ROUND_WHEN[title] + '</small></h3>' + '<div class="bk-games">' + games.map(function (g) { return g.html; }).join('') + '</div></section>'; }
     var champ = fin.winner.tbd ? null : fin.winner;
     var titles = s.slice().sort(function (a, b) { return b.x.r.title - a.x.r.title; }).slice(0, 6);
     var champCard = '';
@@ -1133,6 +1139,8 @@
           return;
         }
         fresh.season = D.season; fresh.asOf = new Date().toISOString();
+        // The odds-over-time history comes from the build, indexed by team: carry it over by team id.
+        if (D.hist) { var histAt = {}; D.teams.forEach(function (t, k) { histAt[t.id] = k; }); fresh.hist = Object.assign({}, D.hist, { v: fresh.teams.map(function (t) { var k = histAt[t.id]; return k == null ? null : D.hist.v[k] || null; }) }); }
         st.pendingD = fresh;
         refresh();
       });
