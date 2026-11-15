@@ -32,6 +32,28 @@
     get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   };
+  // Preload the scoreboard in its live order. The last live game state is cached per build, so a reload paints
+  // straight into the final order instead of showing the build's older state and reshuffling when ESPN lands.
+  var SB_KEY = 'ncaab.live';
+  function sbVer() { var s = (document.querySelector('script[src*="js/ncaab.js"]') || {}).src || ''; return (s.split('?v=')[1] || '').replace(/[^a-z0-9]/gi, '') || String(D.asOf || ''); }
+  function saveLive() {
+    try {
+      store.set(SB_KEY, JSON.stringify({
+        v: sbVer(), season: D.season, at: Date.now(),
+        g: D.games.filter(function (g) { return g.s !== 'pre'; }).map(function (g) { return [g.id, g.s, g.hs, g.as, g.clock || '', g.d]; })
+      }));
+    } catch (e) {}
+  }
+  function loadLive() {
+    try {
+      var c = JSON.parse(store.get(SB_KEY) || 'null');
+      if (!c || c.v !== sbVer() || c.season !== D.season) return;
+      if (D.asOf && c.at < Date.parse(D.asOf)) return;
+      if (Date.now() - c.at > 6 * 3600000) return;
+      var m = {}; D.games.forEach(function (g) { m[g.id] = g; });
+      c.g.forEach(function (x) { var g = m[x[0]]; if (!g) return; g.s = x[1]; g.hs = x[2]; g.as = x[3]; g.clock = x[4]; if (x[5]) g.d = x[5]; });
+    } catch (e) {}
+  }
   var CONF = {};
   D.confs.forEach(function (c) { CONF[c.k] = c; });
   function confShort(k) { return (CONF[k] && CONF[k].short) || k; }
@@ -49,6 +71,7 @@
       if (g.hs > g.as) { rec[g.h].w++; rec[g.a].l++; } else { rec[g.a].w++; rec[g.h].l++; }
     });
   }
+  loadLive();
   countRecords();
   function recText(i) { var r = rec[i]; return r.w + '-' + r.l; }
   var gameById = {}, byTeam = D.teams.map(function () { return []; });
@@ -491,17 +514,17 @@
     if (g.s === 'pre') {
       var hw = R.homeWin[g.id], win = hw == null ? '—' : Math.round((g.h === i ? hw : 1 - hw) * 100) + '%';
       var isNext = r && r.next === g.id;
-      return name + '<div class="lg-num">' + win + '</div>' + tile(r ? r.make : null) + tile(isNext ? r.ifWin : null, 'lg-if') + tile(isNext ? r.ifLoss : null, 'lg-if');
+      return name + '<div class="lg-num">' + win + '</div>' + tile(r ? r.make : null) + tile(r ? r.ifWin : null, 'lg-if') + tile(r ? r.ifLoss : null, 'lg-if');
     }
-    var lead = '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + score + '</div>';
-    if (g.s === 'in') {
+    var lead = '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + (score == null ? '' : score) + '</div>';
+    if (sbStat(g) === 'in') {
       var ph = liveHomeWin(g), pw = g.h === i ? ph : 1 - ph, nx = r && r.next === g.id;
-      return name + lead + '<div class="lg-num">' + Math.round(pw * 100) + '%</div>' + tile(r ? makeNow(g, i, pw) : null) + tile(nx ? r.ifWin : null, 'lg-if') + tile(nx ? r.ifLoss : null, 'lg-if');
+      return name + lead + '<div class="lg-num">' + Math.round(pw * 100) + '%</div>' + tile(r ? makeNow(g, i, pw) : null) + tile(r ? r.ifWin : null, 'lg-if') + tile(r ? r.ifLoss : null, 'lg-if');
     }
-    return name + lead + '<div class="lg-num"></div>' + tile(r ? makeNow(g, i) : null);
+    return name + lead + '<div class="lg-num"></div>' + tile(r ? makeNow(g, i) : null) + tile(r ? r.ifWin : null, 'lg-if') + tile(r ? r.ifLoss : null, 'lg-if');
   }
   function card(g) {
-    var isLive = g.s === 'in', isPre = g.s === 'pre';
+    var isLive = sbStat(g) === 'in', isPre = g.s === 'pre';
     var tv = g.tv && g.tv.length && g.s !== 'post' ? '<span class="tv-list net-logos">' + tvBadges(g.tv) + '</span>' : '';
     var wd = etDate(g.d, { weekday: 'short', month: 'short', day: 'numeric' }); // every card names its day and date
     var top = isLive ? '<span class="lg-live"><b><span class="lg-clock">' + esc(g.clock || 'In progress') + '</span></b></span>' + tv :
@@ -510,7 +533,7 @@
     return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
       (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Make NCAA</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
         isLive ? '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h">Win</span><span class="h">Make NCAA</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
-        '<div class="lg-rows"><span></span><span class="h">Score</span><span class="h"></span><span class="h">Make NCAA</span>') +
+        '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h"></span><span class="h">Make NCAA</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>') +
       cardRow(g, g.a, g.as, g.hs) + cardRow(g, g.h, g.hs, g.as) + '</div></article>';
   }
   // Playoff impact: picked games first, then both teams' swing in tournament odds between a win and a loss
@@ -527,6 +550,9 @@
     return swing ? 1 + swing : stake; // a measured swing always ranks ahead of the stake estimate
   }
   var LIVE_RANK = { in: 0, pre: 1, post: 2 }; // score lists: live games first, finals last
+  // A game only counts as live within 6 hours of kickoff; a stale 'in' (caught mid-start by a build) reads as final.
+  function liveNow(g) { return g.s === 'in' && Date.now() - Date.parse(g.d) < 6 * 3600000; }
+  function sbStat(g) { return g.s === 'in' && !liveNow(g) ? 'post' : g.s; }
   var impactFrozen = null; // the Playoff impact order, kept until the sort or day changes
   function frozenImpact(games, key, byTime) {
     if (!impactFrozen || impactFrozen.key !== key) {
@@ -534,7 +560,7 @@
       games.slice().sort(function (a, b) { return impact(b) - impact(a) || byTime(a, b); }).forEach(function (g, n) { impactFrozen.pos[g.id] = n; });
     }
     var pos = impactFrozen.pos;
-    return games.slice().sort(function (a, b) { return LIVE_RANK[a.s] - LIVE_RANK[b.s] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
+    return games.slice().sort(function (a, b) { return LIVE_RANK[sbStat(a)] - LIVE_RANK[sbStat(b)] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
   }
   // The day picker: a strip of seven calendar days around the chosen one, arrows to step a day, and a
   // calendar for longer jumps. It stands in for the Day dropdown, which stays in the page but hidden.
@@ -596,7 +622,7 @@
       $('nfl-scores').innerHTML = games.length ? '<div class="live-group"><div class="live-grid">' + frozenImpact(games, sel + '|' + mode, byTime).map(card).join('') + '</div></div>' : '<p class="live-empty">No games this day.</p>';
       return;
     }
-    var html = group(games.filter(function (g) { return g.s === 'in'; })) + group(games.filter(function (g) { return g.s === 'pre'; })) + group(games.filter(function (g) { return g.s === 'post'; }));
+    var html = group(games.filter(function (g) { return sbStat(g) === 'in'; })) + group(games.filter(function (g) { return sbStat(g) === 'pre'; })) + group(games.filter(function (g) { return sbStat(g) === 'post'; }));
     $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this day.</p>';
   }
   // Live scores for the chosen day straight from ESPN; odds stay as of the last build.
@@ -624,6 +650,7 @@
         $('nfl-live-note').hidden = true;
         countRecords();
         if (newFinal) resimulate(); else { renderScores(); renderRankings(); }
+        saveLive();
       })
       .catch(function () { $('nfl-live-note').hidden = false; $('nfl-live-note').innerHTML = '<b>Couldn’t reach ESPN.</b> Showing the saved scores.'; })
       .then(function () { liveTimer = setTimeout(refreshScores, 60000); });
@@ -633,7 +660,7 @@
   var PAGES = { rankings: 'College basketball NCAA tournament odds · CFP Odds Board', playoff: 'Projected NCAA tournament bracket · CFP Odds Board', scoreboard: 'College basketball scores · CFP Odds Board' };
   function showPage() {
     var h = location.hash.replace('#', '');
-    page = h === 'scores' || h === 'scoreboard' ? 'scoreboard' : PAGES[h] ? h : 'rankings';
+    page = h === 'scores' || h === 'scoreboard' ? 'scoreboard' : PAGES[h] ? h : 'scoreboard';
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== page; });
     [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
       if (a.dataset.page === page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');

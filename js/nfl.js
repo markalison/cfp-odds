@@ -24,6 +24,28 @@
     get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   };
+  // Preload the scoreboard in its live order. The last live game state is cached per build, so a reload paints
+  // straight into the final order instead of showing the build's older state and reshuffling when ESPN lands.
+  var SB_KEY = 'nfl.live';
+  function sbVer() { var s = (document.querySelector('script[src*="js/nfl.js"]') || {}).src || ''; return (s.split('?v=')[1] || '').replace(/[^a-z0-9]/gi, '') || String(D.asOf || ''); }
+  function saveLive() {
+    try {
+      store.set(SB_KEY, JSON.stringify({
+        v: sbVer(), season: D.season, at: Date.now(),
+        g: D.games.filter(function (g) { return g.s !== 'pre'; }).map(function (g) { return [g.id, g.s, g.hs, g.as, g.clock || '', g.d]; })
+      }));
+    } catch (e) {}
+  }
+  function loadLive() {
+    try {
+      var c = JSON.parse(store.get(SB_KEY) || 'null');
+      if (!c || c.v !== sbVer() || c.season !== D.season) return;
+      if (D.asOf && c.at < Date.parse(D.asOf)) return;
+      if (Date.now() - c.at > 6 * 3600000) return;
+      var m = {}; D.games.forEach(function (g) { m[g.id] = g; });
+      c.g.forEach(function (x) { var g = m[x[0]]; if (!g) return; g.s = x[1]; g.hs = x[2]; g.as = x[3]; g.clock = x[4]; if (x[5]) g.d = x[5]; });
+    } catch (e) {}
+  }
 
   // Records from finished games, as of the last build.
   // Records count every final, including games that finished after the last build (live scores).
@@ -519,18 +541,18 @@
     if (g.s === 'pre') {
       var hw = R.homeWin[g.id], win = hw == null ? '—' : Math.round((g.h === i ? hw : 1 - hw) * 100) + '%';
       var isNext = r.next === g.id;
-      return name + '<div class="lg-num">' + win + '</div>' + tile(r.playoff) + tile(isNext ? r.ifWin : null, 'lg-if') + tile(isNext ? r.ifLoss : null, 'lg-if');
+      return name + '<div class="lg-num">' + win + '</div>' + tile(r.playoff) + tile(r.ifWin, 'lg-if') + tile(r.ifLoss, 'lg-if');
     }
-    var lead = '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + score + '</div>';
-    if (g.s === 'in') {
+    var lead = '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + (score == null ? '' : score) + '</div>';
+    if (sbStat(g) === 'in') {
       var ph = liveHomeWin(g), pw = g.h === i ? ph : 1 - ph, nx = r.next === g.id;
-      return name + lead + '<div class="lg-num">' + Math.round(pw * 100) + '%</div>' + tile(playoffNow(g, i, pw)) + tile(nx ? r.ifWin : null, 'lg-if') + tile(nx ? r.ifLoss : null, 'lg-if');
+      return name + lead + '<div class="lg-num">' + Math.round(pw * 100) + '%</div>' + tile(playoffNow(g, i, pw)) + tile(r.ifWin, 'lg-if') + tile(r.ifLoss, 'lg-if');
     }
-    return name + lead + '<div class="lg-num"></div>' + tile(playoffNow(g, i));
+    return name + lead + '<div class="lg-num"></div>' + tile(playoffNow(g, i)) + tile(r.ifWin, 'lg-if') + tile(r.ifLoss, 'lg-if');
   }
   function card(g) {
-    var isLive = g.s === 'in', isPre = g.s === 'pre';
-    var tv = g.s !== 'post' ? '<span class="tv-list net-logos">' + (g.tv && g.tv.length ? tvBadges(g.tv) : '<span class="tv-name tv-tba">TV TBA</span>') + '</span>' : '';
+    var isLive = sbStat(g) === 'in', isPre = g.s === 'pre';
+    var tv = (isLive || isPre) ? '<span class="tv-list net-logos">' + (g.tv && g.tv.length ? tvBadges(g.tv) : '<span class="tv-name tv-tba">TV TBA</span>') + '</span>' : '';
     var wd = etDate(g.d, { weekday: 'short', month: 'short', day: 'numeric' }); // every card names its day and date
     var top = isLive ? '<span class="lg-live"><b><span class="lg-clock">' + esc(g.clock || 'In progress') + '</span></b></span>' + tv :
       isPre ? '<b class="lg-kickoff">' + wd + ', ' + etTime(g.d) + ' ET</b>' + tv :
@@ -538,7 +560,7 @@
     return '<article class="lg' + (isLive ? ' on' : '') + '"><div class="lg-top">' + top + '</div>' +
       (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
         isLive ? '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h">Win</span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
-        '<div class="lg-rows"><span></span><span class="h">Score</span><span class="h"></span><span class="h">Playoffs</span>') +
+        '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h"></span><span class="h">Playoffs</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>') +
       cardRow(g, g.a, g.as, g.hs) + cardRow(g, g.h, g.hs, g.as) + '</div></article>';
   }
   // Sort by Playoff impact (Start time is the default): picked games first, then the swing in playoff
@@ -555,6 +577,9 @@
     return swing ? 1 + swing : stake; // a measured swing always ranks ahead of the stake estimate
   }
   var LIVE_RANK = { in: 0, pre: 1, post: 2 }; // score lists: live games first, finals last
+  // A game only counts as live within 6 hours of kickoff; a stale 'in' (caught mid-start by a build) reads as final.
+  function liveNow(g) { return g.s === 'in' && Date.now() - Date.parse(g.d) < 6 * 3600000; }
+  function sbStat(g) { return g.s === 'in' && !liveNow(g) ? 'post' : g.s; }
   var impactFrozen = null;
   // Sorts by impact the first time, then keeps that order (games going live or final and new odds don't move it).
   function frozenImpact(games, key, byTime) {
@@ -563,14 +588,69 @@
       games.slice().sort(function (a, b) { return impact(b) - impact(a) || byTime(a, b); }).forEach(function (g, n) { impactFrozen.pos[g.id] = n; });
     }
     var pos = impactFrozen.pos;
-    return games.slice().sort(function (a, b) { return LIVE_RANK[a.s] - LIVE_RANK[b.s] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
+    return games.slice().sort(function (a, b) { return LIVE_RANK[sbStat(a)] - LIVE_RANK[sbStat(b)] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || byTime(a, b); });
   } // the Playoff impact order, kept until the sort or week changes
+  // The Scores picker: a strip of game days (seven around the chosen one, arrows to step a day) and a calendar
+  // button that lists the weeks. It stands in for the Week dropdown, which stays in the page but hidden.
+  function sbDayKey(g) { return g._day || (g._day = new Date(g.d).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })); }
+  // Every day with games (those passing keep), in order, each with its week and its games.
+  function gameDays(keep) {
+    var m = {};
+    D.games.forEach(function (g) { if (g.wk == null || (keep && !keep(g))) return; var k = sbDayKey(g); (m[k] = m[k] || { day: k, wk: g.wk, games: [] }).games.push(g); });
+    return Object.keys(m).sort().map(function (k) { return m[k]; });
+  }
+  // The day a week opens on: its first day; for the current week, the latest day under way, moving on to the
+  // next once that day's games are all over.
+  function defaultDay(days, wk, isCurrent) {
+    var dl = days.filter(function (d) { return d.wk === wk; });
+    if (!dl.length) return null;
+    if (!isCurrent) return dl[0].day;
+    var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }), now = Date.now(), k = 0;
+    dl.forEach(function (d, n) { if (d.day <= today) k = n; });
+    var over = dl[k].games.every(function (g) { return g.s === 'post' || Date.parse(g.d) < now - 5 * 3600000; });
+    return (over && dl[k + 1] ? dl[k + 1] : dl[k]).day;
+  }
+  function renderDayStrip(el, days, selDay, weeks, selWk, curWk, calOpen) {
+    var at = Math.max(0, days.map(function (d) { return d.day; }).indexOf(selDay)), cells = '';
+    var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    var fmt = function (day, o) { return new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC' }, o)); };
+    var md = function (d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }); };
+    var range = function (w) { var a = md(w.first), b = md(w.last); if (a === b) return a; if (a.split(' ')[0] === b.split(' ')[0]) b = b.split(' ')[1]; return a + '\u2013' + b; };
+    var arrow = function (dir) {
+      var d = days[at + dir];
+      return '<button type="button" class="day-arrow"' + (d ? ' data-gday="' + d.day + '"' : ' disabled') + ' aria-label="' + (dir < 0 ? 'Previous game day' : 'Next game day') + '">' + (dir < 0 ? '\u2039' : '\u203a') + '</button>';
+    };
+    for (var k = -3; k <= 3; k++) {
+      var d = days[at + k], cls = Math.abs(k) === 3 ? ' far' : Math.abs(k) === 2 ? ' mid' : '';
+      if (!d) { cells += '<button type="button" class="day-btn' + cls + '" disabled aria-hidden="true" tabindex="-1"></button>'; continue; }
+      var n = d.games.length;
+      cells += '<button type="button" class="day-btn' + cls + (d.day === today ? ' today' : '') + '" data-gday="' + d.day + '" aria-pressed="' + (k === 0) + '" aria-label="' + esc(fmt(d.day, { weekday: 'long', month: 'long', day: 'numeric' }) + ', week ' + d.wk + (d.day === today ? ' (today)' : '')) + '">' +
+        '<span class="dw">' + fmt(d.day, { weekday: 'short' }) + '</span><span class="dd">' + fmt(d.day, { month: 'short', day: 'numeric' }) + '</span><span class="dc">' + n + (n === 1 ? ' game' : ' games') + '</span></button>';
+    }
+    var pop = calOpen ? '<div class="day-pop wk-pop" id="day-pop" role="dialog" aria-label="Pick a week"><div class="wk-list">' + weeks.map(function (w) {
+      return '<button type="button" class="wk-row' + (w.wk === selWk ? ' on' : '') + (w.wk === curWk ? ' today' : '') + '" data-week="' + w.wk + '"><b>Week ' + w.wk + '</b><span>' + esc(range(w)) + '</span></button>';
+    }).join('') + '</div></div>' : '';
+    el.innerHTML = arrow(-1) + '<div class="day-cells">' + cells + '</div>' + arrow(1) +
+      '<span class="day-jump"><button type="button" class="day-cal" data-cal="1" aria-expanded="' + !!calOpen + '" aria-label="Pick a week" title="Pick a week"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/></svg></button>' + pop + '</span>';
+    var on = el.querySelector('.wk-row.on'); if (on) on.parentNode.scrollTop = on.offsetTop - 90;
+  }
+  function weekStripEl(before, hide) {
+    var el = $('day-strip');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'day-strip'; el.className = 'day-strip week-strip'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Week');
+      hide.hidden = true; before.parentNode.insertBefore(el, before);
+    }
+    return el;
+  }
   function renderScores() {
     var cur = currentWeek(), sel = st.week || cur;
+    var weekCtl = $('nfl-week').closest('.ctl');
+    var allDays = gameDays(), selDay = st.day && allDays.some(function (d) { return d.day === st.day && d.wk === sel; }) ? st.day : defaultDay(allDays, sel, sel === cur);
+    renderDayStrip(weekStripEl(weekCtl, weekCtl), allDays, selDay, weekList, sel, cur, st.cal);
     $('nfl-week').innerHTML = weekList.map(function (w) {
       return '<option value="' + w.wk + '"' + (w.wk === sel ? ' selected' : '') + '>' + esc(weekLabel(w)) + (w.wk === cur ? ' (current)' : '') + '</option>';
     }).join('');
-    var games = D.games.filter(function (g) { return g.wk === sel; });
+    var games = D.games.filter(function (g) { return g.wk === sel && sbDayKey(g) === selDay; });
     var byTime = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
     var order = st.sbSort !== 'impact' ? byTime : function (a, b) { return impact(b) - impact(a) || byTime(a, b); };
     var group = function (list, title) { return list.length ? '<div class="live-group">' + (title ? '<h4>' + title + '</h4>' : '') + '<div class="live-grid">' + list.sort(order).map(card).join('') + '</div></div>' : ''; };
@@ -582,13 +662,13 @@
         return group(m[k], etDate(m[k][0].d, { weekday: 'long', month: 'short', day: 'numeric' }) + (tag ? ' · ' + tag : ''));
       }).join('');
     };
-    var live = games.filter(function (g) { return g.s === 'in'; });
+    var live = games.filter(function (g) { return sbStat(g) === 'in'; });
     if (st.sbSort === 'impact') {
-      $('nfl-scores').innerHTML = games.length ? '<div class="live-group"><div class="live-grid">' + frozenImpact(games, sel, byTime).map(card).join('') + '</div></div>' : '<p class="live-empty">No games this week.</p>';
+      $('nfl-scores').innerHTML = games.length ? '<div class="live-group"><div class="live-grid">' + frozenImpact(games, selDay, byTime).map(card).join('') + '</div></div>' : '<p class="live-empty">No games this day.</p>';
       return;
     }
-    var html = group(live, live.length ? 'In progress' : '') + byDay(games.filter(function (g) { return g.s === 'pre'; }), '') + byDay(games.filter(function (g) { return g.s === 'post'; }), 'Final');
-    $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this week.</p>';
+    var html = group(live, live.length ? 'In progress' : '') + byDay(games.filter(function (g) { return sbStat(g) === 'pre'; }), '') + byDay(games.filter(function (g) { return sbStat(g) === 'post'; }), 'Final');
+    $('nfl-scores').innerHTML = html || '<p class="live-empty">No games this day.</p>';
   }
   // Live scores for the chosen week straight from ESPN; odds stay as of the last build.
   var liveTimer = null, page = 'rankings';
@@ -616,6 +696,7 @@
         $('nfl-live-note').hidden = true;
         countRecords();
         if (newFinal) resimulate(); else { renderScores(); renderRankings(); }
+        saveLive();
       })
       .catch(function () { $('nfl-live-note').hidden = false; $('nfl-live-note').innerHTML = '<b>Couldn’t reach ESPN.</b> Showing the saved scores.'; })
       .then(function () { liveTimer = setTimeout(refreshScores, 60000); });
@@ -625,7 +706,7 @@
   var PAGES = { rankings: 'NFL standings and playoff odds · CFP Odds Board', playoff: 'NFL playoff bracket · CFP Odds Board', scoreboard: 'NFL scores · CFP Odds Board' };
   function showPage() {
     var h = location.hash.replace('#', '');
-    page = h === 'scores' || h === 'scoreboard' ? 'scoreboard' : PAGES[h] ? h : 'rankings';
+    page = h === 'scores' || h === 'scoreboard' ? 'scoreboard' : PAGES[h] ? h : 'scoreboard';
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== page; });
     [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
       if (a.dataset.page === page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
@@ -711,6 +792,9 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
+    if (b.dataset.cal) { st.cal = !st.cal; renderScores(); return; }
+    if (b.dataset.gday) { var gd = gameDays().filter(function (d) { return d.day === b.dataset.gday; })[0]; if (!gd) return; st.cal = false; st.day = gd.day; st.week = gd.wk === currentWeek() ? null : gd.wk; impactFrozen = null; renderScores(); refreshScores(); return; }
+    if (b.dataset.week) { st.cal = false; st.day = null; st.week = +b.dataset.week === currentWeek() ? null : +b.dataset.week; impactFrozen = null; renderScores(); refreshScores(); return; }
     if (b.dataset.open != null) { st.open[b.dataset.open] = !st.open[b.dataset.open]; renderRankings(); return; }
     if (b.dataset.pick) {
       // Each press cycles this team through W, L, T (tie) and blank; its opponent gets the opposite result.
@@ -745,11 +829,15 @@
   });
   $('nfl-view').addEventListener('change', function (e) { st.view = e.target.value; st.sort = null; store.set('nfl-view', st.view); renderRankings(); });
   $('nfl-sb-sort').addEventListener('change', function (e) { st.sbSort = e.target.value; impactFrozen = null; renderScores(); });
+  document.addEventListener('click', function (e) { if (st.cal && !e.target.closest('.day-jump')) { st.cal = false; renderScores(); } });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && st.cal) { st.cal = false; renderScores(); var c = document.querySelector('.day-cal'); if (c) c.focus(); } });
   $('nfl-week').addEventListener('change', function (e) { st.week = +e.target.value === currentWeek() ? null : +e.target.value; renderScores(); refreshScores(); });
   window.addEventListener('hashchange', function () { showPage(); window.scrollTo(0, 0); });
   // Dark and light logos differ, so redraw when the theme changes.
   new MutationObserver(renderAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (e) {}
+  loadLive();
+  countRecords();
   renderAll();
   showPage();
 })();

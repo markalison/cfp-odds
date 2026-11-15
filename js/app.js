@@ -9,6 +9,31 @@
   var st = { mode: 'blend', picks: {}, bkPicks: {}, sort: 'team', dir: 1, open: {}, conf: '', view: 'all', q: '', live: 'pending', running: false };
   var schedCache = {}, worker = null;
   var $ = function (id) { return document.getElementById(id); };
+  // Preload the scoreboard in its live order. The last live game state is cached per build, so a reload paints
+  // straight into the final order (live games grouped, scores in) instead of showing the build's older state and
+  // then visibly reshuffling a couple of seconds later when the ESPN refresh lands. The background refresh still
+  // runs and corrects the odds in place. Cache is tied to the build version and the build's own freshness, so a
+  // newer build always wins and a stale cache is ignored.
+  var SB_KEY = 'cfb.live';
+  function sbVer() { var s = (document.querySelector('script[src*="js/app.js"]') || {}).src || ''; return (s.split('?v=')[1] || '').replace(/[^a-z0-9]/gi, '') || String(D.asOf || ''); }
+  function saveLive() {
+    try {
+      localStorage.setItem(SB_KEY, JSON.stringify({
+        v: sbVer(), season: D.season, at: Date.now(),
+        g: D.games.filter(function (g) { return g.s !== 'pre'; }).map(function (g) { return [g.id, g.s, g.hs, g.as, g.clock || '', g.d]; })
+      }));
+    } catch (e) {}
+  }
+  function loadLive() {
+    try {
+      var c = JSON.parse(localStorage.getItem(SB_KEY) || 'null');
+      if (!c || c.v !== sbVer() || c.season !== D.season) return;
+      if (D.asOf && c.at < Date.parse(D.asOf)) return;   // the build is newer than this cache
+      if (Date.now() - c.at > 6 * 3600000) return;        // too old to trust a live status
+      var m = {}; D.games.forEach(function (g) { m[g.id] = g; });
+      c.g.forEach(function (x) { var g = m[x[0]]; if (!g) return; g.s = x[1]; g.hs = x[2]; g.as = x[3]; g.clock = x[4]; if (x[5]) g.d = x[5]; });
+    } catch (e) {}
+  }
   var esc = function (s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 
   function isDark() { return /dark/.test(getComputedStyle(document.documentElement).colorScheme); }
@@ -760,13 +785,13 @@
     if (g.s === 'pre') {
       var ifW = null, ifL = null;
       if (r && st.picks[g.id]) { if (st.picks[g.id] === t.id) ifW = r.cfp; else ifL = r.cfp; }
-      else if (r && nx && nx.id === g.id) { ifW = r.ifNext; ifL = r.ifLose; }
+      else if (r) { ifW = r.ifNext; ifL = r.ifLose; }
       return name + '<div class="lg-num">' + win + '</div>' + tile(r ? r.cfp : null) + tile(ifW, 'lg-if') + tile(ifL, 'lg-if');
     }
     return name +
-      '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + score + '</div>' +
+      '<div class="lg-score' + (score >= other ? ' lead' : '') + '">' + (score == null ? '' : score) + '</div>' +
       '<div class="lg-num">' + win + '</div>' +
-      tile(r ? r.cfp : null);
+      tile(r ? r.cfp : null) + tile(r ? r.ifNext : null, 'lg-if') + tile(r ? r.ifLose : null, 'lg-if');
   }
   // Pre-game win chance for the home team, from the selected ratings. FCS teams use their Massey rating.
   function pregameHome(g) {
@@ -819,10 +844,10 @@
     }).join('');
   }
   function liveCard(g) {
-    var isLive = g.s === 'in', isPre = g.s === 'pre';
+    var isLive = sbStat(g) === 'in', isPre = g.s === 'pre';
     var u = upset(g);
     // The network matters for games still to come or under way, not for finals.
-    var tv = g.s !== 'post' ? '<span class="tv-list net-logos">' + (g.tv && g.tv.length ? tvBadges(g.tv) : '<span class="tv-name tv-tba">TV TBA</span>') + '</span>' : '';
+    var tv = (isLive || isPre) ? '<span class="tv-list net-logos">' + (g.tv && g.tv.length ? tvBadges(g.tv) : '<span class="tv-name tv-tba">TV TBA</span>') + '</span>' : '';
     var wd = new Date(g.d).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', timeZone: 'America/New_York' }); // every card names its day and date
     var top = isLive ? '<span class="lg-live"><b><span class="lg-clock">' + esc(clock(g)) + '</span></b>' + (u ? '<span class="upset-pill">UPSET ALERT</span>' : '') + '</span>' + tv :
       // Upcoming: the kickoff on the left, where "Kickoff" used to be; the network stays top right.
@@ -832,7 +857,7 @@
     return '<article class="lg' + (isLive ? ' on' : '') + '">' +
       '<div class="lg-top">' + top + '</div>' +
       (isPre ? '<div class="lg-rows pre"><span></span><span class="h">Win</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>' :
-        '<div class="lg-rows"><span></span><span class="h">Score</span><span class="h">' + (isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span>') +
+        '<div class="lg-rows inplay"><span></span><span class="h">Score</span><span class="h">' + (isLive ? 'Win' : '') + '</span><span class="h">Make CFP</span><span class="h lg-if">If win</span><span class="h lg-if">If loss</span>') +
         liveRow(g, g.a, isPre ? '' : g.as, isPre ? '' : g.hs) + liveRow(g, g.h, isPre ? '' : g.hs, isPre ? '' : g.as) +
       '</div>' +
     '</article>';
@@ -849,6 +874,9 @@
   // The build measures the default ratings' current and next week ahead of time (g.sw), so those show their
   // final order straight away.
   var LIVE_RANK = { in: 0, pre: 1, post: 2 }; // score lists: live games first, finals last
+  // A game only counts as live within 6 hours of kickoff; a stale 'in' (caught mid-start by a build) reads as final.
+  function liveNow(g) { return g.s === 'in' && Date.now() - Date.parse(g.d) < 6 * 3600000; }
+  function sbStat(g) { return g.s === 'in' && !liveNow(g) ? 'post' : g.s; }
   var swings = { key: null, worker: null }, swingCache = {}, impactFrozen = null;
   function gameSwings(games) {
     if (!games.length) return null;
@@ -908,9 +936,65 @@
   // Live games first, then games still to come, then finals, for the chosen week; each group by start time
   // (the default) or by playoff impact.
   // With no week chosen it follows the current week, which moves on when next week's first game kicks off.
+  // The Scores picker: a strip of game days (seven around the chosen one, arrows to step a day) and a calendar
+  // button that lists the weeks. It stands in for the Week dropdown, which stays in the page but hidden.
+  function sbDayKey(g) { return g._day || (g._day = new Date(g.d).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })); }
+  // Every day with games (those passing keep), in order, each with its week and its games.
+  function gameDays(keep) {
+    var m = {};
+    D.games.forEach(function (g) { if (g.wk == null || (keep && !keep(g))) return; var k = sbDayKey(g); (m[k] = m[k] || { day: k, wk: g.wk, games: [] }).games.push(g); });
+    return Object.keys(m).sort().map(function (k) { return m[k]; });
+  }
+  // The day a week opens on: its first day; for the current week, the latest day under way, moving on to the
+  // next once that day's games are all over.
+  function defaultDay(days, wk, isCurrent) {
+    var dl = days.filter(function (d) { return d.wk === wk; });
+    if (!dl.length) return null;
+    if (!isCurrent) return dl[0].day;
+    var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' }), now = Date.now(), k = 0;
+    dl.forEach(function (d, n) { if (d.day <= today) k = n; });
+    var over = dl[k].games.every(function (g) { return g.s === 'post' || Date.parse(g.d) < now - 5 * 3600000; });
+    return (over && dl[k + 1] ? dl[k + 1] : dl[k]).day;
+  }
+  function renderDayStrip(el, days, selDay, weeks, selWk, curWk, calOpen) {
+    var at = Math.max(0, days.map(function (d) { return d.day; }).indexOf(selDay)), cells = '';
+    var today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+    var fmt = function (day, o) { return new Date(day + 'T12:00:00Z').toLocaleDateString('en-US', Object.assign({ timeZone: 'UTC' }, o)); };
+    var md = function (d) { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'America/New_York' }); };
+    var range = function (w) { var a = md(w.first), b = md(w.last); if (a === b) return a; if (a.split(' ')[0] === b.split(' ')[0]) b = b.split(' ')[1]; return a + '\u2013' + b; };
+    var arrow = function (dir) {
+      var d = days[at + dir];
+      return '<button type="button" class="day-arrow"' + (d ? ' data-gday="' + d.day + '"' : ' disabled') + ' aria-label="' + (dir < 0 ? 'Previous game day' : 'Next game day') + '">' + (dir < 0 ? '\u2039' : '\u203a') + '</button>';
+    };
+    for (var k = -3; k <= 3; k++) {
+      var d = days[at + k], cls = Math.abs(k) === 3 ? ' far' : Math.abs(k) === 2 ? ' mid' : '';
+      if (!d) { cells += '<button type="button" class="day-btn' + cls + '" disabled aria-hidden="true" tabindex="-1"></button>'; continue; }
+      var n = d.games.length;
+      cells += '<button type="button" class="day-btn' + cls + (d.day === today ? ' today' : '') + '" data-gday="' + d.day + '" aria-pressed="' + (k === 0) + '" aria-label="' + esc(fmt(d.day, { weekday: 'long', month: 'long', day: 'numeric' }) + ', week ' + d.wk + (d.day === today ? ' (today)' : '')) + '">' +
+        '<span class="dw">' + fmt(d.day, { weekday: 'short' }) + '</span><span class="dd">' + fmt(d.day, { month: 'short', day: 'numeric' }) + '</span><span class="dc">' + n + (n === 1 ? ' game' : ' games') + '</span></button>';
+    }
+    var pop = calOpen ? '<div class="day-pop wk-pop" id="day-pop" role="dialog" aria-label="Pick a week"><div class="wk-list">' + weeks.map(function (w) {
+      return '<button type="button" class="wk-row' + (w.wk === selWk ? ' on' : '') + (w.wk === curWk ? ' today' : '') + '" data-week="' + w.wk + '"><b>Week ' + w.wk + '</b><span>' + esc(range(w)) + '</span></button>';
+    }).join('') + '</div></div>' : '';
+    el.innerHTML = arrow(-1) + '<div class="day-cells">' + cells + '</div>' + arrow(1) +
+      '<span class="day-jump"><button type="button" class="day-cal" data-cal="1" aria-expanded="' + !!calOpen + '" aria-label="Pick a week" title="Pick a week"><svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="14" height="12.5" rx="2"/><path d="M3 8.5h14M7 2.5v4M13 2.5v4"/></svg></button>' + pop + '</span>';
+    var on = el.querySelector('.wk-row.on'); if (on) on.parentNode.scrollTop = on.offsetTop - 90;
+  }
+  function weekStripEl(before, hide) {
+    var el = $('day-strip');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'day-strip'; el.className = 'day-strip week-strip'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Week');
+      hide.hidden = true; before.parentNode.insertBefore(el, before);
+    }
+    return el;
+  }
   function renderLive() {
     var weeks = scoreWeeks(), current = scoreWeek();
     var sel = st.sbWeek != null && weeks.some(function (w) { return w.wk === st.sbWeek; }) ? st.sbWeek : current;
+    // Under the Conference and Sort row, above the games, as on the league pages.
+    var allDays = gameDays(function (g) { return g.h < D.fbs || g.a < D.fbs; });
+    var selDay = st.sbDay && allDays.some(function (d) { return d.day === st.sbDay && d.wk === sel; }) ? st.sbDay : defaultDay(allDays, sel, sel === current);
+    renderDayStrip(weekStripEl($('live-board'), $('sb-week').closest('.filters')), allDays, selDay, weeks, sel, current, st.sbCal);
     $('sb-week').innerHTML = weeks.map(function (w) {
       return '<option value="' + w.wk + '"' + (w.wk === sel ? ' selected' : '') + '>' + esc(weekLabel(w)) + (w.wk === current ? ' (current)' : '') + '</option>';
     }).join('');
@@ -921,7 +1005,7 @@
       var h = D.teams[g.h], a = D.teams[g.a];
       return sbGroup ? (g.h < D.fbs && inGroup(h, sbGroup)) || (g.a < D.fbs && inGroup(a, sbGroup)) : h.conf === sbConf || a.conf === sbConf;
     };
-    var inWeek = function (g) { return g.wk === sel && (g.h < D.fbs || g.a < D.fbs); };
+    var inWeek = function (g) { return g.wk === sel && (g.h < D.fbs || g.a < D.fbs) && sbDayKey(g) === selDay; };
     var counts = function (g) { return inWeek(g) && inConf(g); };
     var R = res();
     var best = function (g) { return Math.max(g.h < D.fbs ? R.teams[g.h].cfp : 0, g.a < D.fbs ? R.teams[g.a].cfp : 0); };
@@ -933,9 +1017,9 @@
     var swing = function (g) { return sw ? sw[g.id] || 0 : g.s === 'post' ? best(g) : stake(g); };
     var impact = function (a, b) { return (st.picks[b.id] ? 1 : 0) - (st.picks[a.id] ? 1 : 0) || swing(b) - swing(a) || best(b) - best(a); };
     var order = byTime ? function (a, b) { return kickoff(a, b) || best(b) - best(a); } : function (a, b) { return impact(a, b) || kickoff(a, b); };
-    var live = D.games.filter(function (g) { return g.s === 'in' && counts(g); }).sort(order);
-    var later = D.games.filter(function (g) { return g.s === 'pre' && counts(g); }).sort(byTime ? order : function (a, b) { return impact(a, b) || kickoff(a, b); });
-    var done = D.games.filter(function (g) { return g.s === 'post' && counts(g); }).sort(byTime ? order : function (a, b) { return swing(b) - swing(a) || kickoff(a, b); });
+    var live = D.games.filter(function (g) { return sbStat(g) === 'in' && counts(g); }).sort(order);
+    var later = D.games.filter(function (g) { return sbStat(g) === 'pre' && counts(g); }).sort(byTime ? order : function (a, b) { return impact(a, b) || kickoff(a, b); });
+    var done = D.games.filter(function (g) { return sbStat(g) === 'post' && counts(g); }).sort(byTime ? order : function (a, b) { return swing(b) - swing(a) || kickoff(a, b); });
     function group(title, games, note) {
       return games.length ? '<div class="live-group">' + (title ? '<h4>' + title + '</h4>' : '') + (note ? '<p class="live-note">' + note + '</p>' : '') + '<div class="live-grid">' + games.map(liveCard).join('') + '</div></div>' : '';
     }
@@ -958,7 +1042,7 @@
     // odds or picks don't reshuffle it) until the sort, week, conference or ratings change.
     if (!byTime) {
       // Sorted before a newly chosen model's odds were in, it sorts once more when they land; never after that.
-      var all = D.games.filter(counts), fkey = sel + '|' + sbConf + '|' + st.mode, ready = !!results[st.mode];
+      var all = D.games.filter(counts), fkey = sel + '|' + selDay + '|' + sbConf + '|' + st.mode, ready = !!results[st.mode];
       if (!impactFrozen || impactFrozen.key !== fkey || (!impactFrozen.ready && ready)) {
         impactFrozen = null;
         {
@@ -969,28 +1053,29 @@
         }
       }
       var pos = impactFrozen ? impactFrozen.pos : {};
-      all.sort(function (a, b) { return LIVE_RANK[a.s] - LIVE_RANK[b.s] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || kickoff(a, b); });
+      all.sort(function (a, b) { return LIVE_RANK[sbStat(a)] - LIVE_RANK[sbStat(b)] || (pos[a.id] == null ? 1e4 : pos[a.id]) - (pos[b.id] == null ? 1e4 : pos[b.id]) || kickoff(a, b); });
       $('live-board').innerHTML = all.length ? group('', all, 'Biggest combined swing in both teams’ playoff odds first.') :
-        '<p class="live-empty">No ' + who + 'games in week ' + sel + '.' + (nextText ? ' ' + nextText : '') + '</p>';
+        '<p class="live-empty">No ' + who + 'games on this day.' + (nextText ? ' ' + nextText : '') + '</p>';
       return;
     }
     $('live-board').innerHTML =
       (live.length || later.length || done.length ?
         group(live.length ? 'In progress' : '', live, impactNote) + byDay(later, '', live.length ? '' : impactNote) + byDay(done, 'Final', live.length || later.length ? '' : impactNote) :
-        '<p class="live-empty">No ' + who + 'games in week ' + sel + '.' + (nextText ? ' ' + nextText : '') + '</p>');
+        '<p class="live-empty">No ' + who + 'games on this day.' + (nextText ? ' ' + nextText : '') + '</p>');
   }
   // Views: Rankings (default), Playoff and Scoreboard, chosen by the address's #. About is its own page.
-  var PAGES = { rankings: 'CFP Odds Board', playoff: 'Playoff bracket · CFP Odds Board', scoreboard: 'Scores · CFP Odds Board' };
+  var PAGES = { rankings: 'CFP Odds Board', playoff: 'Playoff bracket · CFP Odds Board', scoreboard: 'Scores · CFP Odds Board', history: 'College football Elo history · CFP Odds Board' };
   var INTRO = {
     rankings: ['College Football Playoff odds', 'Each team’s chance of making the 12-team playoff, from simulating every remaining game, conference title game and committee ranking.'],
     playoff: ['Projected playoff', 'The most likely 12-team field in its bracket. Simulate the games to see who’s favored in each round.'],
-    scoreboard: ['Scores', 'Today\u2019s games, with each team\u2019s win chance and what the result means for its playoff odds.']
+    scoreboard: ['Scores', 'Today\u2019s games, with each team\u2019s win chance and what the result means for its playoff odds.'],
+    history: ['College football Elo history', 'Every major-college team\u2019s Elo rating after each game since 1869.']
   };
   var OLD_HASH = { odds: 'rankings', live: 'scoreboard', scores: 'scoreboard' }; // names used by earlier versions of the site
   function showPage() {
     var hash = location.hash.replace('#', ''), p = OLD_HASH[hash] || hash;
     if (hash === 'about') { location.replace('about.html'); return hash; } // older links
-    if (!PAGES[p]) p = 'rankings';
+    if (!PAGES[p]) p = 'scoreboard'; // Scores is the landing view
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== p; });
     [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
       if (a.dataset.page === p) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
@@ -998,6 +1083,8 @@
     document.title = PAGES[p];
     // Each view gets its own title and intro.
     $('page-title').textContent = INTRO[p][0];
+    // The history loads its data the first time its tab opens.
+    if (p === 'history' && window.EloHistory) var ehv = (((document.querySelector('script[src*="js/app.js"]') || {}).src || '').split('?v=')[1] || D.asOf); EloHistory.show({ root: 'elo-history', file: 'cfb-elo.json?v=' + encodeURIComponent(ehv), detail: 'elo/cfb/', ver: ehv, noun: 'FBS' });
     return hash;
   }
   window.addEventListener('hashchange', function () {
@@ -1089,6 +1176,7 @@
     if (worker) { worker.terminate(); worker = null; }
     setProgress(null);
     renderAll();
+    saveLive();
   }
 
   // Try ESPN directly. This works from a local copy of the file; the published viewer refuses it.
@@ -1135,6 +1223,7 @@
           st.quiet = false;
           renderStatus();
           renderLive();
+          saveLive();
           if (fpiFresh && (st.mode === 'fpi' || st.mode === 'all' || hasPicks())) refresh();
           return;
         }
@@ -1160,9 +1249,14 @@
   });
 
   // Controls
+  document.addEventListener('click', function (e) { if (st.sbCal && !e.target.closest('.day-jump')) { st.sbCal = false; renderLive(); } });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && st.sbCal) { st.sbCal = false; renderLive(); var c = document.querySelector('.day-cal'); if (c) c.focus(); } });
   document.addEventListener('click', function (e) {
     var b = e.target.closest('button');
     if (!b) return;
+    if (b.dataset.cal) { st.sbCal = !st.sbCal; renderLive(); return; }
+    if (b.dataset.gday) { var gd = gameDays().filter(function (d) { return d.day === b.dataset.gday; })[0]; if (!gd) return; st.sbCal = false; st.sbDay = gd.day; st.sbWeek = gd.wk === scoreWeek() ? null : gd.wk; impactFrozen = null; renderLive(); return; }
+    if (b.dataset.week) { st.sbCal = false; st.sbDay = null; st.sbWeek = +b.dataset.week === scoreWeek() ? null : +b.dataset.week; impactFrozen = null; renderLive(); return; }
     if (b.dataset.sort) {
       var k = b.dataset.sort;
       if (st.sort === k) st.dir = -st.dir; else { st.sort = k; st.dir = k === 'seed' || k === 'team' || k === 'proj' || k === 'rating' || k === 'conf' ? 1 : -1; }
@@ -1259,7 +1353,9 @@
   renderModes();
   renderViewControls();
   renderScoreboardControls();
+  loadLive();
   renderAll();
+  st.quiet = true; // the first ESPN refresh + re-sim runs in the background; the preloaded odds stay on screen
   tryLive();
   // Dark and light logos differ, so redraw when the theme changes.
   try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll); } catch (x) {}

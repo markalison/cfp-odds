@@ -828,3 +828,149 @@ button.bk-team:focus-visible { outline-offset: -2px; }
 .cal-day:disabled { opacity: .2; cursor: default; }
 @media (max-width: 899px) { .day-btn.far { display: none; } }
 @media (max-width: 519px) { .day-btn.mid { display: none; } .day-arrow, .day-cal { width: 30px; } }
+/* The week strip (NFL, NCAAF): the same strip with a date range in each cell, so slightly smaller type. */
+.week-strip .day-btn .dd { font-size: 15px; }
+.week-strip .day-btn:disabled { visibility: hidden; }
+@media (max-width: 519px) { .week-strip .day-btn .dd { font-size: 13px; } }
+/* The week list behind the calendar button on the NFL and NCAAF strips. */
+.wk-pop { width: 220px; padding: 6px; }
+.wk-list { display: grid; gap: 1px; max-height: 300px; overflow-y: auto; position: relative; }
+.wk-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); padding: 7px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+.wk-row b { font: 700 14px/1 var(--display); letter-spacing: .05em; text-transform: uppercase; }
+.wk-row span { font: 400 12px/1 var(--body); color: var(--muted); white-space: nowrap; }
+.wk-row:hover { background: var(--bg); }
+.wk-row.today b { color: var(--accent); }
+.wk-row.on { background: var(--accent); }
+.wk-row.on b, .wk-row.on span { color: var(--panel); }
+
+/* History tab: every team's Elo line, the chosen team in colour, its record cards and the all-time lists. */
+.eh { display: grid; gap: var(--s4); min-width: 0; }
+.eh-controls { display: flex; flex-wrap: wrap; gap: var(--s3) var(--s4); align-items: end; }
+.eh-controls select { max-width: 100%; }
+.eh-range { display: flex; flex-wrap: wrap; gap: 4px; }
+.eh-range button { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: transparent; color: var(--muted); font: 600 12px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.eh-range button:hover { color: var(--ink); border-color: var(--muted); }
+.eh-range button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.eh-legend { display: flex; flex-wrap: wrap; gap: 6px var(--s4); font-size: var(--text-sm); }
+.eh-key { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.eh-key i { width: 16px; height: 3px; border-radius: 2px; }
+.eh-key-title { font-weight: 400; color: var(--muted); }
+.eh-key-title i { width: 9px; height: 9px; border-radius: 50%; border: 2px solid currentColor; background: transparent; box-sizing: border-box; }
+.eh-plot { position: relative; min-width: 0; }
+.eh-plot canvas { display: block; }
+.eh-plot #eh-top { position: absolute; left: 0; top: 0; touch-action: pan-y; }
+.eh-tip { position: absolute; z-index: 5; pointer-events: none; min-width: 130px; max-width: 240px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 18px rgba(0, 0, 0, .16); font-size: 12px; line-height: 1.35; }
+.eh-tip b { font: 700 14px/1.2 var(--display); letter-spacing: .03em; }
+.eh-tip-e { font: 700 18px/1.2 var(--display); font-variant-numeric: tabular-nums; }
+.eh-tip span { color: var(--muted); font-weight: 400; font-size: 12px; }
+.eh-tip-g { margin-top: 2px; }
+.eh-hint, .eh-method { margin: 0; font-size: var(--text-sm); color: var(--muted); max-width: 75ch; }
+.eh-side { display: grid; gap: var(--s4); grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); }
+.eh-card { padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0; }
+.eh-card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--s3); }
+.eh-card h3 i { width: 16px; height: 4px; border-radius: 2px; flex: none; }
+.eh-card h4 { margin: var(--s4) 0 var(--s2); font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eh-tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s3) var(--s4); margin: 0; }
+.eh-tiles dt { font-size: var(--text-xs); color: var(--muted); }
+.eh-tiles dd { margin: 2px 0 0; font: 700 var(--text-lg)/1.1 var(--display); font-variant-numeric: tabular-nums; }
+.eh-tiles dd small { display: block; margin-top: 3px; font: 400 var(--text-xs)/1.3 var(--body); color: var(--muted); }
+.eh-best { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+.eh-best li { display: flex; gap: var(--s3); align-items: baseline; font-size: var(--text-sm); }
+.eh-best b { min-width: 3em; }
+.eh-best em { font: 600 10px/1 var(--display); letter-spacing: .08em; text-transform: uppercase; font-style: normal; color: var(--up); }
+.eh-lists { display: grid; gap: var(--s5); grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+.eh-lists h3 { margin: 0 0 var(--s2); font-size: var(--text-sm); letter-spacing: .07em; color: var(--muted); }
+.eh-lists ol { margin: 0; padding: 0; list-style: none; display: grid; }
+.eh-lists li { display: grid; grid-template-columns: 1.8em minmax(0, 1fr) auto; gap: var(--s2); align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.eh-lists .eh-n { color: var(--muted); }
+.eh-lists button { padding: 0; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh-lists button:hover { color: var(--accent); text-decoration: underline; }
+@media (min-width: 700px) { .eh-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* A page with four tabs drops the league name beside its logo on phones, so the tabs fit. */
+@media (max-width: 479px) { .header-bar:has(.tabs a:nth-child(4)) .sport-now span { display: none; } .header-bar:has(.tabs a:nth-child(4)) .tabs a { padding: 0 6px; } }
+@media (max-width: 400px) { .header-bar:has(.tabs a:nth-child(4)) .tabs { gap: 0; } .header-bar:has(.tabs a:nth-child(4)) .tabs a { padding: 0 4px; font-size: 12px; letter-spacing: 0; } }
+/* History: the legend's band key, and the small chart for every current team. */
+.eh-key-band { font-weight: 400; color: var(--muted); }
+.eh-key-band i { width: 16px; height: 10px; border-radius: 2px; background: var(--muted); opacity: .25; }
+.eh-all h3 { margin: 0 0 var(--s3); font-size: var(--text-sm); letter-spacing: .07em; color: var(--muted); }
+.eh-grid { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.eh-mini { display: grid; gap: 2px; min-width: 0; padding: 7px 8px 5px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); text-align: left; cursor: pointer; }
+.eh-mini:hover { border-color: var(--muted); }
+.eh-mini[aria-pressed="true"] { border-color: var(--ink); }
+.eh-mini span { display: flex; justify-content: space-between; gap: 6px; align-items: baseline; min-width: 0; }
+.eh-mini b { font: 600 13px/1.1 var(--display); letter-spacing: .03em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eh-mini i { font: 400 11px/1 var(--body); font-style: normal; color: var(--muted); font-variant-numeric: tabular-nums; }
+.eh-mini canvas { display: block; max-width: 100%; }
+/* History: the written summary under the chart. */
+.eh-story { max-width: 70ch; }
+.eh-story h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--s3); }
+.eh-story h3 i { width: 16px; height: 4px; border-radius: 2px; flex: none; }
+.eh-story p { margin: 0 0 var(--s3); line-height: 1.6; }
+.eh-story p:last-child { margin-bottom: 0; }
+/* History: the three facts under the chart (highest, lowest, national championships by selector). */
+.eh-facts h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 var(--s3); }
+.eh-facts h3 i { width: 16px; height: 4px; border-radius: 2px; flex: none; }
+.eh-facts-grid { display: grid; gap: var(--s5); align-items: start; }
+.eh-facts-grid dl { display: flex; flex-wrap: wrap; gap: var(--s4) var(--s6); margin: 0; }
+.eh-fact dt, .eh-crowns h4 { margin: 0; font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eh-fact dd { margin: 4px 0 0; font: 700 28px/1 var(--display); font-variant-numeric: tabular-nums; }
+.eh-fact dd small { display: block; margin-top: 5px; font: 400 var(--text-sm)/1.35 var(--body); color: var(--muted); }
+.eh-count, .eh-none { margin: 6px 0 var(--s2); font-size: var(--text-sm); color: var(--muted); }
+.eh-titles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0 var(--s5); margin: 0; padding: 0; list-style: none; }
+.eh-titles li { display: flex; gap: var(--s3); align-items: baseline; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: var(--text-sm); color: var(--muted); }
+.eh-titles li b { min-width: 2.6em; font-variant-numeric: tabular-nums; }
+.eh-titles li.eh-major, .eh-titles li.eh-major b { color: var(--ink); }
+.eh-titles abbr { text-decoration: none; font-weight: 600; cursor: help; }
+.eh-more { color: var(--muted); }
+span.eh-more[title] { cursor: help; border-bottom: 1px dotted var(--muted); }
+@media (min-width: 800px) { .eh-facts-grid { grid-template-columns: auto minmax(0, 1fr); column-gap: var(--s6); } .eh-facts-grid dl { flex-direction: column; } }
+/* History, tidied: three stat tiles under the chart, then one panel of championship seasons. */
+.eh-facts { display: grid; gap: var(--s4); }
+.eh-tiles3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: var(--s3); margin: 0; }
+.eh-tile { padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); min-width: 0; }
+.eh-tile dt { font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eh-tile dd { margin: 8px 0 6px; font: 700 34px/1 var(--display); font-variant-numeric: tabular-nums; }
+.eh-tile p { margin: 0; font-size: var(--text-sm); line-height: 1.4; color: var(--muted); }
+.eh-crowns { padding: var(--s4); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.eh-crowns h3 { margin: 0 0 var(--s2); font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.eh-crowns .eh-titles li:last-child { border-bottom: 0; }
+.eh-method { padding-top: var(--s2); }
+/* History: the championship panel's filter and sort. */
+.eh-crowns-head { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); align-items: center; justify-content: space-between; margin-bottom: var(--s2); }
+.eh-crowns-head h3 { margin: 0; }
+.eh-crowns-ctl { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s3); }
+.eh-seg { display: inline-flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+.eh-seg button { padding: 5px 9px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--muted); font: 600 11px/1.2 var(--display); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; }
+.eh-seg button:last-child { border-right: 0; }
+.eh-seg button:hover { color: var(--ink); }
+.eh-seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+/* History: the FCS dashed-line legend under the chart. */
+.eh-cl-wrap { margin: calc(var(--s2) * -1) 0 0; font-size: var(--text-sm); color: var(--muted); }
+.eh-cl { display: inline-flex; align-items: center; gap: 8px; }
+.eh-cl-dash { width: 22px; height: 0; border-top: 2px dashed var(--c); }
+/* History: the record-book year-by-year game log. */
+.eh-log { margin: 0; background: var(--panel); border: 1px solid var(--line); }
+.eh-log > summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s4); padding: var(--s4); cursor: pointer; list-style: none; }
+.eh-log > summary::-webkit-details-marker { display: none; }
+.eh-log > summary::before { content: "\25B8"; margin-right: 6px; color: var(--muted); font-size: .9em; display: inline-block; transition: transform .15s; }
+.eh-log[open] > summary::before { transform: rotate(90deg); }
+.eh-log-t { font: 600 var(--text-xs)/1 var(--display); letter-spacing: .08em; text-transform: uppercase; }
+.eh-log-n { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.eh-log-body { padding: 0 var(--s4) var(--s4); display: grid; grid-template-columns: repeat(auto-fill, minmax(188px, 1fr)); gap: var(--s3) var(--s5); align-items: start; }
+.eh-log-load { padding: 0 var(--s4) var(--s4); color: var(--muted); font-size: var(--text-sm); }
+.eh-era { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px var(--s4); margin-top: var(--s2); padding: 5px 10px; background: var(--ink); color: var(--panel); }
+.eh-era:first-child { margin-top: 0; }
+.eh-era b { font: 600 var(--text-sm)/1.25 var(--display); }
+.eh-era span { font-size: var(--text-xs); opacity: .82; font-variant-numeric: tabular-nums; }
+.eh-yr-h { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); padding-bottom: 3px; border-bottom: 1.5px solid var(--line); }
+.eh-yr-h b { font: 700 var(--text-md)/1 var(--display); font-variant-numeric: tabular-nums; }
+.eh-yr-h span { font-size: var(--text-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.eh-g { list-style: none; margin: 5px 0 0; padding: 0; }
+.eh-g li { display: grid; grid-template-columns: 3.4em 1fr auto; gap: 7px; align-items: start; padding: 2px 0; font-size: 12px; line-height: 1.3; font-variant-numeric: tabular-nums; color: var(--ink); }
+.eh-g-d { color: var(--muted); white-space: nowrap; }
+.eh-g-o { min-width: 0; }
+.eh-g-o i { font-style: normal; color: var(--muted); }
+.eh-g-s { justify-self: end; white-space: nowrap; }
+.eh-g-w .eh-g-s { font-weight: 700; }
+.eh-g li.eh-g-l { color: var(--muted); }
+.eh-bowl { display: block; margin-top: 1px; font: 600 11px/1.3 var(--display); letter-spacing: .02em; color: var(--muted); }
