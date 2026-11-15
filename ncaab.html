@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=a7d165922d">
-  <script src="js/theme.js?v=a7d165922d"></script>
+  <link rel="stylesheet" href="css/styles.css?v=d55dc92ebd">
+  <script src="js/theme.js?v=d55dc92ebd"></script>
   <title>College basketball NCAA tournament odds · CFP Odds Board</title>
   <meta name="description" content="Each Division I men's basketball team's chance to make the NCAA tournament, its likely seed and its chance to reach the Final Four and win the title, from simulating the rest of the season.">
 </head>
@@ -18,10 +18,10 @@
     <div class="menu">
       <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu: choose a sport" title="Choose a sport"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
       <div class="menu-panel" id="menu-panel" hidden>
-        <a href="nfl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
+        <a href="./#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
         <a href="nba.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt=""><span>NBA</span></a>
         <a href="nhl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg" alt=""><span>NHL</span></a>
-        <a href="./#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
+        <a href="ncaaf.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
         <a href="ncaab.html#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAB</span></a>
       </div>
     </div>
@@ -57,7 +57,7 @@
       <h2 id="nfl-how">How these odds work</h2>
       <ul>
       <li>Every remaining regular-season game is played out 20,000 times. Each game is decided by the rating gap plus 3.2 points for the home team (none on a neutral court), with 11 points of game randomness, and each team’s strength also drifts by 3 points per simulated season. Non-Division I opponents rate -22 points.</li>
-      <li>Ratings are grouped by how they calculate. Point-based: ESPN’s BPI, Bart Torvik’s T-Rank (adjusted efficiency margin at the team’s tempo), TeamRankings and this site’s points rating (this season’s scores, margins capped at 25, adjusted for opponent and home court). Recent form: TeamRankings’ last five games. The default averages ESPN BPI, TeamRankings Predictive, Points rating (this site).</li>
+      <li>Ratings are grouped by how they calculate. Point-based: ESPN’s BPI, Bart Torvik’s T-Rank (adjusted efficiency margin at the team’s tempo), TeamRankings and this site’s points rating (this season’s scores, margins capped at 25, adjusted for opponent and home court). Recent form: TeamRankings’ last five games. The default averages ESPN BPI, Bart Torvik T-Rank, TeamRankings Predictive, Points rating (this site).</li>
       <li>Every conference holds a single-elimination tournament on a neutral court, seeded by conference record, with byes for the top seeds (the Ivy League takes four teams, the ACC and Big Ten fifteen, the rest everyone). Each champion takes its conference’s automatic bid.</li>
       <li>A simulated committee fills the 68-team field with the best remaining teams: each team’s strength as its season shows it, plus 8 points per unit of winning percentage, with 1.5 points of committee disagreement per simulation. The same score seeds the field on an S-curve into four regions. The four lowest at-large teams and four lowest automatic qualifiers play in the First Four. Conference separation and eligibility rules aren’t modeled.</li>
       <li>Tournament games are on neutral courts. Make NCAA after a win or loss shows the chance to make the tournament if the team wins or loses its next game.</li>
@@ -100,8 +100,8 @@
     <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
   </div>
 </footer>
-<script src="ncaab-engine.js?v=a7d165922d"></script>
-<script src="ncaab-data.js?v=a7d165922d"></script>
-<script src="js/ncaab.js?v=a7d165922d"></script>
+<script src="ncaab-engine.js?v=d55dc92ebd"></script>
+<script src="ncaab-data.js?v=d55dc92ebd"></script>
+<script src="js/ncaab.js?v=d55dc92ebd"></script>
 </body>
 </html>

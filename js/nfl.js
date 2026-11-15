@@ -706,7 +706,7 @@
   var PAGES = { rankings: 'NFL standings and playoff odds · CFP Odds Board', playoff: 'NFL playoff bracket · CFP Odds Board', scoreboard: 'NFL scores · CFP Odds Board' };
   function showPage() {
     var h = location.hash.replace('#', '');
-    page = h === 'scores' || h === 'scoreboard' ? 'scoreboard' : PAGES[h] ? h : 'scoreboard';
+    page = h === 'scores' || h === 'scoreboard' ? 'scoreboard' : PAGES[h] ? h : 'rankings';
     Object.keys(PAGES).forEach(function (k) { $('page-' + k).hidden = k !== page; });
     [].forEach.call(document.querySelectorAll('.tabs a'), function (a) {
       if (a.dataset.page === page) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');

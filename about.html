@@ -6,8 +6,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=a7d165922d">
-  <script src="js/theme.js?v=a7d165922d"></script>
+  <link rel="stylesheet" href="css/styles.css?v=d55dc92ebd">
+  <script src="js/theme.js?v=d55dc92ebd"></script>
   <title>About · CFP Odds Board</title>
   <meta name="description" content="How the CFP Odds Board simulates the season: the playoff rules it applies, the ratings it uses and its limits.">
 </head>
@@ -18,19 +18,19 @@
     <div class="menu">
       <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu: choose a sport" title="Choose a sport"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
       <div class="menu-panel" id="menu-panel" hidden>
-        <a href="nfl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
+        <a href="./#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
         <a href="nba.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt=""><span>NBA</span></a>
         <a href="nhl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg" alt=""><span>NHL</span></a>
-        <a href="./#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
+        <a href="ncaaf.html#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
         <a href="ncaab.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAB</span></a>
       </div>
     </div>
     <div class="sport-now"><img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></div>
     <nav class="tabs" aria-label="College football views">
-      <a href="./#rankings" data-page="rankings">Rankings</a>
-      <a href="./#playoff" data-page="playoff">Bracket</a>
-      <a href="./#scores" data-page="scoreboard">Scores</a>
-      <a href="./#history" data-page="history">History</a>
+      <a href="ncaaf.html#rankings" data-page="rankings">Rankings</a>
+      <a href="ncaaf.html#playoff" data-page="playoff">Bracket</a>
+      <a href="ncaaf.html#scores" data-page="scoreboard">Scores</a>
+      <a href="ncaaf.html#history" data-page="history">History</a>
     </nav>
     <button class="btn icon-btn" id="theme" type="button"></button>
   </div>
@@ -71,15 +71,15 @@
 
     <section aria-labelledby="sources">
       <h2 id="sources">Data and ratings</h2>
-      <p>Schedules, scores, standings and CFP rankings come from <a href="https://www.espn.com/college-football/" target="_blank" rel="noopener">ESPN</a> each time the Odds page loads. Each ratings model covers results through the date shown, and later results adjust its ratings automatically. Ratings last refreshed November 15, 2026.</p>
+      <p>Schedules, scores, standings and CFP rankings come from <a href="https://www.espn.com/college-football/" target="_blank" rel="noopener">ESPN</a> each time the Odds page loads. Each ratings model covers results through the date shown, and later results adjust its ratings automatically. Ratings last refreshed November 12, 2026.</p>
       <h3>Point-based</h3>
       <ul>
         <li><a href="https://masseyratings.com/cf/fbs/ratings" target="_blank" rel="noopener">Massey Power</a>, through Nov 7</li>
         <li><a href="https://www.espn.com/college-football/fpi" target="_blank" rel="noopener">ESPN FPI</a>, updated each time the Odds page loads</li>
         <li><a href="https://www.bcftoys.com/2026-fei/" target="_blank" rel="noopener">FEI</a>, through Nov 7</li>
-        <li><a href="https://www.teamrankings.com/college-football/ranking/predictive-by-other" target="_blank" rel="noopener">TeamRankings Predictive</a>, through Nov 14</li>
-        <li><a href="https://talismanred.com/ratings/cf/" target="_blank" rel="noopener">Talisman Red</a>, through Nov 14</li>
-        <li><a href="https://jhowell.net/cf/cfindex.htm" target="_blank" rel="noopener">Jeff Howell</a>, through Nov 14</li>
+        <li><a href="https://www.teamrankings.com/college-football/ranking/predictive-by-other" target="_blank" rel="noopener">TeamRankings Predictive</a>, through Nov 11</li>
+        <li><a href="https://talismanred.com/ratings/cf/" target="_blank" rel="noopener">Talisman Red</a>, through Nov 7</li>
+        <li><a href="https://jhowell.net/cf/cfindex.htm" target="_blank" rel="noopener">Jeff Howell</a>, through Nov 7</li>
         <li><a href="https://www.lazindex.com/college-rankings" target="_blank" rel="noopener">Laz Index</a>, through Nov 7</li>
         <li><a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin Predictor</a>, through Nov 7</li>
         <li><a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin Rating</a>, through Nov 7</li>
@@ -87,7 +87,7 @@
       </ul>
       <h3>Recent form</h3>
       <ul>
-        <li><a href="https://www.teamrankings.com/college-football/ranking/last-5-games-by-other" target="_blank" rel="noopener">TeamRankings Last 5 Games</a>, through Nov 14</li>
+        <li><a href="https://www.teamrankings.com/college-football/ranking/last-5-games-by-other" target="_blank" rel="noopener">TeamRankings Last 5 Games</a>, through Nov 11</li>
         <li><a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin Recent</a>, through Nov 7</li>
         <li><a href="http://sagarin.com/sports/cfsend.htm" target="_blank" rel="noopener">Sagarin Strong Recent</a>, through Nov 7</li>
       </ul>

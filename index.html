@@ -6,10 +6,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
-  <link rel="stylesheet" href="css/styles.css?v=a7d165922d">
-  <script src="js/theme.js?v=a7d165922d"></script>
-  <title>CFP Odds Board</title>
-  <meta name="description" content="Live odds of making the 12-team College Football Playoff, from simulating the rest of the season with ESPN data and computer ratings.">
+  <link rel="stylesheet" href="css/styles.css?v=d55dc92ebd">
+  <script src="js/theme.js?v=d55dc92ebd"></script>
+  <title>NFL playoff odds · CFP Odds Board</title>
+  <meta name="description" content="Each NFL team's chance to win its division, make the playoffs, earn the top seed and win the Super Bowl, from simulating the rest of the season.">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -18,80 +18,74 @@
     <div class="menu">
       <button class="btn icon-btn menu-btn" id="menu-btn" type="button" aria-expanded="false" aria-controls="menu-panel" aria-label="Menu: choose a sport" title="Choose a sport"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg></button>
       <div class="menu-panel" id="menu-panel" hidden>
-        <a href="nfl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
+        <a href="./#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></a>
         <a href="nba.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt=""><span>NBA</span></a>
         <a href="nhl.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg" alt=""><span>NHL</span></a>
-        <a href="./#rankings" aria-current="true"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
+        <a href="ncaaf.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></a>
         <a href="ncaab.html#rankings"><img class="menu-logo" src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAB</span></a>
       </div>
     </div>
-    <div class="sport-now"><img src="https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg" alt=""><span>NCAAF</span></div>
-    <nav class="tabs" aria-label="College football views">
-      <a href="./#rankings" data-page="rankings">Rankings</a>
+    <div class="sport-now"><img src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt=""><span>NFL</span></div>
+    <nav class="tabs" aria-label="NFL views">
+      <a href="./#rankings" data-page="rankings">Standings</a>
       <a href="./#playoff" data-page="playoff">Bracket</a>
       <a href="./#scores" data-page="scoreboard">Scores</a>
-      <a href="./#history" data-page="history">History</a>
     </nav>
     <button class="btn icon-btn" id="theme" type="button"></button>
   </div>
 </header>
 
 <main class="container main" id="main">
-  <!-- The page heading is hidden on screen; the tabs and section headings carry the layout. -->
-  <h1 class="sr-only" id="page-title">College Football Playoff odds</h1>
+  <h1 class="sr-only" id="page-title">NFL playoff odds</h1>
 
-  <div class="toolbar" id="top-controls" hidden>
-    <div class="progress" id="progress" hidden><div class="track"><div class="fill" id="fill"></div></div><span id="progress-text"></span></div>
-  </div>
+  <div class="stack" id="page-rankings">
+    <section class="section" aria-labelledby="nfl-title">
+      <div class="section-head"><h2 id="nfl-title">NFL standings</h2><p id="nfl-note"></p></div>
+      <div class="filters">
+        <div class="ctl"><label for="nfl-view">View</label><select id="nfl-view"></select></div>
+        <div class="ctl"><label for="nfl-mode">Ratings used</label><select id="nfl-mode" class="nfl-mode"></select></div>
+        <div class="picks-bar" id="nfl-picks-bar" aria-live="polite"></div>
+      </div>
+      <div class="table-bar"><button class="table-toggle" id="nfl-expand" type="button" aria-pressed="false">Show all columns</button></div>
+      <div class="table-wrap" id="nfl-tw"><table class="odds-table nfl-odds nba-odds">
+        <thead><tr id="nfl-head"></tr></thead>
+        <tbody id="nfl-body"></tbody>
+      </table></div>
+    </section>
 
-  <div class="stack" id="page-scoreboard" hidden>
-    <div class="filters">
-      <div class="ctl"><label for="sb-week">Week</label><select id="sb-week"></select></div>
-    </div>
-    <div id="live-head"></div>
-    <!-- Between the week heading and the games: conference on the left, sort order on the right. -->
-    <div class="filters sb-bar">
-      <div class="ctl"><label for="sb-conf">Conference</label><select id="sb-conf"></select></div>
-      <div class="ctl sb-sort"><label for="sb-sort">Sort by</label><select id="sb-sort"><option value="time">Start time</option><option value="impact">Playoff impact</option></select></div>
-    </div>
-    <section class="live-board" id="live-board" aria-label="Scores"></section>
+    <section class="section nfl-how" aria-labelledby="nfl-how">
+      <h2 id="nfl-how">How these odds work</h2>
+      <ul>
+      <li>Every remaining regular-season game is played out 20,000 times. Each game is decided by the rating gap plus 1.5 points for the home team, with 13 points of game randomness, and each team’s strength also drifts by 1.5 points per simulated season.</li>
+      <li>Ratings are grouped by how they calculate. Point-based: ESPN’s FPI, Sagarin, TeamRankings and this site’s points rating (this season’s scores, margins capped at 24, adjusted for opponent and home field). Elo: <a href="https://github.com/greerreNFL/nfelo" target="_blank" rel="noopener">nfelo</a> and a classic Elo run over every game since 1999 (25 Elo points to a point). Betting market: ratings fitted to this season’s point spreads from <a href="https://github.com/nflverse/nfldata" target="_blank" rel="noopener">nflverse</a>, recent weeks counting most. Recent form: TeamRankings’ last five games and Sagarin’s recent rating. The default averages one rating from each source: ESPN FPI, Sagarin Rating, TeamRankings Predictive, nfelo, Classic Elo, Point spreads, Points rating (this site).</li>
+      <li>Division titles and wild cards follow the NFL’s tiebreakers: head-to-head, division record, common games, conference record, strength of victory and strength of schedule, then a coin toss.</li>
+      <li>Seven teams per conference make the playoffs. The four division winners are seeded 1-4 and the three wild cards 5-7. Only the 1 seed gets a bye, and the top remaining seed hosts each game. The Super Bowl is on a neutral field.</li>
+      <li>Playoffs after a win or loss show the chance to make the playoffs if the team wins or loses its next game.</li>
+      </ul>
+    </section>
   </div>
 
   <div class="stack" id="page-playoff" hidden>
-    <section class="section" aria-labelledby="bracket-title">
+    <section class="section" aria-labelledby="nfl-bk-title">
       <div class="bk-head">
-        <div class="section-head"><h2 id="bracket-title">Projected bracket</h2><p id="bracket-note"></p></div>
+        <div class="section-head"><h2 id="nfl-bk-title">Projected playoffs</h2><p>The likeliest seven teams in each conference, seeded. Select a team to advance it and see that game’s win chances, or simulate the games to advance every favorite. Picks on the Standings tab change the seeding.</p></div>
         <div class="bk-actions">
-          <button class="btn" id="bk-clear" type="button" hidden>Clear picks</button>
-          <div class="ctl"><label for="mode-bk">Ratings used</label><select id="mode-bk" class="mode-select"></select></div>
-          <button class="btn bk-toggle" id="bk-sim" type="button" aria-pressed="false">Simulate games</button>
+          <button class="btn" id="nfl-bk-clear" type="button" hidden>Clear picks</button>
+          <div class="ctl"><label for="nfl-mode-bk">Ratings used</label><select id="nfl-mode-bk" class="nfl-mode"></select></div>
+          <button class="btn bk-toggle" id="nfl-bk-sim" type="button" aria-pressed="false">Simulate games</button>
         </div>
       </div>
-      <div class="bracket" id="bracket"></div>
+      <div class="nfl-bracket" id="nfl-bracket"></div>
     </section>
   </div>
 
-  <div class="stack" id="page-history" hidden>
-    <section class="section" aria-labelledby="history-title">
-      <div class="section-head"><h2 id="history-title">Elo history</h2><p>Every major-college team’s strength after each game since 1869.</p></div>
-      <div class="eh" id="elo-history"></div>
-    </section>
-  </div>
-
-  <div class="stack" id="page-rankings">
-    <section class="section board" aria-labelledby="board-title">
-      <div class="section-head"><h2 id="board-title">All teams</h2><p id="board-count"></p></div>
-      <div class="filters">
-        <div class="ctl"><label for="conf">Conference</label><select id="conf"></select></div>
-        <div class="ctl"><label for="mode">Ratings used</label><select id="mode" class="mode-select"></select></div>
-        <div class="picks-bar" id="picks-bar" aria-live="polite"></div>
-      </div>
-      <div class="table-bar"><button class="table-toggle" id="expand-table" type="button" aria-pressed="false">Show all columns</button></div>
-      <div class="table-wrap" id="tw"><table class="odds-table">
-        <thead><tr id="head"></tr></thead>
-        <tbody id="body"></tbody>
-      </table></div>
-    </section>
+  <div class="stack" id="page-scoreboard" hidden>
+    <div class="filters sb-bar">
+      <div class="ctl"><label for="nfl-week">Week</label><select id="nfl-week"></select></div>
+      <div class="ctl sb-sort"><label for="nfl-sb-sort">Sort by</label><select id="nfl-sb-sort"><option value="time">Start time</option><option value="impact">Playoff impact</option></select></div>
+    </div>
+    <p class="live-note" id="nfl-live-note" hidden></p>
+    <section class="live-board" id="nfl-scores" aria-label="Scores"></section>
   </div>
 </main>
 
@@ -103,13 +97,11 @@
     <nav aria-label="Footer">
       <a class="footer-link" href="about.html">About</a>
     </nav>
-    <div class="status footer-status" id="status" aria-live="polite"></div>
     <p class="footer-fine">Data from ESPN and the ratings sources listed on the About page. Not affiliated with the College Football Playoff.</p>
   </div>
 </footer>
-<script src="engine.js?v=a7d165922d"></script>
-<script src="data.js?v=a7d165922d"></script>
-<script src="js/history.js?v=a7d165922d"></script>
-<script src="js/app.js?v=a7d165922d"></script>
+<script src="nfl-engine.js?v=d55dc92ebd"></script>
+<script src="nfl-data.js?v=d55dc92ebd"></script>
+<script src="js/nfl.js?v=d55dc92ebd"></script>
 </body>
 </html>

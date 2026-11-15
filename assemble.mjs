@@ -87,12 +87,12 @@ const HEAD = `  <meta charset="utf-8">
 // Header: the sport menu (league logo and name) at the left, that sport's tabs, and the night-mode switch
 // on its own at the right. Each page marks its current tab from the address's #; js/theme.js runs the
 // menu and the switch.
-const SPORTS = { ncaaf: { name: 'NCAAF', logo: 'https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg', href: './#rankings' }, nfl: { name: 'NFL', logo: 'https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg', href: 'nfl.html#rankings' }, nba: { name: 'NBA', logo: 'https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg', href: 'nba.html#rankings' },
+const SPORTS = { ncaaf: { name: 'NCAAF', logo: 'https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg', href: 'ncaaf.html#rankings' }, nfl: { name: 'NFL', logo: 'https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg', href: './#rankings' }, nba: { name: 'NBA', logo: 'https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg', href: 'nba.html#rankings' },
   ncaab: { name: 'NCAAB', logo: 'https://upload.wikimedia.org/wikipedia/commons/d/dd/NCAA_logo.svg', href: 'ncaab.html#rankings' },
   nhl: { name: 'NHL', logo: 'https://upload.wikimedia.org/wikipedia/en/3/3a/05_NHL_Shield.svg', href: 'nhl.html#rankings' } };
 const header = (page) => {
   // The NFL, NBA and college basketball pages are standings pages; college football ranks teams.
-  const sport = ['nfl', 'nba', 'nhl', 'ncaab'].includes(page) ? page : 'ncaaf', pro = sport !== 'ncaaf', base = pro ? sport + '.html' : './', cur = SPORTS[sport];
+  const sport = ['nfl', 'nba', 'nhl', 'ncaab'].includes(page) ? page : 'ncaaf', pro = sport !== 'ncaaf', base = sport === 'nfl' ? './' : sport + '.html', cur = SPORTS[sport];
   const option = (k) => `<a href="${SPORTS[k].href}"${SPORTS[k] === cur ? ' aria-current="true"' : ''}><img class="menu-logo" src="${SPORTS[k].logo}" alt=""><span>${SPORTS[k].name}</span></a>`;
   return `<header class="site-header">
   <div class="container header-bar">
@@ -160,7 +160,8 @@ const fill = (tpl, page, extra = {}) => {
   if (left) throw new Error(`${tpl}: ${left[0]} was not filled`);
   return html;
 };
-wr('./index.html', fill('./src/index.html', 'odds'));
+// The NFL page is the site home (served at the Pages root); the CFP board lives at ncaaf.html.
+wr('./ncaaf.html', fill('./src/index.html', 'odds'));
 wr('./about.html', fill('./src/about.html', 'about', { METHOD, SOURCES, UPDATED }));
 const NM = NFLD.results.all.model;
 const NFL_METHOD = [
@@ -170,7 +171,15 @@ const NFL_METHOD = [
   'Seven teams per conference make the playoffs. The four division winners are seeded 1-4 and the three wild cards 5-7. Only the 1 seed gets a bye, and the top remaining seed hosts each game. The Super Bowl is on a neutral field.',
   'Playoffs after a win or loss show the chance to make the playoffs if the team wins or loses its next game.'
 ].map((s) => `      <li>${s}</li>`).join('\n');
-wr('./nfl.html', fill('./src/nfl.html', 'nfl', { NFL_METHOD }));
+wr('./index.html', fill('./src/nfl.html', 'nfl', { NFL_METHOD }));
+// nfl.html stays as a redirect to the home so old links keep working.
+wr('./nfl.html', `<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>NFL playoff odds · CFP Odds Board</title>
+<link rel="canonical" href="./">
+<meta http-equiv="refresh" content="0; url=./#rankings">
+<script>location.replace('./' + (location.hash || '#rankings'));</script>
+</head><body></body></html>`);
 const BM = NBAD.results.all.model;
 const NBA_METHOD = [
   `Every remaining regular-season game is played out ${NBAD.sims.toLocaleString('en-US')} times. Each game is decided by the rating gap plus ${BM.hfa} points for the home team, with ${BM.gameSD} points of game randomness, and each team’s strength also drifts by ${BM.teamSD} points per simulated season.`,
@@ -198,4 +207,4 @@ const NHL_METHOD = [
   'Playoffs after a win or loss show the chance to make the playoffs if the team wins or loses its next game.'
 ].map((s) => `      <li>${s}</li>`).join('\n');
 wr('./nhl.html', fill('./src/nhl.html', 'nhl', { NHL_METHOD }));
-console.log(`index.html, about.html, nfl.html, nba.html, ncaab.html, nhl.html, data.js ${(dataJs.length / 1024).toFixed(0)} KB, version ${V}`);
+console.log(`index.html (NFL), ncaaf.html, about.html, nfl.html, nba.html, ncaab.html, nhl.html, data.js ${(dataJs.length / 1024).toFixed(0)} KB, version ${V}`);
