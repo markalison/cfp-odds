@@ -241,7 +241,7 @@ var CFP = (function () {
     // Games finished after the ratings were published still move the rating.
     // Kickoffs are UTC, so shift back 8 hours to get the US calendar day the sources use.
     D.games.forEach(function (g) {
-      if (g.s !== 'post') return;
+      if (g.s !== 'post' || g.hs === g.as) return; // a final with no result (postponed/cancelled at 0-0) isn't a game
       var day = new Date(Date.parse(g.d) - 288e5).toISOString().slice(0, 10);
       // The share of the models in use that haven't seen this result yet.
       var share = used.filter(function (k) { return day > thru[k]; }).length / used.length;
@@ -255,8 +255,8 @@ var CFP = (function () {
     var todoH = [], todoA = [], todoS = [], todoP = [], todoC = [], todoCur = [], todoF = [], todoLive = [], todoLock = [], nextGame = new Int32Array(n).fill(-1), remainCount = new Int16Array(n), gameIdx = [];
     D.games.forEach(function (g) {
       sosSum[g.h] += R[g.a]; sosN[g.h]++; sosSum[g.a] += R[g.h]; sosN[g.a]++;
-      if (g.s === 'post') {
-        var w = g.w, l = w === g.h ? g.a : g.h;
+      if (g.s === 'post' && g.hs !== g.as) {
+        var w = g.hs > g.as ? g.h : g.a, l = w === g.h ? g.a : g.h;
         W0[w]++; L0[l]++;
         if (g.c) { CW0[w]++; CL0[l]++; }
         H0[w * n + l]++; pw[np] = w; pl[np] = l; np++;
@@ -325,25 +325,57 @@ var CFP = (function () {
     }
   }
 
-  // The next CFP ranking as we expect it: every final so far (including games since the last ranking),
-  // scored like the committee, plus each team's full committee bias from computeAnchor. With no games since
-  // the last ranking this gives back that ranking exactly. Returns ranks (1 = first) for FBS teams, the
-  // number of finals since the last ranking, or null without a ranking.
+  // How the selection committee moves a team from one of its rankings to the next, fit by least squares to
+  // every week-to-week change in the committee's published rankings, 2014-2024 (R^2 0.935, ~1.9 spots). The
+  // inputs are the team's current committee rank, whether it sat idle / won / lost since, the opponent's
+  // standing, the margin and P4-vs-G5; cfp-proj-seed.mjs refits these from CollegeFootballData.
+  var PROJ = { beta: [0.8126648621416821, 21.854257697463947, 2.396111173536939, 0.5459670818040321, 3.8869730617243725, -2.368691143056802, 0.2755670361959521, -0.7946946626118145] };
+  // The next CFP ranking as we expect it: start from the committee's current ranking (our ratings place the
+  // unranked just outside it), then move each team by that fitted formula from the game its next ranking turns
+  // on — this week's game, taken as its real result if final, else the projected one (the favourite by our
+  // ratings wins). Teams off this week barely move. Returns ranks (1 = first) for FBS teams, the number of
+  // finals since the last ranking, or null without a ranking.
   function projectRanking(P) {
-    var D = P.D, n = P.n, fbs = P.fbs, i;
+    var D = P.D, T = D.teams, n = P.n, fbs = P.fbs, b = PROJ.beta, i;
     if (!D.rankDate) return null;
-    var L = new Int16Array(n), tL = new Int16Array(n), champ = new Uint8Array(n), pw = new Int16Array(D.games.length), pl = new Int16Array(D.games.length), np = 0, since = 0;
+    // Each team's game in the week after the current ranking (final or still to play), the one the next ranking
+    // reacts to. The window runs from the ranking to about a week on, so it catches this weekend's slate.
+    var rd = Date.parse(D.rankDate), cutoff = rd + 8 * 864e5, rel = new Array(n), since = 0;
     D.games.forEach(function (g) {
-      if (g.s !== 'post') return;
-      var w = g.w, l = w === g.h ? g.a : g.h;
-      L[l]++; pw[np] = w; pl[np] = l; np++;
-      if (g.d >= D.rankDate && (g.h < fbs || g.a < fbs)) since++;
+      var t = Date.parse(g.d);
+      if (isNaN(t) || t < rd || t >= cutoff) return;
+      if (g.s === 'post' && g.hs !== g.as && (g.h < fbs || g.a < fbs)) since++;
+      if (g.h < fbs && (!rel[g.h] || t > rel[g.h].t)) rel[g.h] = { t: t, g: g, home: 1, opp: g.a };
+      if (g.a < fbs && (!rel[g.a] || t > rel[g.a].t)) rel[g.a] = { t: t, g: g, home: 0, opp: g.h };
     });
-    var S = new Float64Array(n);
-    scoreInto(P, S, P.R, L, tL, pw, pl, np, champ);
+    // A "current rank" for everyone: the committee's for ranked teams, else just outside it by our ratings.
+    var unranked = [];
+    for (i = 0; i < fbs; i++) if (!T[i].rank) unranked.push(i);
+    unranked.sort(function (a, c) { return P.R[c] - P.R[a]; });
+    var cur = new Float64Array(n);
+    for (i = 0; i < fbs; i++) cur[i] = T[i].rank || 0;
+    unranked.forEach(function (t, k) { cur[t] = 26 + k; });
+    var pred = new Float64Array(n);
+    for (i = 0; i < fbs; i++) {
+      var r = rel[i], lost = 0, idle = r ? 0 : 1, lossOpp = 0, winOpp = 0, margin = 0;
+      if (r) {
+        var g = r.g, oppRank = T[r.opp].rank || 26, won;
+        if (g.s === 'post' && g.hs !== g.as) {
+          var mine = r.home ? g.hs : g.as, them = r.home ? g.as : g.hs;
+          won = mine > them; margin = Math.max(-28, Math.min(28, mine - them)) / 28;
+        } else {
+          // Projected result: the favourite by our ratings, with the rating gap as the expected margin.
+          var em = P.R[i] - P.R[r.opp] + (g.n ? 0 : (r.home ? P.hfa : -P.hfa));
+          won = em >= 0; margin = Math.max(-28, Math.min(28, em)) / 28;
+        }
+        if (won) winOpp = oppRank <= 25 ? (26 - oppRank) / 25 : 0; else { lost = 1; lossOpp = oppRank / 26; }
+      }
+      pred[i] = b[0] + b[1] * (cur[i] / 25) + b[2] * lost + b[3] * idle + b[4] * lossOpp + b[5] * winOpp + b[6] * (P.isG6[i] ? 1 : 0) + b[7] * margin;
+    }
     var order = [];
     for (i = 0; i < fbs; i++) order.push(i);
-    order.sort(function (a, b) { return (S[b] + P.anchor[b]) - (S[a] + P.anchor[a]); });
+    // Lower predicted number = higher rank; ties break by our rating.
+    order.sort(function (a, c) { return pred[a] - pred[c] || P.R[c] - P.R[a]; });
     var rank = new Int16Array(n);
     order.forEach(function (t, k) { rank[t] = k + 1; });
     return { rank: rank, since: since };

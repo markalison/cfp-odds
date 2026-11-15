@@ -334,6 +334,14 @@ tr.detail td { padding: 0; white-space: normal; text-align: left; background: va
 .sched { display: grid; grid-template-columns: 1fr auto; gap: var(--s1) var(--s4); }
 .sched span:nth-child(even) { font-weight: 600; text-align: right; }
 .sched .logo { width: 18px; height: 18px; margin-inline-end: 5px; }
+/* A team's played games as a compact horizontal form strip (opponent + W/L), not a vertical list. */
+.form { display: flex; flex-wrap: wrap; gap: 5px 10px; align-items: center; }
+.form-g { display: inline-flex; align-items: center; gap: 3px; }
+.form-g .logo { width: 20px; height: 20px; }
+.res { font: 700 var(--text-sm)/1 var(--display); }
+.res-w { color: var(--up); }
+.res-l { color: var(--down); }
+.sched-rec { font: 700 var(--text-sm) var(--display); font-variant-numeric: tabular-nums; }
 .live { font: 700 var(--text-xs) var(--display); letter-spacing: .06em; color: var(--down); }
 .hist { display: flex; align-items: flex-end; gap: 2px; height: 74px; border-bottom: 1px solid var(--muted); }
 .hist div { flex: 1; height: 100%; display: flex; align-items: flex-end; cursor: default; }

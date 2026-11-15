@@ -77,7 +77,11 @@
     var w = 0, l = 0, cw = 0, cl = 0;
     D.games.forEach(function (g) {
       if (g.s !== 'post' || (g.h !== i && g.a !== i)) return;
-      var won = g.w === i;
+      // Decide from the final score, not the winner field: a game ESPN marks final with no score (a postponed
+      // or cancelled game left at 0-0) must not count as a loss.
+      var mine = g.h === i ? g.hs : g.as, opp = g.h === i ? g.as : g.hs;
+      if (mine == null || opp == null || mine === opp) return;
+      var won = mine > opp;
       if (won) w++; else l++;
       if (g.c) { if (won) cw++; else cl++; }
     });
@@ -417,7 +421,7 @@
         tile('Win out', 'Chance to win every regular-season game left (' + r.nLeft + ')', r.winOut == null ? '—' : pct(r.winOut)) +
         tile('vs top 25', 'Record against teams in the current CFP top 25', r.top25) +
         tile('Best win', 'Toughest team beaten (by the selected ratings, road wins counting a bit more); wins within ' + CLOSE + ' points of it, or over a team ranked at least as high in the CFP, show too. Wins over unranked teams count only for a team with no top-25 wins', opp(r.best)) +
-        (r.worst.length ? tile('Worst loss', 'Lowest-rated team lost to (by the selected ratings); losses within ' + CLOSE + ' points of it show too', opp(r.worst)) : '') +
+        tile('Worst loss', 'Lowest-rated team lost to (by the selected ratings); losses within ' + CLOSE + ' points of it show too', opp(r.worst)) +
       '</dl>' +
     '</div>';
   }
@@ -441,6 +445,21 @@
     var f = function (v) { return Math.round(v * 100) + '%'; };
     return '<div class="hist-y"><div class="hist-ax" aria-hidden="true"><span style="top:0">' + f(top) + '</span><span style="top:50%">' + f(top / 2) + '</span><span style="top:100%">0</span></div><div class="hist-plot">' + plot + '</div></div>';
   }
+  // Every game this team has finished, oldest first, with the result — the played half of its schedule.
+  function playedLines(x) {
+    var i = x.i, rows = [];
+    D.games.forEach(function (g) {
+      if (g.s !== 'post' || (g.h !== i && g.a !== i)) return;
+      var mine = g.h === i ? g.hs : g.as, opp = g.h === i ? g.as : g.hs;
+      if (mine == null || opp == null || mine === opp) return;
+      rows.push({ d: g.d, home: g.h === i, o: D.teams[g.h === i ? g.a : g.h], mine: mine, opp: opp, won: mine > opp });
+    });
+    rows.sort(function (a, b) { return Date.parse(a.d) - Date.parse(b.d); });
+    return rows.map(function (r) {
+      var what = (r.home ? 'vs ' : 'at ') + r.o.name + ' · ' + (r.won ? 'W ' : 'L ') + r.mine + '–' + r.opp;
+      return '<span class="form-g" title="' + esc(what) + '" aria-label="' + esc(what) + '">' + logo(r.o, 20) + '<b class="res ' + (r.won ? 'res-w' : 'res-l') + '">' + (r.won ? 'W' : 'L') + '</b></span>';
+    }).join('');
+  }
   function detailBody(x) {
     var sc = schedule()[x.i], R = x.r, hist = R.hist, N = res().sims;
     var topS = [0.05, 0.1, 0.2, 0.25, 0.4, 0.5, 0.6, 0.8, 1].find(function (s) { return s >= Math.max.apply(null, hist.concat(0)) / N - 1e-9; }) || 1, maxH = topS * N;
@@ -459,7 +478,9 @@
       return '<div title="' + label + '" aria-label="' + label + '"><i style="height:' + (h / maxH * 100).toFixed(1) + '%"></i></div>';
     }).join('');
     var xs = hist.map(function (_, i) { return '<span>' + (i + 1) + '</span>'; }).join('');
+    var played = playedLines(x);
     return '<div class="detail-inner">' + resumeBlock(x) +
+      '<div><div class="sched-head"><h3>Results</h3><span class="sched-rec">' + record(x.i).text + '</span></div><div class="form">' + (played || '<span class="sched-more">No games yet</span>') + '</div></div>' +
       oddsChartBlock(x.i, 'Make CFP', 'Massey + Sagarin') +
       '<div><div class="sched-head"><h3 title="Chance to win each game">Next games</h3>' + winOutButton(x, sc) + '</div><div class="sched">' + (lines || '<span>No games left</span><span></span>') + '</div></div>' +
       '<div>' + scenarioLine(x) + '<h3>Seed distribution, % of all simulations</h3>' + histY(topS, '<div class="hist" role="img" aria-label="Chance of each playoff seed for ' + esc(x.t.name) + '">' + bars + '</div><div class="hist-x">' + xs + '</div>') + '</div>' +
